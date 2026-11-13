@@ -1,0 +1,10 @@
+{
+  "task_commit": "527e0da31d709af1b451c5f7cfe8932afe767706",
+  "task_branch": "codex/hilbert-grh-20261112",
+  "task_baseline": "4a10571b0e196007207b02b585fad5e46f16abd6",
+  "source_commit": "17acb8768de75e168a43c7c828e933071aee63cf",
+  "live": false,
+  "validator_branch": "codex/hilbert-intake-20261112",
+  "task_main_checked": "91e6059086b8fba40fffef843b02e9a064e0d41a",
+  "task_main_note": "Current task main contains the held November 11 batch including Erdos173. This release deliberately pins the isolated production-baseline branch plus GRH; it does not merge that batch."
+}

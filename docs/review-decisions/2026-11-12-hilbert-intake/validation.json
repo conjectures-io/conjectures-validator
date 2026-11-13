@@ -1,0 +1,19 @@
+{
+  "checked_date_utc": "2026-11-12",
+  "status": "prepared_not_deployed",
+  "passed": true,
+  "added_targets": [
+    "GRH.generalized_riemann_hypothesis"
+  ],
+  "active_targets_in_candidate": 307,
+  "new_bundles_built_and_inspected": 2,
+  "existing_bundles_reused_unchanged": 612,
+  "existing_version_records_preserved": 2235,
+  "regression_tests_passed": 63,
+  "sandbox_control_cases_passed": 8,
+  "lint": "passed (repository scan excluding untracked output/)",
+  "live_tasks_pin_unchanged": "4a10571b0e196007207b02b585fad5e46f16abd6",
+  "production_deployment_performed": false,
+  "formal_proof_of_grh_claimed": false,
+  "task_commit": "527e0da31d709af1b451c5f7cfe8932afe767706"
+}

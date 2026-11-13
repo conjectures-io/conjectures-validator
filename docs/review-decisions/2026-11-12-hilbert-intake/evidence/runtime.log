@@ -1,0 +1,9 @@
+{"case": "positive-counterexample", "passed": true, "reason": "VERIFIED"}
+{"case": "GRH-generalized_riemann_hypothesis-formalized-wrong-statement", "passed": true, "reason": "STATEMENT_MISMATCH"}
+{"case": "GRH-generalized_riemann_hypothesis-counterexample-wrong-statement", "passed": true, "reason": "STATEMENT_MISMATCH"}
+{"case": "GRH-generalized_riemann_hypothesis-formalized-sorry", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "GRH-generalized_riemann_hypothesis-counterexample-sorry", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "GRH-generalized_riemann_hypothesis-formalized-axiom", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "GRH-generalized_riemann_hypothesis-counterexample-axiom", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "GRH-generalized_riemann_hypothesis-formalized-source-placeholder", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{'passed': True, 'cases': 8, 'new_bundles_exercised': 2, 'positive_control_verified': True, 'insecure_development': False, 'uid': 10001, 'open_problems_proved': False, 'processes': 2}

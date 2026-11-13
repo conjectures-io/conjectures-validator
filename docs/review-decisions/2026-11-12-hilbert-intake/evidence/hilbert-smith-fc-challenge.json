@@ -1,0 +1,7 @@
+{
+  "source_url": "https://github.com/adbrw/HS_proof/blob/main/FCChallenge.lean",
+  "github_blob_sha": "06747112de920e31357f091ee035f2dc46dddbef",
+  "source_utf8_sha256": "733184bf0666b0970301fd5fa0503459c251da17df198ccc7f2cad5ff14c5728",
+  "checked_date_utc": "2026-11-12",
+  "review_note": "The challenge adds second-countability hypotheses and a smooth Lie-group conclusion to one Hilbert\u2013Smith variant, and second-countability of the manifold to its p-adic counterpart. Both propositions explicitly include the finite-dimensional manifold chart. Solutions are claimed in FCSolution.lean; those proofs have not been independently checked here."
+}

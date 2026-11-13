@@ -1,0 +1,7 @@
+{
+  "source_url": "https://github.com/adbrw/HS_proof/blob/main/README.md",
+  "github_blob_sha": "7d0f5b01ba4995ecca52dece57c783bc778f861b",
+  "source_utf8_sha256": "f19ac04de5bd9d7dc01a458cf114ccc16914c867ebd524ec774f2d7c7df54d88",
+  "checked_date_utc": "2026-11-12",
+  "review_note": "The author claims a full Hilbert\u2013Smith result for second-countable groups and manifolds, supplies Mathlib-only challenges and Lean solutions, and reports only the standard Lean axioms. The manuscript is dated October 8, 2026. This review has not independently rebuilt or audited the proof."
+}

@@ -1,0 +1,11 @@
+{
+  "repository": "openai/math",
+  "commit": "4eaee87548250b2682affda7d05d947c05554bae",
+  "source": "CONTENTS.md",
+  "claims": [
+    "**004. Hilbert’s tenth problem over ℚ.** Proves that no algorithm decides whether an integer-coefficient polynomial in an arbitrary number of variables has a rational zero, resolving Hilbert's tenth problem over ℚ negatively.",
+    "**143. Hilbert's sixteenth problem: uniform bounds for limit cycles.** Resolves the uniform boundedness assertion in Hilbert's sixteenth problem: the number of isolated periodic orbits of a real planar polynomial vector field is bounded by a finite constant depending only on its degree. For classical quintic Liénard systems, the exact maximum is two limit cycles. ([Lean](lean/docs/143.md))",
+    "**304. The Hilbert–Smith conjecture in every dimension.** Every locally compact second-countable Hausdorff group acting faithfully and jointly continuously on a connected finite-dimensional topological manifold is a Lie group. This proves the Hilbert–Smith conjecture in all finite dimensions, for Hausdorff second-countable manifolds without boundary."
+  ],
+  "review": "Author claims only. No independent proof validation performed. See lean/docs/143.md for the narrower formalized scope of family 143."
+}

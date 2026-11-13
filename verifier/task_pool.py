@@ -29,7 +29,7 @@ RETIRED_CONJECTURE_SCHEMA_VERSION = 1
 HELD_SOURCE_SCHEMA_VERSION = 1
 DEFAULT_TASK_TIER = "tier-1"
 TASK_TIER = re.compile(r"^tier-[1-9][0-9]*$")
-DEFAULT_TIER_SIZE = 306
+DEFAULT_TIER_SIZE = 307
 DEFAULT_TIER_TASK_COUNT = DEFAULT_TIER_SIZE * len(PRODUCTION_TASK_MODES)
 MINIMUM_ERDOS_TASKS = 218
 TASK_POOL_SELECTION = "audited-direct-propositions-v2"
@@ -125,6 +125,13 @@ NAMED_SOURCE_NAMESPACES = {
     "FormalConjectures/Wikipedia/PrimesAndPerfectSquares.lean": "PrimesAndPerfectSquares",
     "FormalConjectures/Wikipedia/RegularPrimes.lean": "RegularPrimes",
     "FormalConjectures/Wikipedia/TwinPrimes.lean": "TwinPrimes",
+}
+# This source also contains GRH in its own namespace. Admit the reviewed theorem
+# explicitly without admitting every declaration sharing that namespace.
+NAMED_SOURCE_EXTRA_THEOREMS = {
+    "FormalConjectures/Millennium/RiemannHypothesis.lean": frozenset({
+        "GRH.generalized_riemann_hypothesis",
+    }),
 }
 CLASSICAL_STATUS_LOCATOR = (
     "https://github.com/conjectures-io/conjectures-tasks/blob/main/"
@@ -419,7 +426,10 @@ def _valid_source_identity(
             isinstance(problem_number, str)
             and source_path == f"{SOURCE_FAMILY_PREFIXES[family]}{problem_number}.lean"
             and namespace is not None
-            and theorem.startswith(namespace + ".")
+            and (
+                theorem.startswith(namespace + ".")
+                or theorem in NAMED_SOURCE_EXTRA_THEOREMS.get(source_path, ())
+            )
             and (family != HISTORICAL_OPEN_SOURCE_FAMILY or theorem in HISTORICAL_OPEN_TARGETS)
         )
     if type(problem_number) is not int or problem_number <= 0:
@@ -599,7 +609,9 @@ def load_selection_audit(path: Path) -> SelectionAudit:
                         raise ValueError("retained selection changed without a new target review")
                 else:
                     target = admitted_by_name[name]
-                    if (row["source_family"] != ERDOS_SOURCE_FAMILY
+                    if (row["source_family"] not in {ERDOS_SOURCE_FAMILY, *CLASSICAL_SOURCE_FAMILIES}
+                        or (row["source_family"] in CLASSICAL_SOURCE_FAMILIES
+                            and target.get("source_family") != row["source_family"])
                         or row["source_path"] != target["source_path"]
                         or row["source_problem_number"] != target["number"]
                         or row["source_status"] != target["target_source_status"]

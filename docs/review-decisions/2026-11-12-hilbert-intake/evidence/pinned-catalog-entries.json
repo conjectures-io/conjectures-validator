@@ -1,0 +1,698 @@
+{
+  "repository_commit": "17acb8768de75e168a43c7c828e933071aee63cf",
+  "declarations": [
+    {
+      "ams_subjects": [
+        11
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "The **Generalized Riemann Hypothesis** asserts that all the non-trivial zeros of the\nDirichlet $L$-function $L(\\chi, s)$ of a primitive Dirichlet character $\\chi$ have real part\n$\\frac{1}{2}$. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": true,
+      "is_prop": true,
+      "module": "FormalConjectures.Millennium.RiemannHypothesis",
+      "pointer_target": null,
+      "references": [
+        "[The Clay Institute](https://www.claymath.org/wp-content/uploads/2022/05/riemann.pdf)",
+        "[Wikipedia: Riemann hypothesis](https://en.wikipedia.org/wiki/Riemann_hypothesis)",
+        "[Wikipedia: Generalized Riemann hypothesis](https://en.wikipedia.org/wiki/Generalized_Riemann_hypothesis)",
+        "[Wikipedia: Dedekind zeta function](https://en.wikipedia.org/wiki/Dedekind_zeta_function)",
+        "J. Neukirch, *Algebraic Number Theory*, Springer (Grundlehren 322), 1999, Chapter VII, \u00a75.",
+        "D. A. Marcus, *Number Fields*, Springer (GTM 81), 1977, Chapter VII."
+      ],
+      "source_path": "FormalConjectures/Millennium/RiemannHypothesis.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "GRH.generalized_riemann_hypothesis",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:19f4c1959e1bdd118d84801a2fbdc6d73ba2a83678e3c90744dba7ee919bb57c",
+      "type_pretty": "\u2200 (q : \u2115) [inst : NeZero q] (\u03c7 : DirichletCharacter \u2102 q),\n  \u03c7.IsPrimitive \u2192 \u2200 (s : \u2102), DirichletCharacter.LFunction \u03c7 s = 0 \u2192 s \u2209 Int.cast '' GRH.trivialZeros \u03c7 \u2192 s.re = 1 / 2"
+    },
+    {
+      "ams_subjects": [
+        11
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Can every even integer greater than 2 be written as the sum of two primes?\n",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.Wikipedia.GoldbachConjecture",
+      "pointer_target": null,
+      "references": [
+        "[Landau Problems Wikipedia Page](https://en.wikipedia.org/wiki/Landau%27s_problems#Twin_prime_conjecture)",
+        "[Goldbach's Conjecture Wikipedia Page](https://en.wikipedia.org/wiki/Goldbach%27s_conjecture)"
+      ],
+      "source_path": "FormalConjectures/Wikipedia/GoldbachConjecture.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "GoldbachConjecture.goldbach",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx"
+      ],
+      "type_hash": "sha256:7665fdcb77b021dabebe8bf8a742ab93d64f52b8ca3b2aa77edb724a4fc7040e",
+      "type_pretty": "True \u2194 \u2200 (n : \u2115), 2 < n \u2192 Even n \u2192 \u2203 p q, Prime p \u2227 Prime q \u2227 n = p + q"
+    },
+    {
+      "ams_subjects": [
+        12
+      ],
+      "answer_occurrences": [],
+      "category": "test",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": false,
+      "docstring": null,
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": true,
+      "is_prop": true,
+      "module": "FormalConjectures.HilbertProblems.\u00ab17\u00bb",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Hilbert%27s_seventeenth_problem)",
+        "Motzkin, \"The arithmetic-geometric inequality\". In Shisha, Oved (ed.). Inequalities. Academic Press. pp. 205\u2013224."
+      ],
+      "source_path": "FormalConjectures/HilbertProblems/17.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Hilbert17.Hilbert17thProblemHomogenousPoly_zero_left",
+      "transitive_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:c7382506712ead75268facfb52c1dc4ef0a9da6bdbf309bbc90c6e1fa00faea5",
+      "type_pretty": "\u2200 (d : \u2115), Hilbert17.Hilbert17thProblemHomogenousPoly 0 d"
+    },
+    {
+      "ams_subjects": [
+        12
+      ],
+      "answer_occurrences": [],
+      "category": "test",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": false,
+      "docstring": null,
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": true,
+      "is_prop": true,
+      "module": "FormalConjectures.HilbertProblems.\u00ab17\u00bb",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Hilbert%27s_seventeenth_problem)",
+        "Motzkin, \"The arithmetic-geometric inequality\". In Shisha, Oved (ed.). Inequalities. Academic Press. pp. 205\u2013224."
+      ],
+      "source_path": "FormalConjectures/HilbertProblems/17.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Hilbert17.Hilbert17thProblemHomogenousPoly_zero_right",
+      "transitive_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:37d6e9ae70f2258bbb29714dbe378c812dcf5a2283cb5178bba12b0d71def562",
+      "type_pretty": "\u2200 (n : \u2115), Hilbert17.Hilbert17thProblemHomogenousPoly n 0"
+    },
+    {
+      "ams_subjects": [
+        12
+      ],
+      "answer_occurrences": [],
+      "category": "textbook",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": false,
+      "docstring": "The Motzkin polynomial is non-negative everywhere. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": true,
+      "is_prop": true,
+      "module": "FormalConjectures.HilbertProblems.\u00ab17\u00bb",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Hilbert%27s_seventeenth_problem)",
+        "Motzkin, \"The arithmetic-geometric inequality\". In Shisha, Oved (ed.). Inequalities. Academic Press. pp. 205\u2013224."
+      ],
+      "source_path": "FormalConjectures/HilbertProblems/17.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Hilbert17.f_nonneg",
+      "transitive_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:730228d6ab0438a253c4f79405179f37ebcd1b4267128378d928d24d832fe464",
+      "type_pretty": "\u2200 (x y : \u211d), 0 \u2264 (MvPolynomial.eval ![x, y]) Hilbert17.f"
+    },
+    {
+      "ams_subjects": [
+        12
+      ],
+      "answer_occurrences": [],
+      "category": "textbook",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "The Motzkin polynomial cannot be written as a sum of squares of polynomials. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HilbertProblems.\u00ab17\u00bb",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Hilbert%27s_seventeenth_problem)",
+        "Motzkin, \"The arithmetic-geometric inequality\". In Shisha, Oved (ed.). Inequalities. Academic Press. pp. 205\u2013224."
+      ],
+      "source_path": "FormalConjectures/HilbertProblems/17.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Hilbert17.f_not_sum_of_squares",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:90fe6652ac955ba27e3de6114ed250f8bf51876fa6b4443bbe9b1f6f353887ae",
+      "type_pretty": "\u00ac\u2203 n, \u2203 (_ : 0 < n), \u2203 S, Hilbert17.f = \u2211 i, S i ^ 2"
+    },
+    {
+      "ams_subjects": [
+        12
+      ],
+      "answer_occurrences": [],
+      "category": "research solved",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Hilbert's 17th problem: every non-negative multivariate polynomial is a sum of\nsquares of rational functions.\n",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": true,
+      "is_prop": true,
+      "module": "FormalConjectures.HilbertProblems.\u00ab17\u00bb",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Hilbert%27s_seventeenth_problem)",
+        "Motzkin, \"The arithmetic-geometric inequality\". In Shisha, Oved (ed.). Inequalities. Academic Press. pp. 205\u2013224."
+      ],
+      "source_path": "FormalConjectures/HilbertProblems/17.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Hilbert17.hilbert_17th_problem",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:8f7d73457a703b024e4519cc86a78c2edce271d1eb524f7d9535d283934625ae",
+      "type_pretty": "\u2200 {n : \u2115},\n  0 < n \u2192\n    \u2200 (f : MvPolynomial (Fin n) \u211d),\n      (\u2200 (x : Fin n \u2192 \u211d), 0 \u2264 (MvPolynomial.eval x) f) \u2192\n        \u2203 m g, (algebraMap (MvPolynomial (Fin n) \u211d) (MvRatFunc (Fin n) \u211d)) f = \u2211 i, g i ^ 2"
+    },
+    {
+      "ams_subjects": [
+        12
+      ],
+      "answer_occurrences": [],
+      "category": "research solved",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Hilbert's 17th problem for homogeneous polynomials: characterization of dimensions and degrees\nwhere non-negative polynomials are sums of squares of polynomials.\n",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": true,
+      "is_prop": true,
+      "module": "FormalConjectures.HilbertProblems.\u00ab17\u00bb",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Hilbert%27s_seventeenth_problem)",
+        "Motzkin, \"The arithmetic-geometric inequality\". In Shisha, Oved (ed.). Inequalities. Academic Press. pp. 205\u2013224."
+      ],
+      "source_path": "FormalConjectures/HilbertProblems/17.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Hilbert17.hilbert_17th_problem_poly",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:ed05d2f1b98ebc6d92cb18ec27fc06e40d795de6b28c69ce4041e804b4a8ec3d",
+      "type_pretty": "\u2200 {n d : \u2115}, 0 < n \u2192 0 < d \u2192 (Hilbert17.Hilbert17thProblemHomogenousPoly n d \u2194 n = 1 \u2228 n = 2 \u2228 d = 1 \u2228 n = 3 \u2227 d = 2)"
+    },
+    {
+      "ams_subjects": [
+        22
+      ],
+      "answer_occurrences": [],
+      "category": "API",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": false,
+      "docstring": "Every finite-dimensional real-analytic Lie group admits a Lie group structure. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": true,
+      "is_prop": true,
+      "module": "FormalConjectures.HilbertProblems.\u00ab5\u00bb",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Hilbert%E2%80%93Smith_conjecture)",
+        "[Tao's blog](https://terrytao.wordpress.com/2011/08/13/the-hilbert-smith-conjecture/)",
+        "[Pardon 2013, arXiv:1112.2324](https://arxiv.org/abs/1112.2324)",
+        "[van den Dries\u2013Goldbring, *Hilbert's Fifth Problem*] (https://ems.press/journals/lem/articles/13621)",
+        "[arXiv:math/0103145](https://arxiv.org/abs/math/0103145)"
+      ],
+      "source_path": "FormalConjectures/HilbertProblems/5.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Hilbert5.admitsLieGroupStructure_of_lieGroup",
+      "transitive_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:6ea890b1e98bf8ba5d1725a269bf92081ac8577933485c833b656bb6ed1758d5",
+      "type_pretty": "\u2200 {G : Type u_1} [inst : Group G] [inst_1 : TopologicalSpace G] {n : \u2115} [T2Space G] [SecondCountableTopology G]\n  [inst_4 : ChartedSpace (EuclideanSpace \u211d (Fin n)) G]\n  [LieGroup (modelWithCornersSelf \u211d (EuclideanSpace \u211d (Fin n))) \u22a4 G], Hilbert5.AdmitsLieGroupStructure G"
+    },
+    {
+      "ams_subjects": [
+        22,
+        57
+      ],
+      "answer_occurrences": [],
+      "category": "research solved",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "**Hilbert's fifth problem** (Gleason\u2013Montgomery\u2013Zippin, 1952): every Hausdorff,\nsecond-countable topological group modeled on a finite-dimensional Euclidean space is continuously\nisomorphic to a real-analytic Lie group.\n\nThe input `ChartedSpace` supplies only a topological atlas. The compatible analytic atlas and\nanalytic group operations belong to the output `LieGroupPresentation`. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": true,
+      "is_prop": true,
+      "module": "FormalConjectures.HilbertProblems.\u00ab5\u00bb",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Hilbert%E2%80%93Smith_conjecture)",
+        "[Tao's blog](https://terrytao.wordpress.com/2011/08/13/the-hilbert-smith-conjecture/)",
+        "[Pardon 2013, arXiv:1112.2324](https://arxiv.org/abs/1112.2324)",
+        "[van den Dries\u2013Goldbring, *Hilbert's Fifth Problem*] (https://ems.press/journals/lem/articles/13621)",
+        "[arXiv:math/0103145](https://arxiv.org/abs/math/0103145)"
+      ],
+      "source_path": "FormalConjectures/HilbertProblems/5.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Hilbert5.hilbert_fifth_problem",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:a4536d53e58e1329d67243bea0958a0551982a9e9a63f84a2e364fac8846072e",
+      "type_pretty": "\u2200 {G : Type u_1} [inst : Group G] [inst_1 : TopologicalSpace G] {n : \u2115} [IsTopologicalGroup G] [T2Space G]\n  [SecondCountableTopology G] [ChartedSpace (EuclideanSpace \u211d (Fin n)) G], Nonempty (Hilbert5.LieGroupPresentation G n)"
+    },
+    {
+      "ams_subjects": [
+        22,
+        57,
+        58
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "**Hilbert\u2013Smith conjecture**: every locally compact topological group acting continuously\nand faithfully on a connected finite-dimensional topological manifold is a Lie group. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": true,
+      "is_prop": true,
+      "module": "FormalConjectures.HilbertProblems.\u00ab5\u00bb",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Hilbert%E2%80%93Smith_conjecture)",
+        "[Tao's blog](https://terrytao.wordpress.com/2011/08/13/the-hilbert-smith-conjecture/)",
+        "[Pardon 2013, arXiv:1112.2324](https://arxiv.org/abs/1112.2324)",
+        "[van den Dries\u2013Goldbring, *Hilbert's Fifth Problem*] (https://ems.press/journals/lem/articles/13621)",
+        "[arXiv:math/0103145](https://arxiv.org/abs/math/0103145)"
+      ],
+      "source_path": "FormalConjectures/HilbertProblems/5.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Hilbert5.hilbert_smith_conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:51b741431615cb2f30798ab879fa166317d2ff99d246170f8ccb536bd559f578",
+      "type_pretty": "\u2200 {G : Type u_1} [inst : Group G] [inst_1 : TopologicalSpace G] {X : Type u_2} [inst_2 : TopologicalSpace X] [T2Space X]\n  [ConnectedSpace X] [IsTopologicalGroup G] [LocallyCompactSpace G] [inst_7 : MulAction G X] [ContinuousSMul G X]\n  [FaithfulSMul G X], Hilbert5.AdmitsLieGroupStructure G"
+    },
+    {
+      "ams_subjects": [
+        22,
+        57,
+        58
+      ],
+      "answer_occurrences": [],
+      "category": "research solved",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Pardon (2013): the Hilbert\u2013Smith conjecture holds for 3-dimensional manifolds.\nSee [arXiv:1112.2324](https://arxiv.org/abs/1112.2324). ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": true,
+      "is_prop": true,
+      "module": "FormalConjectures.HilbertProblems.\u00ab5\u00bb",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Hilbert%E2%80%93Smith_conjecture)",
+        "[Tao's blog](https://terrytao.wordpress.com/2011/08/13/the-hilbert-smith-conjecture/)",
+        "[Pardon 2013, arXiv:1112.2324](https://arxiv.org/abs/1112.2324)",
+        "[van den Dries\u2013Goldbring, *Hilbert's Fifth Problem*] (https://ems.press/journals/lem/articles/13621)",
+        "[arXiv:math/0103145](https://arxiv.org/abs/math/0103145)"
+      ],
+      "source_path": "FormalConjectures/HilbertProblems/5.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Hilbert5.hilbert_smith_conjecture.variants.dimension_three",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:2b27961c331112d761926609dd2dec3881acf34517f8d6319ad48d753a0b2223",
+      "type_pretty": "\u2200 {G : Type u_1} [inst : Group G] [inst_1 : TopologicalSpace G] {X : Type u_3} [inst_2 : TopologicalSpace X] [T2Space X]\n  [ConnectedSpace X] [ChartedSpace (EuclideanSpace \u211d (Fin 3)) X] [IsTopologicalGroup G] [LocallyCompactSpace G]\n  [inst_8 : MulAction G X] [ContinuousSMul G X] [FaithfulSMul G X], Hilbert5.AdmitsLieGroupStructure G"
+    },
+    {
+      "ams_subjects": [
+        22,
+        53,
+        57,
+        58
+      ],
+      "answer_occurrences": [],
+      "category": "research solved",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "The conjecture holds when `G` acts by isometries on a Riemannian manifold, since `G`\nembeds as a closed subgroup of the isometry group, which is a Lie group by Myers\u2013Steenrod. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": true,
+      "is_prop": true,
+      "module": "FormalConjectures.HilbertProblems.\u00ab5\u00bb",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Hilbert%E2%80%93Smith_conjecture)",
+        "[Tao's blog](https://terrytao.wordpress.com/2011/08/13/the-hilbert-smith-conjecture/)",
+        "[Pardon 2013, arXiv:1112.2324](https://arxiv.org/abs/1112.2324)",
+        "[van den Dries\u2013Goldbring, *Hilbert's Fifth Problem*] (https://ems.press/journals/lem/articles/13621)",
+        "[arXiv:math/0103145](https://arxiv.org/abs/math/0103145)"
+      ],
+      "source_path": "FormalConjectures/HilbertProblems/5.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Hilbert5.hilbert_smith_conjecture.variants.riemannian",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:21d5f800bdcdce9ef0333f566f7902dcc3ab7c248501423704ab362bb58254f0",
+      "type_pretty": "\u2200 {G : Type u_1} [inst : Group G] [inst_1 : TopologicalSpace G] {n : \u2115} {X : Type u_2} [inst_2 : TopologicalSpace X]\n  [T2Space X] [ConnectedSpace X] [inst_5 : ChartedSpace (EuclideanSpace \u211d (Fin n)) X] [IsTopologicalGroup G]\n  [LocallyCompactSpace G] [inst_8 : MulAction G X] [ContinuousSMul G X] [FaithfulSMul G X] [inst_11 : MetricSpace X]\n  [IsManifold (modelWithCornersSelf \u211d (EuclideanSpace \u211d (Fin n))) (\u2191\u22a4) X],\n  (\u2200 (g : G), Isometry fun x => g \u2022 x) \u2192 Hilbert5.AdmitsLieGroupStructure G"
+    },
+    {
+      "ams_subjects": [
+        22,
+        57,
+        58
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Equivalent p-adic formulation: the p-adic integers `\u2124_[p]` cannot act continuously and\nfaithfully on any connected finite-dimensional topological manifold. By the Gleason\u2013Yamabe\ntheorem, this is equivalent to `hilbert_smith_conjecture`. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": true,
+      "is_prop": true,
+      "module": "FormalConjectures.HilbertProblems.\u00ab5\u00bb",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Hilbert%E2%80%93Smith_conjecture)",
+        "[Tao's blog](https://terrytao.wordpress.com/2011/08/13/the-hilbert-smith-conjecture/)",
+        "[Pardon 2013, arXiv:1112.2324](https://arxiv.org/abs/1112.2324)",
+        "[van den Dries\u2013Goldbring, *Hilbert's Fifth Problem*] (https://ems.press/journals/lem/articles/13621)",
+        "[arXiv:math/0103145](https://arxiv.org/abs/math/0103145)"
+      ],
+      "source_path": "FormalConjectures/HilbertProblems/5.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Hilbert5.hilbert_smith_padic_formulation",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:01e065cabe03b12afe5dcb6945ea3e8d00ce61968a9d4a02eee5c31d9da2380b",
+      "type_pretty": "\u2200 {X : Type u_2} [inst : TopologicalSpace X] [T2Space X] [ConnectedSpace X] (p : \u2115) [inst_3 : Fact (Nat.Prime p)]\n  [inst_4 : AddAction \u2124_[p] X] [ContinuousVAdd \u2124_[p] X] [FaithfulVAdd \u2124_[p] X], False"
+    },
+    {
+      "ams_subjects": [
+        22
+      ],
+      "answer_occurrences": [],
+      "category": "API",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": false,
+      "docstring": "A group admitting a Lie group structure is locally compact. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": true,
+      "is_prop": true,
+      "module": "FormalConjectures.HilbertProblems.\u00ab5\u00bb",
+      "pointer_target": null,
+      "references": [
+        "[Wikipedia](https://en.wikipedia.org/wiki/Hilbert%E2%80%93Smith_conjecture)",
+        "[Tao's blog](https://terrytao.wordpress.com/2011/08/13/the-hilbert-smith-conjecture/)",
+        "[Pardon 2013, arXiv:1112.2324](https://arxiv.org/abs/1112.2324)",
+        "[van den Dries\u2013Goldbring, *Hilbert's Fifth Problem*] (https://ems.press/journals/lem/articles/13621)",
+        "[arXiv:math/0103145](https://arxiv.org/abs/math/0103145)"
+      ],
+      "source_path": "FormalConjectures/HilbertProblems/5.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "Hilbert5.locallyCompact_of_admitsLieGroupStructure",
+      "transitive_axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:6f43f1cee55b766c553445460c742117a40a54d36d23e70fbe6a82e5783d5390",
+      "type_pretty": "\u2200 {G : Type u_1} [inst : Group G] [inst_1 : TopologicalSpace G],\n  Hilbert5.AdmitsLieGroupStructure G \u2192 LocallyCompactSpace G"
+    },
+    {
+      "ams_subjects": [
+        11
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "The **Riemann Hypothesis**: all non-trivial zeros of the Riemann zeta function have real\npart $\\frac{1}{2}$. That is, if $\\zeta(s) = 0$, $s \\neq 1$, and $s$ is not a trivial zero\n$-2(n+1)$ for some $n \\in \\mathbb{N}$, then $\\operatorname{Re}(s) = \\frac{1}{2}$.\n\nThis is the official Millennium Prize Problem as posed by the\n[Clay Mathematics Institute](https://www.claymath.org/wp-content/uploads/2022/05/riemann.pdf).\n\nThis uses the `RiemannHypothesis` type from Mathlib, which is defined as\n`\u2200 (s : \u2102), riemannZeta s = 0 \u2192 (\u00ac\u2203 n : \u2115, s = -2 * (n + 1)) \u2192 s \u2260 1 \u2192 s.re = 1 / 2`. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.Millennium.RiemannHypothesis",
+      "pointer_target": null,
+      "references": [
+        "[The Clay Institute](https://www.claymath.org/wp-content/uploads/2022/05/riemann.pdf)",
+        "[Wikipedia: Riemann hypothesis](https://en.wikipedia.org/wiki/Riemann_hypothesis)",
+        "[Wikipedia: Generalized Riemann hypothesis](https://en.wikipedia.org/wiki/Generalized_Riemann_hypothesis)",
+        "[Wikipedia: Dedekind zeta function](https://en.wikipedia.org/wiki/Dedekind_zeta_function)",
+        "J. Neukirch, *Algebraic Number Theory*, Springer (Grundlehren 322), 1999, Chapter VII, \u00a75.",
+        "D. A. Marcus, *Number Fields*, Springer (GTM 81), 1977, Chapter VII."
+      ],
+      "source_path": "FormalConjectures/Millennium/RiemannHypothesis.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "RiemannHypothesis.riemannHypothesis",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:7024d428ede1c873b201a0801e42593ab9afd4e632c16c492678886797602547",
+      "type_pretty": "RiemannHypothesis"
+    },
+    {
+      "ams_subjects": [
+        11
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Are there infinitely many primes p such that p\u2009+\u20092 is prime?\n",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.Wikipedia.TwinPrimes",
+      "pointer_target": null,
+      "references": [
+        "[Landau Problems Wikipedia Page](https://en.wikipedia.org/wiki/Landau%27s_problems#Twin_prime_conjecture)",
+        "[Twin Primes Conjecture Wikipedia Page](https://en.wikipedia.org/wiki/Twin_prime#Twin_prime_conjecture)"
+      ],
+      "source_path": "FormalConjectures/Wikipedia/TwinPrimes.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "TwinPrimes.twin_primes",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx"
+      ],
+      "type_hash": "sha256:dd5284d264c0b3234a5b5fa9135f7c63d578a689f93ac1525f31e5f8d9b57a74",
+      "type_pretty": "True \u2194 {p | Prime p \u2227 Prime (p + 2)}.Infinite"
+    }
+  ]
+}

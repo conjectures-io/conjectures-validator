@@ -57,7 +57,7 @@ TIER_METADATA = TASKS_ROOT / "tiers/tier-1"
 @pytest.mark.needs_checkouts
 def test_twenty_problem_batch_reinstates_only_the_open_part_of_erdos12():
     review = json.loads((TIER_METADATA / "erdos-admission-audit.json").read_text())
-    additions = review["targets"]
+    additions = [row for row in review["targets"] if isinstance(row["number"], int)]
     assert len(additions) == 20
     assert {row["number"] for row in additions} == {
         5, 7, 12, 13, 19, 21, 49, 59, 60, 65, 70, 78, 80, 86, 87, 94,
@@ -78,7 +78,8 @@ def test_twenty_problem_batch_reinstates_only_the_open_part_of_erdos12():
 def test_classical_admissions_match_review_and_exclude_held_or_resolved_targets():
     review = json.loads((TIER_METADATA / "classical-status-audit.json").read_text())
     admitted = {row["theorem"] for row in review["candidates"]}
-    assert len(admitted) == 36
+    assert len(admitted) == 37
+    assert "GRH.generalized_riemann_hypothesis" in admitted
     assert all(
         row["disposition"] == "retain_provisionally_open" for row in review["candidates"]
     )

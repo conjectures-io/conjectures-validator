@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "active_targets": 307,
+  "active_bundles": 614,
+  "existing_versions_unchanged": 2235,
+  "existing_active_bundles_unchanged": 612,
+  "removed_legacy_retirements": [
+    "GRH.generalized_riemann_hypothesis"
+  ],
+  "deployment_performed": false
+}

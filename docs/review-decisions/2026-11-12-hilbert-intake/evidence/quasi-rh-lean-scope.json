@@ -1,0 +1,7 @@
+{
+  "source_url": "https://github.com/openai/math/blob/4eaee87548250b2682affda7d05d947c05554bae/lean/docs/003.md",
+  "github_blob_sha": "cf794e93da2e1a494434153f5b91f2990fe9fd60",
+  "source_utf8_sha256": "41e52ed718260e6feb1db218f8e97287e703cb63c6f16e6c36f5563e6e2395ce",
+  "checked_date_utc": "2026-11-12",
+  "review_note": "The author documents a zero-free half-plane with real part greater than 7/8 for Riemann zeta and Dirichlet L-functions, plus related Hecke and real-zero-gap results. This does not establish the GRH critical-line assertion with real part 1/2."
+}

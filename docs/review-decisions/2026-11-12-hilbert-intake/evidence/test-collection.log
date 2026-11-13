@@ -1,0 +1,5 @@
+tests/test_classical_source_identity.py: 11
+tests/test_retired_pool.py: 14
+tests/test_target_status_audit.py: 18
+tests/test_task_pool.py: 20
+

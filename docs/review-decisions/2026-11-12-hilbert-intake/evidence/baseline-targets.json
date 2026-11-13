@@ -1,0 +1,28 @@
+{
+  "task_commit": "4a10571b0e196007207b02b585fad5e46f16abd6",
+  "source_commit": "17acb8768de75e168a43c7c828e933071aee63cf",
+  "target_count": 306,
+  "relevant_targets": [
+    {
+      "reward_target_id": "fc-target:GoldbachConjecture.goldbach",
+      "source_family": "wikipedia",
+      "source_path": "FormalConjectures/Wikipedia/GoldbachConjecture.lean",
+      "source_problem_number": "GoldbachConjecture",
+      "theorem": "GoldbachConjecture.goldbach"
+    },
+    {
+      "reward_target_id": "fc-target:RiemannHypothesis.riemannHypothesis",
+      "source_family": "millennium",
+      "source_path": "FormalConjectures/Millennium/RiemannHypothesis.lean",
+      "source_problem_number": "RiemannHypothesis",
+      "theorem": "RiemannHypothesis.riemannHypothesis"
+    },
+    {
+      "reward_target_id": "fc-target:TwinPrimes.twin_primes",
+      "source_family": "wikipedia",
+      "source_path": "FormalConjectures/Wikipedia/TwinPrimes.lean",
+      "source_problem_number": "TwinPrimes",
+      "theorem": "TwinPrimes.twin_primes"
+    }
+  ]
+}

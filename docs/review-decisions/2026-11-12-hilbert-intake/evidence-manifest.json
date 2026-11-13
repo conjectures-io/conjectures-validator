@@ -1,0 +1,210 @@
+{
+  "checked_date_utc": "2026-11-12",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 9012,
+      "sha256": "717e500caf541818cb3a4f591ab877c8cb6c6ff10699a758dc19c2cb58ff2399"
+    },
+    {
+      "path": "audit_release.py",
+      "bytes": 2570,
+      "sha256": "98aec88d7452e6d1ca4bc6b602404029a8326bfb90d2efc270fa17a94000f9db"
+    },
+    {
+      "path": "check_verifier.py",
+      "bytes": 4129,
+      "sha256": "8b0e6f3955a830a1f79f6332a536ef95e0c5b65e37a0be70f5752e6ae279ad94"
+    },
+    {
+      "path": "evidence/baseline-targets.json",
+      "bytes": 1044,
+      "sha256": "93acc55d71c3a7fb51fb336bb6cc7ffd8f7e5dd09d0d8d128ea15500af11302a"
+    },
+    {
+      "path": "evidence/control-task-plan.json",
+      "bytes": 913,
+      "sha256": "9f7c66f3b29d62a59717161743fc29b1404eae0e7e43b71457d74c2e2ee55311"
+    },
+    {
+      "path": "evidence/hilbert-smith-fc-challenge.json",
+      "bytes": 655,
+      "sha256": "d397d0e48fa67ef6090652d0e6f44b5695881291b85fc52f29ec7827b081a332"
+    },
+    {
+      "path": "evidence/hilbert-smith-readme.json",
+      "bytes": 584,
+      "sha256": "08e710d684906f8bd2f669dde4473fdf1c295364519a676dc056c5bdc5fb8fdb"
+    },
+    {
+      "path": "evidence/hilbert16-lean-scope.json",
+      "bytes": 572,
+      "sha256": "5ac5e84e30968f2f75308bac9e97ee27653d7815f6bfb71e528514d8bc208dcf"
+    },
+    {
+      "path": "evidence/old-pool-retirement.diff",
+      "bytes": 24939,
+      "sha256": "cb6d21ec91586d5dec03d2e5fed428d13d2bf55f19d586b92f8e0ab200d563d2"
+    },
+    {
+      "path": "evidence/openai-hilbert-claim-scope.json",
+      "bytes": 1287,
+      "sha256": "5b3959a1c1c8755b7ac15dab7c4a340ea5054e051f5d9eff63c61120ca3eb493"
+    },
+    {
+      "path": "evidence/pinned-5.lean",
+      "bytes": 6093,
+      "sha256": "982b4db81943eb8590a5ca672ed6297133c9fa70ee331886551cde9a3b4883ba"
+    },
+    {
+      "path": "evidence/pinned-RiemannHypothesis.lean",
+      "bytes": 5111,
+      "sha256": "db04f2f25a73fb0fc473843227fb3a28bca6ef1808e222e2d365f97120c46f67"
+    },
+    {
+      "path": "evidence/pinned-catalog-entries.json",
+      "bytes": 30818,
+      "sha256": "d7411ab14c4f4c48f43e77e5b7888b683cf7aa0b5cce3f578a335ca8f9be5fab"
+    },
+    {
+      "path": "evidence/pool-tests.log",
+      "bytes": 80,
+      "sha256": "07ef2673018afac0f550dc47983fd7c74e3e61ce80ed4a8d60881dc214204985"
+    },
+    {
+      "path": "evidence/publication.json",
+      "bytes": 138263,
+      "sha256": "36afb5cbc477a4821e1384a1d2043fa96206996140a446d2e0971e78c4ab73d1"
+    },
+    {
+      "path": "evidence/publication.log",
+      "bytes": 176,
+      "sha256": "6aaaccd3551e5326d25be203473fe6251db11a9d5b9dead91817207a1c6f759a"
+    },
+    {
+      "path": "evidence/quasi-rh-lean-scope.json",
+      "bytes": 571,
+      "sha256": "a9d63f0a40ac2338a19c198f7e7fceab5d50c8b0aaecf84df2a3caa357dd88cd"
+    },
+    {
+      "path": "evidence/release-audit.json",
+      "bytes": 267,
+      "sha256": "c253fedc40208576d51eef0279d81787072ba49e78abeda4b669f8c2a64578ec"
+    },
+    {
+      "path": "evidence/retained-dependency-comparison.json",
+      "bytes": 47,
+      "sha256": "25e66d85d0796f0e9d35dda7d47735bb3987f89ebe3f1ebe894d4d04cae3f5ba"
+    },
+    {
+      "path": "evidence/ruff.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "evidence/runtime/GRH-generalized_riemann_hypothesis-counterexample-axiom.json",
+      "bytes": 1772,
+      "sha256": "8c88d42adb663aaacb3a5d49ada55fd45d3ed09ba0055dd755f98c55c0624f4c"
+    },
+    {
+      "path": "evidence/runtime/GRH-generalized_riemann_hypothesis-counterexample-sorry.json",
+      "bytes": 1646,
+      "sha256": "b3e6d017bee5615b581c71aea1df14f72f88a368b147eb98368bd6d02d89ab5a"
+    },
+    {
+      "path": "evidence/runtime/GRH-generalized_riemann_hypothesis-counterexample-wrong-statement.json",
+      "bytes": 3160,
+      "sha256": "2b328bf84c4e5cb3cd266d8985326592daf2be18fce4290cdb5fb79b73afe41d"
+    },
+    {
+      "path": "evidence/runtime/GRH-generalized_riemann_hypothesis-formalized-axiom.json",
+      "bytes": 1760,
+      "sha256": "d0747dc95d22d83fff0d3fadf135b16a957570c683a4b884e047e458b0bdaef4"
+    },
+    {
+      "path": "evidence/runtime/GRH-generalized_riemann_hypothesis-formalized-sorry.json",
+      "bytes": 1633,
+      "sha256": "53aaec504839a4175d3600363651ebc49d806724f6c5f6a686f583440df0619e"
+    },
+    {
+      "path": "evidence/runtime/GRH-generalized_riemann_hypothesis-formalized-source-placeholder.json",
+      "bytes": 1699,
+      "sha256": "5b013375ae3ec972eaae584a7257d70ff755102b0b0c46fae384628bbba9557a"
+    },
+    {
+      "path": "evidence/runtime/GRH-generalized_riemann_hypothesis-formalized-wrong-statement.json",
+      "bytes": 3148,
+      "sha256": "538dcf601896f409d270ea747f3b93ffaabfbb6e539115d34aea8b9b62522ba7"
+    },
+    {
+      "path": "evidence/runtime/positive-counterexample.json",
+      "bytes": 2706,
+      "sha256": "d38d225f084a8e8779ed76ed2ec77d85a51265425a0a4b42fda9cb119f54d74e"
+    },
+    {
+      "path": "evidence/runtime/summary.json",
+      "bytes": 202,
+      "sha256": "a8d04fdf0b888820de359f759ad6977a6a3c860da4077eb4922985905d1db684"
+    },
+    {
+      "path": "evidence/runtime-profile.json",
+      "bytes": 1489,
+      "sha256": "08766f797e646ebb21e1ec0fa807d0964e4b62551a67a565f32c6a33743422fb"
+    },
+    {
+      "path": "evidence/runtime.log",
+      "bytes": 1132,
+      "sha256": "52ed79adfa96c897fcc2147e9b241f9313c19ec6f8ffee8138ed7c993cc17e7f"
+    },
+    {
+      "path": "evidence/test-collection.log",
+      "bytes": 142,
+      "sha256": "c544fd2f9f751697cee02445fdef559a6173eea628453f42418de6864e61ee94"
+    },
+    {
+      "path": "evidence/unit-tests.log",
+      "bytes": 80,
+      "sha256": "07c2eef926162e0090994bc913805aa08a8b2cbb5b21d2c933b937a10300713f"
+    },
+    {
+      "path": "evidence/upstream-hilbert-tree.json",
+      "bytes": 611,
+      "sha256": "0314877644e5018ff3605685b9c5ce556581d3bbde653f48ac4b2fa0e1b74d49"
+    },
+    {
+      "path": "evidence/upstream-hilbert5.json",
+      "bytes": 7864,
+      "sha256": "bd64671bc5c77b166703c05202ea76b79b9ae4fa61bb3c70e7d1225d2451c7d0"
+    },
+    {
+      "path": "evidence/upstream-riemann-source.json",
+      "bytes": 5671,
+      "sha256": "32c7d9e584a895605cd9947f63d7a4d6c8d17c19b74e37ed850c23ee5c2457d3"
+    },
+    {
+      "path": "prepare.py",
+      "bytes": 5447,
+      "sha256": "020bc2cfb9460da76443f50897ad8e1275b757c3bfc9dba7debfc6b4ae733464"
+    },
+    {
+      "path": "publish_candidate.py",
+      "bytes": 5728,
+      "sha256": "d1ca3664e1b7bf8ea722c949b1866e20d0afc7c75a09c8e79713497054deadfe"
+    },
+    {
+      "path": "release-coordinates.json",
+      "bytes": 584,
+      "sha256": "e9aab1a30b2e0c5e9214b0d48409f2861bc230b7099dc460cf9ab40b3097f47f"
+    },
+    {
+      "path": "run_runtime.py",
+      "bytes": 1568,
+      "sha256": "a49d32e29346f101df3c839415df7aec5270d5fbe8cc6af35fd23094dfd912bb"
+    },
+    {
+      "path": "validation.json",
+      "bytes": 684,
+      "sha256": "71fae863cea4e9202fc190663423d7a4448ce8f1b23a41496812565d3b82217b"
+    }
+  ]
+}

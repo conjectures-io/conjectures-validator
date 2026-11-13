@@ -1,0 +1,19 @@
+{
+  "repository_commit": "17acb8768de75e168a43c7c828e933071aee63cf",
+  "tasks": [
+    {
+      "task_id": "fc-v2-grh-generalized-riemann-hypothesis-24fd67a56cc7721f2c963305-formalized",
+      "mode": "formalized",
+      "location": "versions/fc-v2-grh-generalized-riemann-hypothesis-24fd67a56cc7721f2c963305-formalized",
+      "theorem": "GRH.generalized_riemann_hypothesis",
+      "build_provenance_sha256": "sha256:97f7f1c2a9fad88cd522c13e1f36fa6e46f1c8eb0cd7008358e48ea2e67ea485"
+    },
+    {
+      "task_id": "fc-v2-grh-generalized-riemann-hypothesis-7e66e2f7d3df6215f1379d93-counterexample",
+      "mode": "counterexample",
+      "location": "versions/fc-v2-grh-generalized-riemann-hypothesis-7e66e2f7d3df6215f1379d93-counterexample",
+      "theorem": "GRH.generalized_riemann_hypothesis",
+      "build_provenance_sha256": "sha256:97f7f1c2a9fad88cd522c13e1f36fa6e46f1c8eb0cd7008358e48ea2e67ea485"
+    }
+  ]
+}
