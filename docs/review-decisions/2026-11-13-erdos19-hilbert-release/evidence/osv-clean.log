@@ -1,0 +1,4 @@
+Starting filesystem walk for root: /
+Scanned /root/.codex/worktrees/erdos-next-20/current/requirements-service.hashes file and found 77 packages
+End status: 0 dirs visited, 1 inodes visited, 1 Extract calls, 19.477751ms elapsed, 19.477851ms wall time
+Loaded filter from: /root/.codex/worktrees/erdos-next-20/current/osv-scanner.toml

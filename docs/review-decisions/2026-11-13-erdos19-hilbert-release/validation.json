@@ -9,6 +9,17 @@
   "admission_identity_tests_passed": 25,
   "sandbox_controls_passed": 15,
   "lint_passed": true,
-  "full_local_suite": "rerunning after aligning local test dependencies with repository pins",
-  "deployed": false
+  "full_local_suite": {
+    "passed": true,
+    "passed_cases": 1586,
+    "skipped_cases": 909,
+    "scope": "self-contained suite, database tests skip without a private fixture"
+  },
+  "deployed": false,
+  "security_audit": {
+    "passed": true,
+    "fixed_advisory": "GHSA-mf5v-w3w3-f6cg",
+    "opentelemetry_api": "1.45.2",
+    "opentelemetry_instrumentation": "0.66b2"
+  }
 }

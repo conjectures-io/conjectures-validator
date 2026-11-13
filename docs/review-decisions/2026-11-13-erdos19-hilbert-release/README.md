@@ -57,5 +57,15 @@ declarations. Every type hash of the 6,062 retained declarations matches the
 previous catalog. Bundle validation, sandbox controls, release commits and
 deployment results are recorded in the accompanying release evidence.
 
+The local self-contained suite passes 1,586 tests, with 909 environment-dependent
+tests skipped. All 58 pool/admission checks, 15 production-sandbox controls and
+71 tracing checks pass. The CI dependency gate identified
+GHSA-mf5v-w3w3-f6cg in OpenTelemetry API 1.45.1. The release updates the aligned
+OpenTelemetry packages to 1.45.2/0.66b2, and the pinned OSV scan passes.
+A direct regression check preserves valid trace contexts and rejects the
+oversized malformed carrier described by the advisory.
+[Upstream advisory](https://github.com/open-telemetry/opentelemetry-python/security/advisories/GHSA-mf5v-w3w3-f6cg)
+[Patch release](https://github.com/open-telemetry/opentelemetry-python/releases/tag/v1.45.2)
+
 The user authorized publication, merge and deployment on November 13. The
 release follows the repository's pull-request, CI and deployment workflow.
