@@ -29,7 +29,7 @@ RETIRED_CONJECTURE_SCHEMA_VERSION = 1
 HELD_SOURCE_SCHEMA_VERSION = 1
 DEFAULT_TASK_TIER = "tier-1"
 TASK_TIER = re.compile(r"^tier-[1-9][0-9]*$")
-DEFAULT_TIER_SIZE = 306
+DEFAULT_TIER_SIZE = 327
 DEFAULT_TIER_TASK_COUNT = DEFAULT_TIER_SIZE * len(PRODUCTION_TASK_MODES)
 MINIMUM_ERDOS_TASKS = 218
 TASK_POOL_SELECTION = "audited-direct-propositions-v2"
@@ -75,6 +75,8 @@ SOURCE_FAMILY_STATUSES = {
 }
 # Named source identities are explicit: a similar filename or namespace is not admission.
 NAMED_SOURCE_NAMESPACES = {
+    "FormalConjectures/HistoricalOpen/Hilbert13.lean": "HilbertCatalog.Hilbert13",
+    "FormalConjectures/HistoricalOpen/RankOneAbelianStark.lean": "HilbertCatalog.RankOneAbelianStark",
     'FormalConjectures/HistoricalOpen/HajosCycleDecomposition.lean': 'FullOldProblemsCatalog.HajosCycleDecomposition',
     'FormalConjectures/HistoricalOpen/BergeFulkerson.lean': 'FullOldProblemsCatalog.BergeFulkerson',
     'FormalConjectures/HistoricalOpen/VizingIndependence.lean': 'FullOldProblemsCatalog.VizingIndependence',
@@ -599,7 +601,10 @@ def load_selection_audit(path: Path) -> SelectionAudit:
                         raise ValueError("retained selection changed without a new target review")
                 else:
                     target = admitted_by_name[name]
-                    if (row["source_family"] != ERDOS_SOURCE_FAMILY
+                    if (row["source_family"] not in {
+                            ERDOS_SOURCE_FAMILY, HISTORICAL_OPEN_SOURCE_FAMILY,
+                        }
+                        or row["source_family"] != target.get("source_family", ERDOS_SOURCE_FAMILY)
                         or row["source_path"] != target["source_path"]
                         or row["source_problem_number"] != target["number"]
                         or row["source_status"] != target["target_source_status"]

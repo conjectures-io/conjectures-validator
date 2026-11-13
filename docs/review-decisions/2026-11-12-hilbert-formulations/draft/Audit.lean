@@ -1,0 +1,345 @@
+import HilbertDrafts
+
+-- Generated inventory: every explicit declaration.
+#print axioms HilbertDrafts.Hilbert12.Ambient
+#print axioms HilbertDrafts.Hilbert12.IsFiniteAbelian
+#print axioms HilbertDrafts.Hilbert12.IsAbelianElement
+#print axioms HilbertDrafts.Hilbert12.FixedValueCoverage
+#print axioms HilbertDrafts.Hilbert12.LooseAnalyticPresentation
+#print axioms HilbertDrafts.Hilbert12.unrestrictedValues_cover
+#print axioms HilbertDrafts.Hilbert12.constantOraclePresentation
+#print axioms HilbertDrafts.Hilbert12.constantOracle_covers
+#print axioms HilbertDrafts.Hilbert12Stark.FinitePrime
+#print axioms HilbertDrafts.Hilbert12Stark.Place
+#print axioms HilbertDrafts.Hilbert12Stark.GaloisGroup
+#print axioms HilbertDrafts.Hilbert12Stark.placeAbs
+#print axioms HilbertDrafts.Hilbert12Stark.LiesAbove
+#print axioms HilbertDrafts.Hilbert12Stark.SplitsAt
+#print axioms HilbertDrafts.Hilbert12Stark.AdmissiblePlaces
+#print axioms HilbertDrafts.Hilbert12Stark.IsArtinMap
+#print axioms HilbertDrafts.Hilbert12Stark.CoprimeToS
+#print axioms HilbertDrafts.Hilbert12Stark.zetaTerm
+#print axioms HilbertDrafts.Hilbert12Stark.IsPartialZeta
+#print axioms HilbertDrafts.Hilbert12Stark.StarkUnitCondition
+#print axioms HilbertDrafts.Hilbert12Stark.AbelianRootExtension
+#print axioms HilbertDrafts.Hilbert12Stark.RankOneAbelianStark
+#print axioms HilbertDrafts.Hilbert12Stark.rootsOfUnity_order_pos
+#print axioms HilbertDrafts.Hilbert12Stark.zetaTerm_zeroIdeal
+#print axioms HilbertDrafts.Hilbert12Stark.partialZeta_unique
+#print axioms HilbertDrafts.Hilbert12Universal.AnalyticFamily
+#print axioms HilbertDrafts.Hilbert12Universal.Parameters
+#print axioms HilbertDrafts.Hilbert12Universal.Parameters.evaluate
+#print axioms HilbertDrafts.Hilbert12Universal.Recipe
+#print axioms HilbertDrafts.Hilbert12Universal.specialValues
+#print axioms HilbertDrafts.Hilbert12Universal.stage
+#print axioms HilbertDrafts.Hilbert12Universal.maximalAbelian
+#print axioms HilbertDrafts.Hilbert12Universal.GenerationContract
+#print axioms HilbertDrafts.Hilbert12Universal.Hilbert12For
+#print axioms HilbertDrafts.Hilbert12Universal.stage_mono
+#print axioms HilbertDrafts.Hilbert12Universal.stage_le_generated
+#print axioms HilbertDrafts.Hilbert12Universal.evaluation_unique
+#print axioms HilbertDrafts.Hilbert12Universal.generation_implies_coverage
+#print axioms HilbertDrafts.Hilbert12Universal.generated_eq_maximalAbelian
+#print axioms HilbertDrafts.Hilbert12Universal.exponentialFamily
+#print axioms HilbertDrafts.Hilbert12Universal.cyclotomicParameters
+#print axioms HilbertDrafts.Hilbert12Universal.RationalBenchmark
+#print axioms HilbertDrafts.Hilbert12Universal.complex_embedding_exists
+#print axioms HilbertDrafts.Hilbert12Universal.cyclotomic_evaluation_primitive
+#print axioms HilbertDrafts.Hilbert12Universal.cyclotomic_argument_rational
+#print axioms HilbertDrafts.Hilbert12Universal.rationalValues
+#print axioms HilbertDrafts.Hilbert12Universal.RationalAllArguments
+#print axioms HilbertDrafts.Hilbert12Arithmetic.relativeDiscriminant
+#print axioms HilbertDrafts.Hilbert12Arithmetic.HasArithmeticData
+#print axioms HilbertDrafts.Hilbert12Arithmetic.ArithmeticCatalogue
+#print axioms HilbertDrafts.Hilbert12Arithmetic.ArithmeticCatalogue.count
+#print axioms HilbertDrafts.Hilbert12Arithmetic.ArithmeticCatalogue.exists_iff_count_pos
+#print axioms HilbertDrafts.Hilbert12Arithmetic.ArithmeticCatalogue.entries_unique
+#print axioms HilbertDrafts.Hilbert12CM.ImaginaryQuadratic
+#print axioms HilbertDrafts.Hilbert12CM.FullIntegerLattice
+#print axioms HilbertDrafts.Hilbert12CM.discriminant
+#print axioms HilbertDrafts.Hilbert12CM.jInvariant
+#print axioms HilbertDrafts.Hilbert12CM.weber
+#print axioms HilbertDrafts.Hilbert12CM.NonzeroTorsion
+#print axioms HilbertDrafts.Hilbert12CM.complexValues
+#print axioms HilbertDrafts.Hilbert12CM.algebraicValues
+#print axioms HilbertDrafts.Hilbert12CM.ImaginaryQuadraticBenchmark
+#print axioms HilbertDrafts.Hilbert12CM.weber_analyticAt
+#print axioms HilbertDrafts.Hilbert12CM.weber_add_period
+#print axioms HilbertDrafts.Hilbert12CM.half_period_is_nonzero_torsion
+#print axioms HilbertDrafts.Hilbert12CM.benchmark_generated_eq_maximalAbelian
+#print axioms HilbertDrafts.Hilbert12Universal.identityFamily
+#print axioms HilbertDrafts.Hilbert12Universal.identityParameters
+#print axioms HilbertDrafts.Hilbert12Universal.identityReencode
+#print axioms HilbertDrafts.Hilbert12Universal.identity_reencoding_preserves_contract
+#print axioms HilbertDrafts.Hilbert12Universal.embeddedField
+#print axioms HilbertDrafts.Hilbert12Universal.FieldRecipe
+#print axioms HilbertDrafts.Hilbert12Universal.FieldHilbert12For
+#print axioms HilbertDrafts.Hilbert12Universal.RationalPoints
+#print axioms HilbertDrafts.Hilbert12Universal.RationalPointContract
+#print axioms HilbertDrafts.Hilbert12ClassField.Prime
+#print axioms HilbertDrafts.Hilbert12ClassField.Divisor
+#print axioms HilbertDrafts.Hilbert12ClassField.Modulus
+#print axioms HilbertDrafts.Hilbert12ClassField.Modulus.Divides
+#print axioms HilbertDrafts.Hilbert12ClassField.divisorsAway
+#print axioms HilbertDrafts.Hilbert12ClassField.IsPrincipalDivisor
+#print axioms HilbertDrafts.Hilbert12ClassField.CongruentOne
+#print axioms HilbertDrafts.Hilbert12ClassField.principalRay
+#print axioms HilbertDrafts.Hilbert12ClassField.RayClass
+#print axioms HilbertDrafts.Hilbert12ClassField.primeDivisor
+#print axioms HilbertDrafts.Hilbert12ClassField.primeClass
+#print axioms HilbertDrafts.Hilbert12ClassField.FrobeniusAt
+#print axioms HilbertDrafts.Hilbert12ClassField.UnramifiedAtRealPlaces
+#print axioms HilbertDrafts.Hilbert12ClassField.IsClassField
+#print axioms HilbertDrafts.Hilbert12ClassField.ClassFieldClassification
+#print axioms HilbertDrafts.Hilbert12ClassField.IsConductor
+#print axioms HilbertDrafts.Hilbert12ClassField.finiteModulusIdeal
+#print axioms HilbertDrafts.Hilbert12ClassField.Character
+#print axioms HilbertDrafts.Hilbert12ClassField.characterField
+#print axioms HilbertDrafts.Hilbert12ClassField.ConductorDiscriminant
+#print axioms HilbertDrafts.Hilbert12ClassField.ArithmeticOutput
+#print axioms HilbertDrafts.Hilbert12ClassField.CyclotomicReciprocity
+#print axioms HilbertDrafts.Hilbert13.ParameterRing
+#print axioms HilbertDrafts.Hilbert13.ParameterField
+#print axioms HilbertDrafts.Hilbert13.Ambient
+#print axioms HilbertDrafts.Hilbert13.genericSeptimic
+#print axioms HilbertDrafts.Hilbert13.coefficientField
+#print axioms HilbertDrafts.Hilbert13.ParameterStep
+#print axioms HilbertDrafts.Hilbert13.ParameterTower
+#print axioms HilbertDrafts.Hilbert13.ContainsGenericRoots
+#print axioms HilbertDrafts.Hilbert13.SplitSolvableWithParameters
+#print axioms HilbertDrafts.Hilbert13.SolvableWithParameters
+#print axioms HilbertDrafts.Hilbert13.AlgebraicLowerBound
+#print axioms HilbertDrafts.Hilbert13.ClassicalUpperBound
+#print axioms HilbertDrafts.Hilbert13.AlgebraicHilbert13
+#print axioms HilbertDrafts.Hilbert13.parameterStep_le
+#print axioms HilbertDrafts.Hilbert13.parameterStep_finite
+#print axioms HilbertDrafts.Hilbert13.parameterTower_le
+#print axioms HilbertDrafts.Hilbert13.parameterStep_mono
+#print axioms HilbertDrafts.Hilbert13.parameterTower_mono
+#print axioms HilbertDrafts.Hilbert13.solvable_mono
+#print axioms HilbertDrafts.Hilbert13.algebraicHilbert13_iff_least
+#print axioms HilbertDrafts.Hilbert13.genericSeptimic_monic
+#print axioms HilbertDrafts.Hilbert13.genericSeptimic_natDegree
+#print axioms HilbertDrafts.Hilbert13.genericSeptimic_has_root
+#print axioms HilbertDrafts.Hilbert16.Plane
+#print axioms HilbertDrafts.Hilbert16.PolynomialVectorField
+#print axioms HilbertDrafts.Hilbert16.PolynomialVectorField.eval
+#print axioms HilbertDrafts.Hilbert16.PolynomialVectorField.DegreeAtMost
+#print axioms HilbertDrafts.Hilbert16.IsPeriodicOrbit
+#print axioms HilbertDrafts.Hilbert16.IsLimitCycle
+#print axioms HilbertDrafts.Hilbert16.UniformBound
+#print axioms HilbertDrafts.Hilbert16.periodicOrbit_nonempty
+#print axioms HilbertDrafts.Hilbert16.periodicOrbit_not_singleton
+#print axioms HilbertDrafts.Hilbert16.degreeAtMost_mono
+#print axioms HilbertDrafts.Hilbert16.zeroField_no_periodicOrbit
+#print axioms HilbertDrafts.Hilbert16.uniformBound_implies_finite
+#print axioms HilbertDrafts.Hilbert16Classification.Vector
+#print axioms HilbertDrafts.Hilbert16Classification.Projective
+#print axioms HilbertDrafts.Hilbert16Classification.projectiveTopology
+#print axioms HilbertDrafts.Hilbert16Classification.Interval
+#print axioms HilbertDrafts.Hilbert16Classification.AmbientIsotopic
+#print axioms HilbertDrafts.Hilbert16Classification.FamilyAmbientIsotopic
+#print axioms HilbertDrafts.Hilbert16Classification.ProjectivePolyhedron
+#print axioms HilbertDrafts.Hilbert16Classification.polyhedronLocus
+#print axioms HilbertDrafts.Hilbert16Classification.zeroLocus
+#print axioms HilbertDrafts.Hilbert16Classification.ComplexNonsingular
+#print axioms HilbertDrafts.Hilbert16Classification.Admissible
+#print axioms HilbertDrafts.Hilbert16Classification.ExactComponents
+#print axioms HilbertDrafts.Hilbert16Classification.AlgebraicClassification
+#print axioms HilbertDrafts.Hilbert16Classification.EffectiveAlgebraicClassification
+#print axioms HilbertDrafts.Hilbert16Classification.HarnackSharpBound
+#print axioms HilbertDrafts.Hilbert16Classification.QuarticSurfaceMaximum
+#print axioms HilbertDrafts.Hilbert16Classification.AffinePolyhedron
+#print axioms HilbertDrafts.Hilbert16Classification.affineLocus
+#print axioms HilbertDrafts.Hilbert16Classification.AffineArrangement
+#print axioms HilbertDrafts.Hilbert16Classification.affineArrangementLocus
+#print axioms HilbertDrafts.Hilbert16Classification.ProjectiveArrangement
+#print axioms HilbertDrafts.Hilbert16Classification.projectiveArrangementLocus
+#print axioms HilbertDrafts.Hilbert16Classification.CycleClassification
+#print axioms HilbertDrafts.Hilbert16Classification.EffectiveCycleClassification
+#print axioms HilbertDrafts.Hilbert16Classification.AffineCycleClassification
+#print axioms HilbertDrafts.Hilbert16Classification.HomogeneousVectorField
+#print axioms HilbertDrafts.Hilbert16Classification.HomogeneousVectorField.Degree
+#print axioms HilbertDrafts.Hilbert16Classification.HomogeneousVectorField.eval
+#print axioms HilbertDrafts.Hilbert16Classification.IsProjectivePeriodicOrbit
+#print axioms HilbertDrafts.Hilbert16Classification.IsProjectiveLimitCycle
+#print axioms HilbertDrafts.Hilbert16Classification.ProjectiveCycleClassification
+#print axioms HilbertDrafts.Hilbert16Classification.ClassificationOutput
+#print axioms HilbertDrafts.Hilbert16Classification.EffectiveHilbert16
+#print axioms HilbertDrafts.Hilbert16Classification.effectiveHilbert16_implies_uniformBound
+#print axioms HilbertDrafts.Hilbert16Classification.admissible_totalDegree
+#print axioms HilbertDrafts.Hilbert16Classification.zero_not_admissible
+#print axioms HilbertDrafts.Hilbert16Classification.admissible_forget_smooth
+#print axioms HilbertDrafts.Hilbert16Classification.projectivePeriodicOrbit_nonempty
+#print axioms HilbertDrafts.Hilbert16Classification.affine_maximum_attained
+#print axioms HilbertDrafts.Hilbert16Classification.familyAmbientIsotopic_finite_iff
+#print axioms HilbertDrafts.Hilbert16Classification.exactComponents_unique
+#print axioms HilbertDrafts.Hilbert16Classification.exactComponents_zero_iff
+#print axioms HilbertDrafts.Hilbert16Classification.affine_catalogue_nonempty
+#print axioms HilbertDrafts.Hilbert16Classification.homogeneous_eval_smul
+#print axioms HilbertDrafts.Hilbert16Classification.mem_zeroLocus_mk_iff
+#print axioms HilbertDrafts.Hilbert6.Space
+#print axioms HilbertDrafts.Hilbert6.Phase
+#print axioms HilbertDrafts.Hilbert6.Configuration
+#print axioms HilbertDrafts.Hilbert6.Nonoverlap
+#print axioms HilbertDrafts.Hilbert6.FreeFlight
+#print axioms HilbertDrafts.Hilbert6.BoltzmannGrad
+#print axioms HilbertDrafts.Hilbert6.empiricalAverage
+#print axioms HilbertDrafts.Hilbert6.microscopicObservable
+#print axioms HilbertDrafts.Hilbert6.ObservableLimit
+#print axioms HilbertDrafts.Hilbert6.empiricalAverage_const
+#print axioms HilbertDrafts.Hilbert6.staticConfiguration_freeFlight
+#print axioms HilbertDrafts.Hilbert6Kinetic.scatterLeft
+#print axioms HilbertDrafts.Hilbert6Kinetic.scatterRight
+#print axioms HilbertDrafts.Hilbert6Kinetic.BinaryCollision
+#print axioms HilbertDrafts.Hilbert6Kinetic.CollisionPath
+#print axioms HilbertDrafts.Hilbert6Kinetic.IsHardSphereFlow
+#print axioms HilbertDrafts.Hilbert6Kinetic.spherePoint
+#print axioms HilbertDrafts.Hilbert6Kinetic.collisionIntegrand
+#print axioms HilbertDrafts.Hilbert6Kinetic.collisionAngular
+#print axioms HilbertDrafts.Hilbert6Kinetic.collisionOperator
+#print axioms HilbertDrafts.Hilbert6Kinetic.CollisionIntegrable
+#print axioms HilbertDrafts.Hilbert6Kinetic.InitialDensity
+#print axioms HilbertDrafts.Hilbert6Kinetic.StrongBoltzmannSolution
+#print axioms HilbertDrafts.Hilbert6Kinetic.diameter
+#print axioms HilbertDrafts.Hilbert6Kinetic.initialWeight
+#print axioms HilbertDrafts.Hilbert6Kinetic.partitionFunction
+#print axioms HilbertDrafts.Hilbert6Kinetic.initialLaw
+#print axioms HilbertDrafts.Hilbert6Kinetic.evolvedLaw
+#print axioms HilbertDrafts.Hilbert6Kinetic.KineticConvergence
+#print axioms HilbertDrafts.Hilbert6Kinetic.NewtonBoltzmannLimit
+#print axioms HilbertDrafts.Hilbert6Kinetic.scatter_momentum
+#print axioms HilbertDrafts.Hilbert6Kinetic.diameter_pos
+#print axioms HilbertDrafts.Hilbert6Kinetic.diameter_scaling
+#print axioms HilbertDrafts.Hilbert6Probability.ProbabilityAxioms
+#print axioms HilbertDrafts.Hilbert6Probability.ProbabilityAxioms.toMeasure
+#print axioms HilbertDrafts.Hilbert6Probability.ProbabilityAxioms.toMeasure_apply
+#print axioms HilbertDrafts.Hilbert6Probability.ProbabilityAxioms.isProbabilityMeasure
+#print axioms HilbertDrafts.Hilbert6Probability.ProbabilityAxioms.unique_measure
+#print axioms HilbertDrafts.Hilbert6Probability.ProbabilityAxioms.ofMeasure
+#print axioms HilbertDrafts.Hilbert6Probability.probability_axioms_consistent
+#print axioms HilbertDrafts.Hilbert6Probability.MeanValueLaw
+#print axioms HilbertDrafts.Hilbert6Probability.meanValueLaw
+#print axioms HilbertDrafts.Hilbert6Mechanics.System
+#print axioms HilbertDrafts.Hilbert6Mechanics.Newtonian
+#print axioms HilbertDrafts.Hilbert6Mechanics.MomentumEquations
+#print axioms HilbertDrafts.Hilbert6Mechanics.newtonian_iff_momentum
+#print axioms HilbertDrafts.Hilbert6Mechanics.freeMotion
+#print axioms HilbertDrafts.Hilbert6Fluid.lattice
+#print axioms HilbertDrafts.Hilbert6Fluid.cell
+#print axioms HilbertDrafts.Hilbert6Fluid.phaseCell
+#print axioms HilbertDrafts.Hilbert6Fluid.Periodic
+#print axioms HilbertDrafts.Hilbert6Fluid.TorusNonoverlap
+#print axioms HilbertDrafts.Hilbert6Fluid.TorusCollision
+#print axioms HilbertDrafts.Hilbert6Fluid.TorusPath
+#print axioms HilbertDrafts.Hilbert6Fluid.IsTorusFlow
+#print axioms HilbertDrafts.Hilbert6Fluid.fluidDiameter
+#print axioms HilbertDrafts.Hilbert6Fluid.torusWeight
+#print axioms HilbertDrafts.Hilbert6Fluid.torusPartition
+#print axioms HilbertDrafts.Hilbert6Fluid.torusLaw
+#print axioms HilbertDrafts.Hilbert6Fluid.torusEvolvedLaw
+#print axioms HilbertDrafts.Hilbert6Fluid.maxwell
+#print axioms HilbertDrafts.Hilbert6Fluid.FluidState
+#print axioms HilbertDrafts.Hilbert6Fluid.localMaxwell
+#print axioms HilbertDrafts.Hilbert6Fluid.coordinateDerivative
+#print axioms HilbertDrafts.Hilbert6Fluid.divergence
+#print axioms HilbertDrafts.Hilbert6Fluid.laplacian
+#print axioms HilbertDrafts.Hilbert6Fluid.energy
+#print axioms HilbertDrafts.Hilbert6Fluid.SmoothEuler
+#print axioms HilbertDrafts.Hilbert6Fluid.SmoothNSF
+#print axioms HilbertDrafts.Hilbert6Fluid.EulerLocalExistence
+#print axioms HilbertDrafts.Hilbert6Fluid.NSFLocalExistence
+#print axioms HilbertDrafts.Hilbert6Fluid.nsfInitial
+#print axioms HilbertDrafts.Hilbert6Fluid.nsfFluctuation
+#print axioms HilbertDrafts.Hilbert6Fluid.FluidTest
+#print axioms HilbertDrafts.Hilbert6Fluid.ParticleFluidLimit
+#print axioms HilbertDrafts.Hilbert6Fluid.TorusFlowExistence
+#print axioms HilbertDrafts.Hilbert6Fluid.FluidLimitProgram
+#print axioms HilbertDrafts.Hilbert6Fluid.ClassicalGasProgram
+#print axioms HilbertDrafts.Hilbert6Fluid.fluidDiameter_scaling
+#print axioms HilbertDrafts.Hilbert6Fluid.classicalGas_implies_fluid
+#print axioms HilbertDrafts.Hilbert6Fluid.classicalGas_implies_kinetic
+#print axioms HilbertDrafts.Hilbert6Logic.consequences
+#print axioms HilbertDrafts.Hilbert6Logic.EquivalentAxioms
+#print axioms HilbertDrafts.Hilbert6Logic.Compatible
+#print axioms HilbertDrafts.Hilbert6Logic.compatible_of_common_model
+#print axioms HilbertDrafts.Hilbert6Logic.compatible_implies_base_satisfiable
+#print axioms HilbertDrafts.Hilbert6Logic.equivalent_iff_mutual_consequence
+#print axioms HilbertDrafts.Hilbert6Logic.consequence_has_finite_basis
+#print axioms HilbertDrafts.Hilbert6Logic.compatible_iff_finite_fragments
+#print axioms HilbertDrafts.Hilbert6Rigid.Mat
+#print axioms HilbertDrafts.Hilbert6Rigid.act
+#print axioms HilbertDrafts.Hilbert6Rigid.properRotations
+#print axioms HilbertDrafts.Hilbert6Rigid.cross
+#print axioms HilbertDrafts.Hilbert6Rigid.spin
+#print axioms HilbertDrafts.Hilbert6Rigid.body
+#print axioms HilbertDrafts.Hilbert6Rigid.principalMoments
+#print axioms HilbertDrafts.Hilbert6Rigid.eulerAngular
+#print axioms HilbertDrafts.Hilbert6Rigid.gradient
+#print axioms HilbertDrafts.Hilbert6Rigid.velocity
+#print axioms HilbertDrafts.Hilbert6Rigid.StiffContinuum
+#print axioms HilbertDrafts.Hilbert6Rigid.InitialPreparation
+#print axioms HilbertDrafts.Hilbert6Rigid.FreeRigidMotion
+#print axioms HilbertDrafts.Hilbert6Rigid.ContinuumRigidLimit
+#print axioms HilbertDrafts.Hilbert6Rigid.identity_is_properRotation
+#print axioms HilbertDrafts.Hilbert6Rigid.spin_zero
+#print axioms HilbertDrafts.Hilbert6Rigid.eulerAngular_zero
+#print axioms HilbertDrafts.Hilbert6Rigid.zero_spin_motion
+#print axioms HilbertDrafts.Hilbert6Rigid.HyperelasticEnergy
+#print axioms HilbertDrafts.Hilbert6Rigid.stress
+#print axioms HilbertDrafts.Hilbert6Rigid.stressDivergence
+#print axioms HilbertDrafts.Hilbert6Rigid.LocalHyperelasticFamily
+#print axioms HilbertDrafts.Hilbert6Rigid.ElasticityToStiff
+#print axioms HilbertDrafts.Hilbert6Rigid.polynomialStoredEnergy
+#print axioms HilbertDrafts.Hilbert6Rigid.PolynomialMaterialWitness
+#print axioms HilbertDrafts.Hilbert6Rigid.gradient_identity
+#print axioms HilbertDrafts.Hilbert6Rigid.relaxed_stress_zero
+#print axioms HilbertDrafts.Hilbert6Rigid.stationary_elastic_model
+#print axioms HilbertDrafts.Hilbert6Rigid.ClassicalLimitsProgram
+
+example : Prop := HilbertDrafts.Hilbert6Rigid.ClassicalLimitsProgram
+example : Prop := HilbertDrafts.Hilbert6Rigid.ContinuumRigidLimit
+example : Prop := HilbertDrafts.Hilbert6Rigid.ElasticityToStiff
+example : Prop := HilbertDrafts.Hilbert6Rigid.PolynomialMaterialWitness
+example : Prop := HilbertDrafts.Hilbert6Fluid.ClassicalGasProgram
+example : Prop := HilbertDrafts.Hilbert6Kinetic.NewtonBoltzmannLimit
+example : Prop := HilbertDrafts.Hilbert12Universal.RationalBenchmark
+example : Prop := HilbertDrafts.Hilbert12CM.ImaginaryQuadraticBenchmark
+example : Prop := HilbertDrafts.Hilbert12Universal.RationalAllArguments
+example : Prop := HilbertDrafts.Hilbert12ClassField.ClassFieldClassification
+example : Prop := HilbertDrafts.Hilbert12ClassField.ConductorDiscriminant
+example : Prop := HilbertDrafts.Hilbert12ClassField.CyclotomicReciprocity
+example : Prop := HilbertDrafts.Hilbert12Stark.RankOneAbelianStark
+example : Prop := HilbertDrafts.Hilbert13.AlgebraicHilbert13
+example : Prop := HilbertDrafts.Hilbert16.UniformBound
+example : Prop := HilbertDrafts.Hilbert16Classification.HarnackSharpBound
+example : Prop := HilbertDrafts.Hilbert16Classification.QuarticSurfaceMaximum
+example : Prop := HilbertDrafts.Hilbert16Classification.EffectiveHilbert16
+#print HilbertDrafts.Hilbert6Rigid.ClassicalLimitsProgram
+#print HilbertDrafts.Hilbert6Rigid.ContinuumRigidLimit
+#print HilbertDrafts.Hilbert6Rigid.ElasticityToStiff
+#print HilbertDrafts.Hilbert6Rigid.PolynomialMaterialWitness
+#print HilbertDrafts.Hilbert6Fluid.ClassicalGasProgram
+#print HilbertDrafts.Hilbert6Kinetic.NewtonBoltzmannLimit
+#print HilbertDrafts.Hilbert12Universal.RationalBenchmark
+#print HilbertDrafts.Hilbert12CM.ImaginaryQuadraticBenchmark
+#print HilbertDrafts.Hilbert12Universal.RationalAllArguments
+#print HilbertDrafts.Hilbert12ClassField.ClassFieldClassification
+#print HilbertDrafts.Hilbert12ClassField.ConductorDiscriminant
+#print HilbertDrafts.Hilbert12ClassField.CyclotomicReciprocity
+#print HilbertDrafts.Hilbert12Stark.RankOneAbelianStark
+#print HilbertDrafts.Hilbert13.AlgebraicHilbert13
+#print HilbertDrafts.Hilbert16.UniformBound
+#print HilbertDrafts.Hilbert16Classification.HarnackSharpBound
+#print HilbertDrafts.Hilbert16Classification.QuarticSurfaceMaximum
+#print HilbertDrafts.Hilbert16Classification.EffectiveHilbert16
+#print HilbertDrafts.Hilbert13.ParameterStep
+example (R : HilbertDrafts.Hilbert12Universal.Recipe) : Prop := HilbertDrafts.Hilbert12Universal.Hilbert12For R
+#print HilbertDrafts.Hilbert12Universal.Hilbert12For
+#print HilbertDrafts.Hilbert12Universal.GenerationContract
+#print HilbertDrafts.Hilbert6Fluid.ParticleFluidLimit
+#print HilbertDrafts.Hilbert16Classification.AlgebraicClassification
+#print HilbertDrafts.Hilbert16Classification.CycleClassification
+#check HilbertDrafts.Hilbert16Classification.ClassificationOutput
+#check HilbertDrafts.Hilbert12ClassField.ArithmeticOutput
+#print HilbertDrafts.Hilbert12Universal.FieldHilbert12For

@@ -1,0 +1,14 @@
+{
+  "source_build_passed": true,
+  "source_build_jobs": 10629,
+  "reviewed_modules_byte_identical": true,
+  "retained_catalog_types_unchanged": 6062,
+  "active_targets": 327,
+  "active_bundles": 654,
+  "pool_admission_tests_passed": 58,
+  "admission_identity_tests_passed": 25,
+  "sandbox_controls_passed": 15,
+  "lint_passed": true,
+  "full_local_suite": "rerunning after aligning local test dependencies with repository pins",
+  "deployed": false
+}

@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "cases": 10,
+  "new_bundles_exercised": 4,
+  "positive_control_verified": true,
+  "insecure_development": false,
+  "uid": 10001,
+  "open_problems_proved": false,
+  "processes": 4
+}

@@ -1,0 +1,59 @@
+# Final confirmation of revision 10
+
+**ACCEPT for all four problems under the declared interpretations. Every blocking condition from rounds 1–3 is closed, and I found no remaining defect.** Literal whole-problem completeness remains false for #6 and #12, as your metadata already records.
+
+## What I checked in v10
+
+- **W1–W6 are applied.** I read the altered docstrings: `Hilbert16.lean` lines 109–114 and 329–331, `Hilbert6.lean` line 614, and `Hilbert12.lean` lines 3–10 and 632–634. No "Wikipedia-guided" text remains in `Hilbert12.lean`.
+- **Metadata agrees with my round-3 verdict.** `coverage.json` (problem entries), `primary-source-coverage.json`, `status.json`, `review-status.json`, the README and `FULL_SCOPE.md` all describe the agreement the way I gave it.
+- **Code identity is taken from your evidence, not re-derived.** I did not diff the v9 and v10 Lean sources line by line. `evidence/revision-10-diff.json` reports identical code after comment masking, and its v10 hashes match the source hashes in `evidence/validation.json` and `evidence/clean-build.json`.
+- **Builds are yours.** Both evidence files report exit code 0, 295 audited declarations, and only the three standard axioms. I did not run them.
+
+Two non-blocking leftovers, which need no change since the sources stay byte-identical:
+- `Hilbert6.lean` line 240 still says "Wikipedia-guided additions". W6 only covered `Hilbert12.lean`.
+- `evidence/validation.json` still names the older `Hilbert12For` as the recipe-dependent schema, where the README names `FieldHilbert12For`.
+
+## Correction to my round-3 wording
+
+You are right, and I withdraw the absolutes. "For reasons that no further formalization work can remove" and "it cannot become yes" claimed more than I can justify. I have no theorem ruling out a sharper future interpretation of #6 or a future admissibility rule for #12. What I can support is narrower:
+
+- **#6:** as written, the phrases about all physical sciences and all logically possible theories are not single propositions, and this packet covers them through selected models. I know of no formalization that closes that gap, but I do not claim one is impossible.
+- **#12:** the free contract does not certify explicitness, and I know of no closed statement that does so without choosing a candidate construction. That is a statement about the present packet and my present knowledge.
+
+Your sentences in the README ("This is not an impossibility claim about future formalizations") and in `FULL_SCOPE.md` (lines 48–49) state this correctly. Record them as agreed by both of us, not only by the author.
+
+## Final verdicts
+
+Each verdict concerns the validity and fidelity of the statements and output types. None concerns proofs.
+
+| Problem | Verdict | Scope of acceptance |
+|---|---|---|
+| #6 | **ACCEPT** | `ClassicalLimitsProgram` with the probability, mechanics and elasticity witnesses, as selected models for the enumerated clauses of the 1900 text. |
+| #12 | **ACCEPT** | `ArithmeticOutput` with the class-field statements, the rational and CM benchmarks, `CyclotomicReciprocity`, the free contract `FieldHilbert12For R`, and `RankOneAbelianStark` as a separate route. |
+| Algebraic #13 | **ACCEPT** | `AlgebraicHilbert13`, the resolvent-degree statement RD(7) = 3. |
+| #16 | **ACCEPT** | `ClassificationOutput` as the output task and `UniformBound` as the core closed conjecture, with the two known benchmarks; `EffectiveHilbert16` as an optional strengthening only. |
+
+## Limits that stay on the record
+
+- **No proofs of the targets.** The packet proves only the strong law, the model witnesses and the regression lemmas. The Stark statement, the lower bound in #13 and the limit-cycle bound are open. The class-field, CM, Harnack, quartic, local-existence and elasticity statements are known theorems stated as obligations.
+- **Gas-limit variants.** The canonical-ensemble statements are variants of Deng–Hani–Ma's grand-canonical results. The exact-Maxwellian Euler branch has no cited proof.
+- **Rigid limit.** It is conditional on smooth elastic solutions existing on a common time interval.
+- **#16 reading of "position".** It is unoriented ambient isotopy; stability, multiplicity and placement relative to singular points are not encoded.
+- **Literal entirety.** False for #6 (selected models) and #12 (the contract does not certify explicitness). For #13 and #16 the packet is complete as a formulation under the stated conventions.
+- **Sources I did not open.** Milne, Silverman and Kharlamov–Itenberg. I checked the statements against the standard theorems, and you report checking the texts.
+
+## Required recording wording
+
+Use the following, or wording with the same content:
+
+- **`review-status.json`:**
+  - Set `status` to `final_confirmation_received`.
+  - Add a round-4 entry for input revision 10 with the verdict: "ACCEPT for Hilbert 6, 12, algebraic 13 and 16 as formulations under the declared interpretations; all blocking conditions closed; no mathematical defect found; literal whole-problem completeness remains false for 6 and 12."
+  - Add to `reviewer_retractions`: "Round-3 phrases 'no further formalization work can remove' and 'cannot become yes' are withdrawn; no impossibility of sharper future interpretations or admissibility rules is asserted."
+  - Add a new field recording that the reviewer did not run Lean and relied on the supplied build evidence and `revision-10-diff.json` for code identity.
+  - `full_packet_accepted` may be set to true only if its meaning is stated next to it as "all precise specifications accepted under declared interpretations". Keep `literal_whole_problem_complete: false`.
+- **`status.json` and `coverage.json`:**
+  - Replace "final snapshot confirmation pending" and "wording_confirmation_pending" with "confirmed by Fable round 4 on revision 10".
+  - Leave `full_request_complete: false` and `full_source_scope_accepted: false`.
+- **README:**
+  - Replace "final snapshot confirmation is pending" with "Fable's round-4 response confirms acceptance of revision 10 under the declared interpretations; it is not an acceptance of literal whole-problem completeness and not a verification of any proof."

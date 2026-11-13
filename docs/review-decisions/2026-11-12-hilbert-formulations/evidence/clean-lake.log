@@ -1,0 +1,747 @@
+✔ [8931/8938] Built HilbertDrafts.Hilbert16 (5.0s)
+✔ [8932/8938] Built HilbertDrafts.Hilbert12 (9.1s)
+✔ [8933/8938] Built HilbertDrafts.Hilbert13 (11s)
+✔ [8934/8938] Built HilbertDrafts.Hilbert6 (19s)
+✔ [8935/8938] Built HilbertDrafts (4.5s)
+ℹ [8937/8938] Built Audit (5.5s)
+info: Audit.lean:4:0: 'HilbertDrafts.Hilbert12.Ambient' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:5:0: 'HilbertDrafts.Hilbert12.IsFiniteAbelian' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:6:0: 'HilbertDrafts.Hilbert12.IsAbelianElement' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:7:0: 'HilbertDrafts.Hilbert12.FixedValueCoverage' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:8:0: 'HilbertDrafts.Hilbert12.LooseAnalyticPresentation' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:9:0: 'HilbertDrafts.Hilbert12.unrestrictedValues_cover' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:10:0: 'HilbertDrafts.Hilbert12.constantOraclePresentation' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:11:0: 'HilbertDrafts.Hilbert12.constantOracle_covers' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:12:0: 'HilbertDrafts.Hilbert12Stark.FinitePrime' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:13:0: 'HilbertDrafts.Hilbert12Stark.Place' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:14:0: 'HilbertDrafts.Hilbert12Stark.GaloisGroup' depends on axioms: [propext, Quot.sound]
+info: Audit.lean:15:0: 'HilbertDrafts.Hilbert12Stark.placeAbs' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:16:0: 'HilbertDrafts.Hilbert12Stark.LiesAbove' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:17:0: 'HilbertDrafts.Hilbert12Stark.SplitsAt' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:18:0: 'HilbertDrafts.Hilbert12Stark.AdmissiblePlaces' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:19:0: 'HilbertDrafts.Hilbert12Stark.IsArtinMap' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:20:0: 'HilbertDrafts.Hilbert12Stark.CoprimeToS' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:21:0: 'HilbertDrafts.Hilbert12Stark.zetaTerm' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:22:0: 'HilbertDrafts.Hilbert12Stark.IsPartialZeta' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:23:0: 'HilbertDrafts.Hilbert12Stark.StarkUnitCondition' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:24:0: 'HilbertDrafts.Hilbert12Stark.AbelianRootExtension' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:25:0: 'HilbertDrafts.Hilbert12Stark.RankOneAbelianStark' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:26:0: 'HilbertDrafts.Hilbert12Stark.rootsOfUnity_order_pos' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:27:0: 'HilbertDrafts.Hilbert12Stark.zetaTerm_zeroIdeal' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:28:0: 'HilbertDrafts.Hilbert12Stark.partialZeta_unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:29:0: 'HilbertDrafts.Hilbert12Universal.AnalyticFamily' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:30:0: 'HilbertDrafts.Hilbert12Universal.Parameters' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:31:0: 'HilbertDrafts.Hilbert12Universal.Parameters.evaluate' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:32:0: 'HilbertDrafts.Hilbert12Universal.Recipe' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:33:0: 'HilbertDrafts.Hilbert12Universal.specialValues' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:34:0: 'HilbertDrafts.Hilbert12Universal.stage' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:35:0: 'HilbertDrafts.Hilbert12Universal.maximalAbelian' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:36:0: 'HilbertDrafts.Hilbert12Universal.GenerationContract' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:37:0: 'HilbertDrafts.Hilbert12Universal.Hilbert12For' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:38:0: 'HilbertDrafts.Hilbert12Universal.stage_mono' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:39:0: 'HilbertDrafts.Hilbert12Universal.stage_le_generated' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:40:0: 'HilbertDrafts.Hilbert12Universal.evaluation_unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:41:0: 'HilbertDrafts.Hilbert12Universal.generation_implies_coverage' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:42:0: 'HilbertDrafts.Hilbert12Universal.generated_eq_maximalAbelian' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:43:0: 'HilbertDrafts.Hilbert12Universal.exponentialFamily' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:44:0: 'HilbertDrafts.Hilbert12Universal.cyclotomicParameters' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:45:0: 'HilbertDrafts.Hilbert12Universal.RationalBenchmark' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:46:0: 'HilbertDrafts.Hilbert12Universal.complex_embedding_exists' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:47:0: 'HilbertDrafts.Hilbert12Universal.cyclotomic_evaluation_primitive' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:48:0: 'HilbertDrafts.Hilbert12Universal.cyclotomic_argument_rational' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:49:0: 'HilbertDrafts.Hilbert12Universal.rationalValues' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:50:0: 'HilbertDrafts.Hilbert12Universal.RationalAllArguments' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:51:0: 'HilbertDrafts.Hilbert12Arithmetic.relativeDiscriminant' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:52:0: 'HilbertDrafts.Hilbert12Arithmetic.HasArithmeticData' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:53:0: 'HilbertDrafts.Hilbert12Arithmetic.ArithmeticCatalogue' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:54:0: 'HilbertDrafts.Hilbert12Arithmetic.ArithmeticCatalogue.count' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:55:0: 'HilbertDrafts.Hilbert12Arithmetic.ArithmeticCatalogue.exists_iff_count_pos' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:56:0: 'HilbertDrafts.Hilbert12Arithmetic.ArithmeticCatalogue.entries_unique' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:57:0: 'HilbertDrafts.Hilbert12CM.ImaginaryQuadratic' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:58:0: 'HilbertDrafts.Hilbert12CM.FullIntegerLattice' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:59:0: 'HilbertDrafts.Hilbert12CM.discriminant' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:60:0: 'HilbertDrafts.Hilbert12CM.jInvariant' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:61:0: 'HilbertDrafts.Hilbert12CM.weber' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:62:0: 'HilbertDrafts.Hilbert12CM.NonzeroTorsion' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:63:0: 'HilbertDrafts.Hilbert12CM.complexValues' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:64:0: 'HilbertDrafts.Hilbert12CM.algebraicValues' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:65:0: 'HilbertDrafts.Hilbert12CM.ImaginaryQuadraticBenchmark' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:66:0: 'HilbertDrafts.Hilbert12CM.weber_analyticAt' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:67:0: 'HilbertDrafts.Hilbert12CM.weber_add_period' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:68:0: 'HilbertDrafts.Hilbert12CM.half_period_is_nonzero_torsion' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:69:0: 'HilbertDrafts.Hilbert12CM.benchmark_generated_eq_maximalAbelian' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:70:0: 'HilbertDrafts.Hilbert12Universal.identityFamily' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:71:0: 'HilbertDrafts.Hilbert12Universal.identityParameters' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:72:0: 'HilbertDrafts.Hilbert12Universal.identityReencode' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:73:0: 'HilbertDrafts.Hilbert12Universal.identity_reencoding_preserves_contract' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:74:0: 'HilbertDrafts.Hilbert12Universal.embeddedField' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:75:0: 'HilbertDrafts.Hilbert12Universal.FieldRecipe' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:76:0: 'HilbertDrafts.Hilbert12Universal.FieldHilbert12For' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:77:0: 'HilbertDrafts.Hilbert12Universal.RationalPoints' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:78:0: 'HilbertDrafts.Hilbert12Universal.RationalPointContract' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:79:0: 'HilbertDrafts.Hilbert12ClassField.Prime' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:80:0: 'HilbertDrafts.Hilbert12ClassField.Divisor' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:81:0: 'HilbertDrafts.Hilbert12ClassField.Modulus' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:82:0: 'HilbertDrafts.Hilbert12ClassField.Modulus.Divides' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:83:0: 'HilbertDrafts.Hilbert12ClassField.divisorsAway' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:84:0: 'HilbertDrafts.Hilbert12ClassField.IsPrincipalDivisor' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:85:0: 'HilbertDrafts.Hilbert12ClassField.CongruentOne' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:86:0: 'HilbertDrafts.Hilbert12ClassField.principalRay' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:87:0: 'HilbertDrafts.Hilbert12ClassField.RayClass' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:88:0: 'HilbertDrafts.Hilbert12ClassField.primeDivisor' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:89:0: 'HilbertDrafts.Hilbert12ClassField.primeClass' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:90:0: 'HilbertDrafts.Hilbert12ClassField.FrobeniusAt' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:91:0: 'HilbertDrafts.Hilbert12ClassField.UnramifiedAtRealPlaces' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:92:0: 'HilbertDrafts.Hilbert12ClassField.IsClassField' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:93:0: 'HilbertDrafts.Hilbert12ClassField.ClassFieldClassification' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:94:0: 'HilbertDrafts.Hilbert12ClassField.IsConductor' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:95:0: 'HilbertDrafts.Hilbert12ClassField.finiteModulusIdeal' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:96:0: 'HilbertDrafts.Hilbert12ClassField.Character' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:97:0: 'HilbertDrafts.Hilbert12ClassField.characterField' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:98:0: 'HilbertDrafts.Hilbert12ClassField.ConductorDiscriminant' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:99:0: 'HilbertDrafts.Hilbert12ClassField.ArithmeticOutput' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:100:0: 'HilbertDrafts.Hilbert12ClassField.CyclotomicReciprocity' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:101:0: 'HilbertDrafts.Hilbert13.ParameterRing' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:102:0: 'HilbertDrafts.Hilbert13.ParameterField' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:103:0: 'HilbertDrafts.Hilbert13.Ambient' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:104:0: 'HilbertDrafts.Hilbert13.genericSeptimic' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:105:0: 'HilbertDrafts.Hilbert13.coefficientField' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:106:0: 'HilbertDrafts.Hilbert13.ParameterStep' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:107:0: 'HilbertDrafts.Hilbert13.ParameterTower' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:108:0: 'HilbertDrafts.Hilbert13.ContainsGenericRoots' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:109:0: 'HilbertDrafts.Hilbert13.SplitSolvableWithParameters' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:110:0: 'HilbertDrafts.Hilbert13.SolvableWithParameters' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:111:0: 'HilbertDrafts.Hilbert13.AlgebraicLowerBound' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:112:0: 'HilbertDrafts.Hilbert13.ClassicalUpperBound' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:113:0: 'HilbertDrafts.Hilbert13.AlgebraicHilbert13' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:114:0: 'HilbertDrafts.Hilbert13.parameterStep_le' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:115:0: 'HilbertDrafts.Hilbert13.parameterStep_finite' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:116:0: 'HilbertDrafts.Hilbert13.parameterTower_le' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:117:0: 'HilbertDrafts.Hilbert13.parameterStep_mono' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:118:0: 'HilbertDrafts.Hilbert13.parameterTower_mono' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:119:0: 'HilbertDrafts.Hilbert13.solvable_mono' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:120:0: 'HilbertDrafts.Hilbert13.algebraicHilbert13_iff_least' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:121:0: 'HilbertDrafts.Hilbert13.genericSeptimic_monic' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:122:0: 'HilbertDrafts.Hilbert13.genericSeptimic_natDegree' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:123:0: 'HilbertDrafts.Hilbert13.genericSeptimic_has_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:124:0: 'HilbertDrafts.Hilbert16.Plane' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:125:0: 'HilbertDrafts.Hilbert16.PolynomialVectorField' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:126:0: 'HilbertDrafts.Hilbert16.PolynomialVectorField.eval' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:127:0: 'HilbertDrafts.Hilbert16.PolynomialVectorField.DegreeAtMost' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:128:0: 'HilbertDrafts.Hilbert16.IsPeriodicOrbit' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:129:0: 'HilbertDrafts.Hilbert16.IsLimitCycle' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:130:0: 'HilbertDrafts.Hilbert16.UniformBound' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:131:0: 'HilbertDrafts.Hilbert16.periodicOrbit_nonempty' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:132:0: 'HilbertDrafts.Hilbert16.periodicOrbit_not_singleton' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:133:0: 'HilbertDrafts.Hilbert16.degreeAtMost_mono' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:134:0: 'HilbertDrafts.Hilbert16.zeroField_no_periodicOrbit' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:135:0: 'HilbertDrafts.Hilbert16.uniformBound_implies_finite' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:136:0: 'HilbertDrafts.Hilbert16Classification.Vector' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:137:0: 'HilbertDrafts.Hilbert16Classification.Projective' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:138:0: 'HilbertDrafts.Hilbert16Classification.projectiveTopology' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:139:0: 'HilbertDrafts.Hilbert16Classification.Interval' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:140:0: 'HilbertDrafts.Hilbert16Classification.AmbientIsotopic' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:141:0: 'HilbertDrafts.Hilbert16Classification.FamilyAmbientIsotopic' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:142:0: 'HilbertDrafts.Hilbert16Classification.ProjectivePolyhedron' does not depend on any axioms
+info: Audit.lean:143:0: 'HilbertDrafts.Hilbert16Classification.polyhedronLocus' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:144:0: 'HilbertDrafts.Hilbert16Classification.zeroLocus' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:145:0: 'HilbertDrafts.Hilbert16Classification.ComplexNonsingular' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:146:0: 'HilbertDrafts.Hilbert16Classification.Admissible' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:147:0: 'HilbertDrafts.Hilbert16Classification.ExactComponents' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:148:0: 'HilbertDrafts.Hilbert16Classification.AlgebraicClassification' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:149:0: 'HilbertDrafts.Hilbert16Classification.EffectiveAlgebraicClassification' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:150:0: 'HilbertDrafts.Hilbert16Classification.HarnackSharpBound' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:151:0: 'HilbertDrafts.Hilbert16Classification.QuarticSurfaceMaximum' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:152:0: 'HilbertDrafts.Hilbert16Classification.AffinePolyhedron' does not depend on any axioms
+info: Audit.lean:153:0: 'HilbertDrafts.Hilbert16Classification.affineLocus' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:154:0: 'HilbertDrafts.Hilbert16Classification.AffineArrangement' does not depend on any axioms
+info: Audit.lean:155:0: 'HilbertDrafts.Hilbert16Classification.affineArrangementLocus' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:156:0: 'HilbertDrafts.Hilbert16Classification.ProjectiveArrangement' does not depend on any axioms
+info: Audit.lean:157:0: 'HilbertDrafts.Hilbert16Classification.projectiveArrangementLocus' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:158:0: 'HilbertDrafts.Hilbert16Classification.CycleClassification' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:159:0: 'HilbertDrafts.Hilbert16Classification.EffectiveCycleClassification' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:160:0: 'HilbertDrafts.Hilbert16Classification.AffineCycleClassification' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:161:0: 'HilbertDrafts.Hilbert16Classification.HomogeneousVectorField' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:162:0: 'HilbertDrafts.Hilbert16Classification.HomogeneousVectorField.Degree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:163:0: 'HilbertDrafts.Hilbert16Classification.HomogeneousVectorField.eval' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:164:0: 'HilbertDrafts.Hilbert16Classification.IsProjectivePeriodicOrbit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:165:0: 'HilbertDrafts.Hilbert16Classification.IsProjectiveLimitCycle' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:166:0: 'HilbertDrafts.Hilbert16Classification.ProjectiveCycleClassification' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:167:0: 'HilbertDrafts.Hilbert16Classification.ClassificationOutput' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:168:0: 'HilbertDrafts.Hilbert16Classification.EffectiveHilbert16' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:169:0: 'HilbertDrafts.Hilbert16Classification.effectiveHilbert16_implies_uniformBound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:170:0: 'HilbertDrafts.Hilbert16Classification.admissible_totalDegree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:171:0: 'HilbertDrafts.Hilbert16Classification.zero_not_admissible' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:172:0: 'HilbertDrafts.Hilbert16Classification.admissible_forget_smooth' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:173:0: 'HilbertDrafts.Hilbert16Classification.projectivePeriodicOrbit_nonempty' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:174:0: 'HilbertDrafts.Hilbert16Classification.affine_maximum_attained' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:175:0: 'HilbertDrafts.Hilbert16Classification.familyAmbientIsotopic_finite_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:176:0: 'HilbertDrafts.Hilbert16Classification.exactComponents_unique' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:177:0: 'HilbertDrafts.Hilbert16Classification.exactComponents_zero_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:178:0: 'HilbertDrafts.Hilbert16Classification.affine_catalogue_nonempty' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:179:0: 'HilbertDrafts.Hilbert16Classification.homogeneous_eval_smul' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:180:0: 'HilbertDrafts.Hilbert16Classification.mem_zeroLocus_mk_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:181:0: 'HilbertDrafts.Hilbert6.Space' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:182:0: 'HilbertDrafts.Hilbert6.Phase' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:183:0: 'HilbertDrafts.Hilbert6.Configuration' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:184:0: 'HilbertDrafts.Hilbert6.Nonoverlap' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:185:0: 'HilbertDrafts.Hilbert6.FreeFlight' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:186:0: 'HilbertDrafts.Hilbert6.BoltzmannGrad' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:187:0: 'HilbertDrafts.Hilbert6.empiricalAverage' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:188:0: 'HilbertDrafts.Hilbert6.microscopicObservable' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:189:0: 'HilbertDrafts.Hilbert6.ObservableLimit' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:190:0: 'HilbertDrafts.Hilbert6.empiricalAverage_const' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:191:0: 'HilbertDrafts.Hilbert6.staticConfiguration_freeFlight' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:192:0: 'HilbertDrafts.Hilbert6Kinetic.scatterLeft' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:193:0: 'HilbertDrafts.Hilbert6Kinetic.scatterRight' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:194:0: 'HilbertDrafts.Hilbert6Kinetic.BinaryCollision' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:195:0: 'HilbertDrafts.Hilbert6Kinetic.CollisionPath' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:196:0: 'HilbertDrafts.Hilbert6Kinetic.IsHardSphereFlow' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:197:0: 'HilbertDrafts.Hilbert6Kinetic.spherePoint' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:198:0: 'HilbertDrafts.Hilbert6Kinetic.collisionIntegrand' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:199:0: 'HilbertDrafts.Hilbert6Kinetic.collisionAngular' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:200:0: 'HilbertDrafts.Hilbert6Kinetic.collisionOperator' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:201:0: 'HilbertDrafts.Hilbert6Kinetic.CollisionIntegrable' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:202:0: 'HilbertDrafts.Hilbert6Kinetic.InitialDensity' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:203:0: 'HilbertDrafts.Hilbert6Kinetic.StrongBoltzmannSolution' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:204:0: 'HilbertDrafts.Hilbert6Kinetic.diameter' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:205:0: 'HilbertDrafts.Hilbert6Kinetic.initialWeight' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:206:0: 'HilbertDrafts.Hilbert6Kinetic.partitionFunction' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:207:0: 'HilbertDrafts.Hilbert6Kinetic.initialLaw' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:208:0: 'HilbertDrafts.Hilbert6Kinetic.evolvedLaw' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:209:0: 'HilbertDrafts.Hilbert6Kinetic.KineticConvergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:210:0: 'HilbertDrafts.Hilbert6Kinetic.NewtonBoltzmannLimit' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:211:0: 'HilbertDrafts.Hilbert6Kinetic.scatter_momentum' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:212:0: 'HilbertDrafts.Hilbert6Kinetic.diameter_pos' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:213:0: 'HilbertDrafts.Hilbert6Kinetic.diameter_scaling' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:214:0: 'HilbertDrafts.Hilbert6Probability.ProbabilityAxioms' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:215:0: 'HilbertDrafts.Hilbert6Probability.ProbabilityAxioms.toMeasure' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:216:0: 'HilbertDrafts.Hilbert6Probability.ProbabilityAxioms.toMeasure_apply' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:217:0: 'HilbertDrafts.Hilbert6Probability.ProbabilityAxioms.isProbabilityMeasure' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:218:0: 'HilbertDrafts.Hilbert6Probability.ProbabilityAxioms.unique_measure' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:219:0: 'HilbertDrafts.Hilbert6Probability.ProbabilityAxioms.ofMeasure' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:220:0: 'HilbertDrafts.Hilbert6Probability.probability_axioms_consistent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:221:0: 'HilbertDrafts.Hilbert6Probability.MeanValueLaw' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:222:0: 'HilbertDrafts.Hilbert6Probability.meanValueLaw' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:223:0: 'HilbertDrafts.Hilbert6Mechanics.System' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:224:0: 'HilbertDrafts.Hilbert6Mechanics.Newtonian' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:225:0: 'HilbertDrafts.Hilbert6Mechanics.MomentumEquations' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:226:0: 'HilbertDrafts.Hilbert6Mechanics.newtonian_iff_momentum' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:227:0: 'HilbertDrafts.Hilbert6Mechanics.freeMotion' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:228:0: 'HilbertDrafts.Hilbert6Fluid.lattice' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:229:0: 'HilbertDrafts.Hilbert6Fluid.cell' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:230:0: 'HilbertDrafts.Hilbert6Fluid.phaseCell' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:231:0: 'HilbertDrafts.Hilbert6Fluid.Periodic' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:232:0: 'HilbertDrafts.Hilbert6Fluid.TorusNonoverlap' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:233:0: 'HilbertDrafts.Hilbert6Fluid.TorusCollision' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:234:0: 'HilbertDrafts.Hilbert6Fluid.TorusPath' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:235:0: 'HilbertDrafts.Hilbert6Fluid.IsTorusFlow' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:236:0: 'HilbertDrafts.Hilbert6Fluid.fluidDiameter' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:237:0: 'HilbertDrafts.Hilbert6Fluid.torusWeight' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:238:0: 'HilbertDrafts.Hilbert6Fluid.torusPartition' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:239:0: 'HilbertDrafts.Hilbert6Fluid.torusLaw' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:240:0: 'HilbertDrafts.Hilbert6Fluid.torusEvolvedLaw' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:241:0: 'HilbertDrafts.Hilbert6Fluid.maxwell' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:242:0: 'HilbertDrafts.Hilbert6Fluid.FluidState' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:243:0: 'HilbertDrafts.Hilbert6Fluid.localMaxwell' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:244:0: 'HilbertDrafts.Hilbert6Fluid.coordinateDerivative' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:245:0: 'HilbertDrafts.Hilbert6Fluid.divergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:246:0: 'HilbertDrafts.Hilbert6Fluid.laplacian' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:247:0: 'HilbertDrafts.Hilbert6Fluid.energy' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:248:0: 'HilbertDrafts.Hilbert6Fluid.SmoothEuler' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:249:0: 'HilbertDrafts.Hilbert6Fluid.SmoothNSF' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:250:0: 'HilbertDrafts.Hilbert6Fluid.EulerLocalExistence' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:251:0: 'HilbertDrafts.Hilbert6Fluid.NSFLocalExistence' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:252:0: 'HilbertDrafts.Hilbert6Fluid.nsfInitial' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:253:0: 'HilbertDrafts.Hilbert6Fluid.nsfFluctuation' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:254:0: 'HilbertDrafts.Hilbert6Fluid.FluidTest' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:255:0: 'HilbertDrafts.Hilbert6Fluid.ParticleFluidLimit' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:256:0: 'HilbertDrafts.Hilbert6Fluid.TorusFlowExistence' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:257:0: 'HilbertDrafts.Hilbert6Fluid.FluidLimitProgram' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:258:0: 'HilbertDrafts.Hilbert6Fluid.ClassicalGasProgram' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:259:0: 'HilbertDrafts.Hilbert6Fluid.fluidDiameter_scaling' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:260:0: 'HilbertDrafts.Hilbert6Fluid.classicalGas_implies_fluid' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:261:0: 'HilbertDrafts.Hilbert6Fluid.classicalGas_implies_kinetic' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:262:0: 'HilbertDrafts.Hilbert6Logic.consequences' depends on axioms: [Quot.sound]
+info: Audit.lean:263:0: 'HilbertDrafts.Hilbert6Logic.EquivalentAxioms' depends on axioms: [Quot.sound]
+info: Audit.lean:264:0: 'HilbertDrafts.Hilbert6Logic.Compatible' depends on axioms: [Quot.sound]
+info: Audit.lean:265:0: 'HilbertDrafts.Hilbert6Logic.compatible_of_common_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:266:0: 'HilbertDrafts.Hilbert6Logic.compatible_implies_base_satisfiable' depends on axioms: [Classical.choice, Quot.sound]
+info: Audit.lean:267:0: 'HilbertDrafts.Hilbert6Logic.equivalent_iff_mutual_consequence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: Audit.lean:268:0: 'HilbertDrafts.Hilbert6Logic.consequence_has_finite_basis' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:269:0: 'HilbertDrafts.Hilbert6Logic.compatible_iff_finite_fragments' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:270:0: 'HilbertDrafts.Hilbert6Rigid.Mat' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:271:0: 'HilbertDrafts.Hilbert6Rigid.act' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:272:0: 'HilbertDrafts.Hilbert6Rigid.properRotations' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:273:0: 'HilbertDrafts.Hilbert6Rigid.cross' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:274:0: 'HilbertDrafts.Hilbert6Rigid.spin' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:275:0: 'HilbertDrafts.Hilbert6Rigid.body' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:276:0: 'HilbertDrafts.Hilbert6Rigid.principalMoments' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:277:0: 'HilbertDrafts.Hilbert6Rigid.eulerAngular' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:278:0: 'HilbertDrafts.Hilbert6Rigid.gradient' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:279:0: 'HilbertDrafts.Hilbert6Rigid.velocity' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:280:0: 'HilbertDrafts.Hilbert6Rigid.StiffContinuum' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:281:0: 'HilbertDrafts.Hilbert6Rigid.InitialPreparation' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:282:0: 'HilbertDrafts.Hilbert6Rigid.FreeRigidMotion' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:283:0: 'HilbertDrafts.Hilbert6Rigid.ContinuumRigidLimit' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:284:0: 'HilbertDrafts.Hilbert6Rigid.identity_is_properRotation' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:285:0: 'HilbertDrafts.Hilbert6Rigid.spin_zero' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:286:0: 'HilbertDrafts.Hilbert6Rigid.eulerAngular_zero' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:287:0: 'HilbertDrafts.Hilbert6Rigid.zero_spin_motion' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:288:0: 'HilbertDrafts.Hilbert6Rigid.HyperelasticEnergy' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:289:0: 'HilbertDrafts.Hilbert6Rigid.stress' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:290:0: 'HilbertDrafts.Hilbert6Rigid.stressDivergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:291:0: 'HilbertDrafts.Hilbert6Rigid.LocalHyperelasticFamily' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:292:0: 'HilbertDrafts.Hilbert6Rigid.ElasticityToStiff' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:293:0: 'HilbertDrafts.Hilbert6Rigid.polynomialStoredEnergy' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:294:0: 'HilbertDrafts.Hilbert6Rigid.PolynomialMaterialWitness' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:295:0: 'HilbertDrafts.Hilbert6Rigid.gradient_identity' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:296:0: 'HilbertDrafts.Hilbert6Rigid.relaxed_stress_zero' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:297:0: 'HilbertDrafts.Hilbert6Rigid.stationary_elastic_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:298:0: 'HilbertDrafts.Hilbert6Rigid.ClassicalLimitsProgram' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: Audit.lean:318:0: def HilbertDrafts.Hilbert6Rigid.ClassicalLimitsProgram : Prop :=
+HilbertDrafts.Hilbert6Fluid.ClassicalGasProgram ∧
+  HilbertDrafts.Hilbert6Rigid.PolynomialMaterialWitness ∧
+    HilbertDrafts.Hilbert6Rigid.ElasticityToStiff ∧ HilbertDrafts.Hilbert6Rigid.ContinuumRigidLimit
+info: Audit.lean:319:0: def HilbertDrafts.Hilbert6Rigid.ContinuumRigidLimit : Prop :=
+(∀ (a : Fin 3 → ℝ) (T : ℝ) (R₀ : HilbertDrafts.Hilbert6Rigid.Mat) (ω₀ : HilbertDrafts.Hilbert6.Space),
+    (∀ (i : Fin 3), 0 < a i) →
+      0 < T →
+        R₀ ∈ HilbertDrafts.Hilbert6Rigid.properRotations →
+          ∃ R ω, HilbertDrafts.Hilbert6Rigid.FreeRigidMotion a T R₀ ω₀ R ω) ∧
+  ∀ (a : Fin 3 → ℝ) (T : ℝ) (c₀ V₀ ω₀ : HilbertDrafts.Hilbert6.Space) (R₀ : HilbertDrafts.Hilbert6Rigid.Mat)
+    (y : ℕ → ℝ → HilbertDrafts.Hilbert6.Space → HilbertDrafts.Hilbert6.Space),
+    HilbertDrafts.Hilbert6Rigid.StiffContinuum a T y →
+      HilbertDrafts.Hilbert6Rigid.InitialPreparation a c₀ V₀ ω₀ R₀ y →
+        ∃ R ω,
+          HilbertDrafts.Hilbert6Rigid.FreeRigidMotion a T R₀ ω₀ R ω ∧
+            ∀ (η : ℝ),
+              0 < η →
+                ∃ N₀,
+                  ∀ N ≥ N₀,
+                    ∀ t ∈ Set.Icc 0 T,
+                      MeasureTheory.IntegrableOn
+                          (fun x => ‖y N t x - (c₀ + t • V₀ + HilbertDrafts.Hilbert6Rigid.act (R t) x)‖ ^ 2)
+                          (HilbertDrafts.Hilbert6Rigid.body a) MeasureTheory.volume ∧
+                        ∫ (x : HilbertDrafts.Hilbert6.Space) in HilbertDrafts.Hilbert6Rigid.body a,
+                            ‖y N t x - (c₀ + t • V₀ + HilbertDrafts.Hilbert6Rigid.act (R t) x)‖ ^ 2 <
+                          η
+info: Audit.lean:320:0: def HilbertDrafts.Hilbert6Rigid.ElasticityToStiff : Prop :=
+Nonempty HilbertDrafts.Hilbert6Rigid.HyperelasticEnergy ∧
+  ∀ (W : HilbertDrafts.Hilbert6Rigid.HyperelasticEnergy) (a : Fin 3 → ℝ) (T : ℝ)
+    (y : ℕ → ℝ → HilbertDrafts.Hilbert6.Space → HilbertDrafts.Hilbert6.Space),
+    HilbertDrafts.Hilbert6Rigid.LocalHyperelasticFamily W a T y → HilbertDrafts.Hilbert6Rigid.StiffContinuum a T y
+info: Audit.lean:321:0: def HilbertDrafts.Hilbert6Rigid.PolynomialMaterialWitness : Prop :=
+∃ W, W.energy = HilbertDrafts.Hilbert6Rigid.polynomialStoredEnergy
+info: Audit.lean:322:0: def HilbertDrafts.Hilbert6Fluid.ClassicalGasProgram : Prop :=
+HilbertDrafts.Hilbert6Probability.MeanValueLaw ∧
+  HilbertDrafts.Hilbert6Kinetic.NewtonBoltzmannLimit ∧ HilbertDrafts.Hilbert6Fluid.FluidLimitProgram
+info: Audit.lean:323:0: def HilbertDrafts.Hilbert6Kinetic.NewtonBoltzmannLimit : Prop :=
+(∀ (f₀ : HilbertDrafts.Hilbert6.Phase → ℝ),
+    HilbertDrafts.Hilbert6Kinetic.InitialDensity f₀ →
+      ∃ T f, HilbertDrafts.Hilbert6Kinetic.StrongBoltzmannSolution f₀ T f) ∧
+  (∀ (N : ℕ) (ε T : ℝ), 0 < ε → 0 < T → ∃ Φ, HilbertDrafts.Hilbert6Kinetic.IsHardSphereFlow ε T Φ) ∧
+    ∀ (f₀ : HilbertDrafts.Hilbert6.Phase → ℝ) (T : ℝ) (f : ℝ → HilbertDrafts.Hilbert6.Phase → ℝ),
+      HilbertDrafts.Hilbert6Kinetic.InitialDensity f₀ →
+        HilbertDrafts.Hilbert6Kinetic.StrongBoltzmannSolution f₀ T f →
+          ∀
+            (Φ :
+              (N : ℕ) →
+                ℝ → HilbertDrafts.Hilbert6.Configuration (N + 1) → HilbertDrafts.Hilbert6.Configuration (N + 1)),
+            (∀ (N : ℕ),
+                HilbertDrafts.Hilbert6Kinetic.IsHardSphereFlow (HilbertDrafts.Hilbert6Kinetic.diameter N) T (Φ N)) →
+              HilbertDrafts.Hilbert6Kinetic.KineticConvergence f₀ T f Φ
+info: Audit.lean:324:0: def HilbertDrafts.Hilbert12Universal.RationalBenchmark : Prop :=
+∀ (ι : HilbertDrafts.Hilbert12.Ambient ℚ →+* ℂ),
+  HilbertDrafts.Hilbert12Universal.GenerationContract ℚ ι HilbertDrafts.Hilbert12Universal.cyclotomicParameters
+info: Audit.lean:325:0: def HilbertDrafts.Hilbert12CM.ImaginaryQuadraticBenchmark : Prop :=
+∀ (K : Type) [inst : Field K] [inst_1 : NumberField K],
+  HilbertDrafts.Hilbert12CM.ImaginaryQuadratic K →
+    ∀ (ι : HilbertDrafts.Hilbert12.Ambient K →+* ℂ),
+      (∃ L, HilbertDrafts.Hilbert12CM.FullIntegerLattice K ι L) ∧
+        ∀ (L : PeriodPair),
+          HilbertDrafts.Hilbert12CM.FullIntegerLattice K ι L →
+            HilbertDrafts.Hilbert12CM.discriminant L ≠ 0 ∧
+              (∀ z ∈ HilbertDrafts.Hilbert12CM.complexValues L, ∃ α, ι α = z) ∧
+                HilbertDrafts.Hilbert12.FixedValueCoverage K (HilbertDrafts.Hilbert12CM.algebraicValues K ι L)
+info: Audit.lean:326:0: def HilbertDrafts.Hilbert12Universal.RationalAllArguments : Prop :=
+∀ (ι : HilbertDrafts.Hilbert12.Ambient ℚ →+* ℂ),
+  (∀ (q : ℚ), ∃ α, Complex.exp (2 * ↑Real.pi * Complex.I * ↑q) = ι α) ∧
+    HilbertDrafts.Hilbert12.FixedValueCoverage ℚ (HilbertDrafts.Hilbert12Universal.rationalValues ι)
+info: Audit.lean:327:0: def HilbertDrafts.Hilbert12ClassField.ClassFieldClassification : Prop :=
+∀ (K : Type) [inst : Field K] [inst_1 : NumberField K],
+  (∀ (m : HilbertDrafts.Hilbert12ClassField.Modulus K), Finite (HilbertDrafts.Hilbert12ClassField.RayClass K m)) ∧
+    (∀ (m : HilbertDrafts.Hilbert12ClassField.Modulus K)
+        (H : AddSubgroup (HilbertDrafts.Hilbert12ClassField.RayClass K m)),
+        ∃! E, HilbertDrafts.Hilbert12ClassField.IsClassField K m H E) ∧
+      (∀ (E : IntermediateField K (HilbertDrafts.Hilbert12.Ambient K)),
+          HilbertDrafts.Hilbert12.IsFiniteAbelian K E → ∃ m H, HilbertDrafts.Hilbert12ClassField.IsClassField K m H E) ∧
+        ∀ (m : HilbertDrafts.Hilbert12ClassField.Modulus K)
+          (H J : AddSubgroup (HilbertDrafts.Hilbert12ClassField.RayClass K m))
+          (E F : IntermediateField K (HilbertDrafts.Hilbert12.Ambient K)),
+          HilbertDrafts.Hilbert12ClassField.IsClassField K m H E →
+            HilbertDrafts.Hilbert12ClassField.IsClassField K m J F → (H ≤ J ↔ F ≤ E)
+info: Audit.lean:328:0: def HilbertDrafts.Hilbert12ClassField.ConductorDiscriminant : Prop :=
+∀ (K : Type) [inst : Field K] [inst_1 : NumberField K] (E : IntermediateField K (HilbertDrafts.Hilbert12.Ambient K)),
+  HilbertDrafts.Hilbert12.IsFiniteAbelian K E →
+    (∃! m, HilbertDrafts.Hilbert12ClassField.IsConductor K E m) ∧
+      ∃ characters conductors,
+        (∀ (χ : HilbertDrafts.Hilbert12ClassField.Character K E), χ ∈ characters) ∧
+          (∀ (χ : HilbertDrafts.Hilbert12ClassField.Character K E),
+              HilbertDrafts.Hilbert12ClassField.IsConductor K (HilbertDrafts.Hilbert12ClassField.characterField K E χ)
+                (conductors χ)) ∧
+            HilbertDrafts.Hilbert12Arithmetic.relativeDiscriminant K E =
+              ∏ χ ∈ characters, HilbertDrafts.Hilbert12ClassField.finiteModulusIdeal K (conductors χ)
+info: Audit.lean:329:0: def HilbertDrafts.Hilbert12ClassField.CyclotomicReciprocity : Prop :=
+∀ (ι : HilbertDrafts.Hilbert12.Ambient ℚ →+* ℂ) (n : ℕ),
+  0 < n →
+    ∀ (ζ : HilbertDrafts.Hilbert12.Ambient ℚ),
+      ι ζ = Complex.exp (2 * ↑Real.pi * Complex.I / ↑n) →
+        let E := ℚ⟮ζ⟯;
+        have z := ⟨ζ, ⋯⟩;
+        HilbertDrafts.Hilbert12.IsFiniteAbelian ℚ E ∧
+          (∀ (a : ℕ), a.Coprime n → ∃! σ, ↑(σ z) = ζ ^ a) ∧
+            (∀ (σ : Gal(↥E/ℚ)), ∃ a < n, a.Coprime n ∧ ↑(σ z) = ζ ^ a) ∧
+              ∀ (p : ℕ),
+                Nat.Prime p →
+                  ¬p ∣ n →
+                    ∀ (σ : Gal(↥E/ℚ)),
+                      ↑(σ z) = ζ ^ p →
+                        ∀ (P : HilbertDrafts.Hilbert12ClassField.Prime ℚ),
+                          P.asIdeal = Ideal.span {↑p} → HilbertDrafts.Hilbert12ClassField.FrobeniusAt ℚ E P σ
+info: Audit.lean:330:0: def HilbertDrafts.Hilbert12Stark.RankOneAbelianStark : Prop :=
+∀ (K L : Type) [inst : Field K] [inst_1 : NumberField K] [inst_2 : Field L] [inst_3 : NumberField L]
+  [inst_4 : Algebra K L] [FiniteDimensional K L] [IsGalois K L],
+  (∀ (σ τ : Gal(L/K)), σ * τ = τ * σ) →
+    ∀ (S : Finset (HilbertDrafts.Hilbert12Stark.Place K)) (v : HilbertDrafts.Hilbert12Stark.Place K)
+      (w : HilbertDrafts.Hilbert12Stark.Place L),
+      HilbertDrafts.Hilbert12Stark.AdmissiblePlaces K L S v w →
+        (∃ A, HilbertDrafts.Hilbert12Stark.IsArtinMap K L S A) ∧
+          ∀ (A : Ideal (NumberField.RingOfIntegers K) → HilbertDrafts.Hilbert12Stark.GaloisGroup K L),
+            HilbertDrafts.Hilbert12Stark.IsArtinMap K L S A →
+              (∃ Z, HilbertDrafts.Hilbert12Stark.IsPartialZeta K L S A Z) ∧
+                ∀ (Z : HilbertDrafts.Hilbert12Stark.GaloisGroup K L → ℂ → ℂ),
+                  HilbertDrafts.Hilbert12Stark.IsPartialZeta K L S A Z →
+                    ∃ u,
+                      HilbertDrafts.Hilbert12Stark.StarkUnitCondition K L S v u ∧
+                        HilbertDrafts.Hilbert12Stark.AbelianRootExtension K L u ∧
+                          ∀ (σ : HilbertDrafts.Hilbert12Stark.GaloisGroup K L),
+                            HasDerivAt (Z σ)
+                              (↑(-Real.log (HilbertDrafts.Hilbert12Stark.placeAbs L w (σ u)) /
+                                  ↑(NumberField.Units.torsionOrder L)))
+                              0
+info: Audit.lean:331:0: def HilbertDrafts.Hilbert13.AlgebraicHilbert13 : Prop :=
+HilbertDrafts.Hilbert13.ClassicalUpperBound ∧ HilbertDrafts.Hilbert13.AlgebraicLowerBound
+info: Audit.lean:332:0: def HilbertDrafts.Hilbert16.UniformBound : Prop :=
+∀ (d : ℕ),
+  ∃ N,
+    ∀ (V : HilbertDrafts.Hilbert16.PolynomialVectorField),
+      V.DegreeAtMost d →
+        ∀ (m : ℕ) (cycles : Fin m → Set HilbertDrafts.Hilbert16.Plane),
+          Function.Injective cycles → (∀ (i : Fin m), HilbertDrafts.Hilbert16.IsLimitCycle V (cycles i)) → m ≤ N
+info: Audit.lean:333:0: def HilbertDrafts.Hilbert16Classification.HarnackSharpBound : Prop :=
+∀ (d : ℕ),
+  0 < d →
+    (∀ (p : MvPolynomial (Fin (2 + 1)) ℝ),
+        HilbertDrafts.Hilbert16Classification.Admissible 2 d true p →
+          ∃ m ≤ (d - 1) * (d - 2) / 2 + 1,
+            HilbertDrafts.Hilbert16Classification.ExactComponents (HilbertDrafts.Hilbert16Classification.zeroLocus 2 p)
+              m) ∧
+      ∃ p,
+        HilbertDrafts.Hilbert16Classification.Admissible 2 d true p ∧
+          HilbertDrafts.Hilbert16Classification.ExactComponents (HilbertDrafts.Hilbert16Classification.zeroLocus 2 p)
+            ((d - 1) * (d - 2) / 2 + 1)
+info: Audit.lean:334:0: def HilbertDrafts.Hilbert16Classification.QuarticSurfaceMaximum : Prop :=
+(∀ (p : MvPolynomial (Fin (3 + 1)) ℝ),
+    HilbertDrafts.Hilbert16Classification.Admissible 3 4 true p →
+      ∃ m ≤ 10,
+        HilbertDrafts.Hilbert16Classification.ExactComponents (HilbertDrafts.Hilbert16Classification.zeroLocus 3 p) m) ∧
+  ∃ p,
+    HilbertDrafts.Hilbert16Classification.Admissible 3 4 true p ∧
+      HilbertDrafts.Hilbert16Classification.ExactComponents (HilbertDrafts.Hilbert16Classification.zeroLocus 3 p) 10
+info: Audit.lean:335:0: def HilbertDrafts.Hilbert16Classification.EffectiveHilbert16 : Prop :=
+Nonempty (HilbertDrafts.Hilbert16Classification.EffectiveAlgebraicClassification 2 true) ∧
+  Nonempty (HilbertDrafts.Hilbert16Classification.EffectiveAlgebraicClassification 3 true) ∧
+    Nonempty
+        (HilbertDrafts.Hilbert16Classification.EffectiveCycleClassification
+          HilbertDrafts.Hilbert16.PolynomialVectorField HilbertDrafts.Hilbert16.Plane
+          HilbertDrafts.Hilbert16Classification.AffineArrangement (fun d V => V.DegreeAtMost d)
+          (fun V => {C | HilbertDrafts.Hilbert16.IsLimitCycle V C})
+          HilbertDrafts.Hilbert16Classification.affineArrangementLocus) ∧
+      Nonempty
+        (HilbertDrafts.Hilbert16Classification.EffectiveCycleClassification
+          HilbertDrafts.Hilbert16Classification.HomogeneousVectorField
+          (HilbertDrafts.Hilbert16Classification.Projective 2)
+          HilbertDrafts.Hilbert16Classification.ProjectiveArrangement (fun d V => V.Degree d)
+          (fun V => {C | HilbertDrafts.Hilbert16Classification.IsProjectiveLimitCycle V C})
+          HilbertDrafts.Hilbert16Classification.projectiveArrangementLocus)
+info: Audit.lean:336:0: def HilbertDrafts.Hilbert13.ParameterStep : ℕ →
+  IntermediateField ℂ HilbertDrafts.Hilbert13.Ambient → IntermediateField ℂ HilbertDrafts.Hilbert13.Ambient → Prop :=
+fun d E F =>
+  ∃ E₀ E₁,
+    ∃ (h₀ : E₀ ≤ E) (h₁ : E₀ ≤ E₁) (hEF : E ≤ F),
+      FiniteDimensional ↥E₀ ↥E₁ ∧ Algebra.trdeg ℂ ↥E₀ ≤ ↑d ∧ Nonempty (TensorProduct ↥E₀ ↥E ↥E₁ ≃ₐ[↥E] ↥F)
+info: Audit.lean:338:0: def HilbertDrafts.Hilbert12Universal.Hilbert12For : HilbertDrafts.Hilbert12Universal.Recipe → Prop :=
+fun R =>
+  ∀ (K : Type) [inst : Field K] [inst_1 : NumberField K] (ι : HilbertDrafts.Hilbert12.Ambient K →+* ℂ),
+    HilbertDrafts.Hilbert12Universal.GenerationContract K ι (R.parameters K ι)
+info: Audit.lean:339:0: def HilbertDrafts.Hilbert12Universal.GenerationContract : (K : Type) →
+  [inst : Field K] →
+    (HilbertDrafts.Hilbert12.Ambient K →+* ℂ) →
+      {F : HilbertDrafts.Hilbert12Universal.AnalyticFamily} → HilbertDrafts.Hilbert12Universal.Parameters F → Prop :=
+fun K [Field K] ι {F} p =>
+  (∀ (n : ℕ), ∃ α, p.evaluate n = ι α) ∧
+    (∀ (s : Finset ℕ), HilbertDrafts.Hilbert12.IsFiniteAbelian K (HilbertDrafts.Hilbert12Universal.stage K ι p s)) ∧
+      ∀ (E : IntermediateField K (HilbertDrafts.Hilbert12.Ambient K)),
+        HilbertDrafts.Hilbert12.IsFiniteAbelian K E → ∃ s, E ≤ HilbertDrafts.Hilbert12Universal.stage K ι p s
+info: Audit.lean:340:0: def HilbertDrafts.Hilbert6Fluid.ParticleFluidLimit : (ℝ → HilbertDrafts.Hilbert6.Phase → ℝ) →
+  (ℝ → HilbertDrafts.Hilbert6.Phase → ℝ) → (HilbertDrafts.Hilbert6.Phase → ℝ) → (ℝ → ℝ) → ℝ → Prop :=
+fun initial limit baseline rescale T =>
+  ∀ (Φ : ℝ → (N : ℕ) → ℝ → HilbertDrafts.Hilbert6.Configuration (N + 1) → HilbertDrafts.Hilbert6.Configuration (N + 1)),
+    (∀ (κ : ℝ),
+        0 < κ →
+          ∀ᶠ (N : ℕ) in Filter.atTop,
+            HilbertDrafts.Hilbert6Fluid.IsTorusFlow (HilbertDrafts.Hilbert6Fluid.fluidDiameter κ N) (T / rescale κ)
+              (Φ κ N)) →
+      ∀ (φ : HilbertDrafts.Hilbert6.Phase → ℝ),
+        HilbertDrafts.Hilbert6Fluid.FluidTest φ →
+          ∀ (η : ℝ),
+            0 < η →
+              ∃ κ₀,
+                0 < κ₀ ∧
+                  ∀ (κ : ℝ),
+                    0 < κ →
+                      κ < κ₀ →
+                        ∃ N₀,
+                          ∀ N ≥ N₀,
+                            (∀ (z : HilbertDrafts.Hilbert6.Phase), 0 ≤ initial κ z) ∧
+                              MeasureTheory.Integrable (HilbertDrafts.Hilbert6Fluid.torusWeight κ N (initial κ))
+                                  MeasureTheory.volume ∧
+                                0 < HilbertDrafts.Hilbert6Fluid.torusPartition κ N (initial κ) ∧
+                                  MeasureTheory.IsProbabilityMeasure
+                                      (HilbertDrafts.Hilbert6Fluid.torusLaw κ N (initial κ)) ∧
+                                    ∀ t ∈ Set.Icc 0 T,
+                                      have law :=
+                                        HilbertDrafts.Hilbert6Fluid.torusEvolvedLaw κ N (initial κ) (Φ κ N)
+                                          (t / rescale κ);
+                                      MeasureTheory.IsProbabilityMeasure law ∧
+                                        MeasureTheory.Integrable (HilbertDrafts.Hilbert6.empiricalAverage N φ) law ∧
+                                          MeasureTheory.IntegrableOn (fun z => φ z * baseline z)
+                                              HilbertDrafts.Hilbert6Fluid.phaseCell MeasureTheory.volume ∧
+                                            MeasureTheory.IntegrableOn (fun z => φ z * limit t z)
+                                                HilbertDrafts.Hilbert6Fluid.phaseCell MeasureTheory.volume ∧
+                                              |(HilbertDrafts.Hilbert6.microscopicObservable N law φ -
+                                                          ∫ (z : HilbertDrafts.Hilbert6.Phase) in
+                                                            HilbertDrafts.Hilbert6Fluid.phaseCell, φ z * baseline z) /
+                                                        rescale κ -
+                                                      ∫ (z : HilbertDrafts.Hilbert6.Phase) in
+                                                        HilbertDrafts.Hilbert6Fluid.phaseCell, φ z * limit t z| <
+                                                  η ∧
+                                                law
+                                                    {z |
+                                                      η ≤
+                                                        |(HilbertDrafts.Hilbert6.empiricalAverage N φ z -
+                                                                ∫ (y : HilbertDrafts.Hilbert6.Phase) in
+                                                                  HilbertDrafts.Hilbert6Fluid.phaseCell,
+                                                                  φ y * baseline y) /
+                                                              rescale κ -
+                                                            ∫ (y : HilbertDrafts.Hilbert6.Phase) in
+                                                              HilbertDrafts.Hilbert6Fluid.phaseCell, φ y * limit t y|} <
+                                                  ENNReal.ofReal η
+info: Audit.lean:341:0: structure HilbertDrafts.Hilbert16Classification.AlgebraicClassification (n : ℕ) (smooth : Bool) : Type
+number of parameters: 2
+fields:
+  HilbertDrafts.Hilbert16Classification.AlgebraicClassification.catalogue : ℕ →
+      List (HilbertDrafts.Hilbert16Classification.ProjectivePolyhedron n)
+  HilbertDrafts.Hilbert16Classification.AlgebraicClassification.realized : ∀ (d : ℕ),
+      ∀ c ∈ self.catalogue d,
+        ∃ p,
+          HilbertDrafts.Hilbert16Classification.Admissible n d smooth p ∧
+            HilbertDrafts.Hilbert16Classification.AmbientIsotopic (HilbertDrafts.Hilbert16Classification.zeroLocus n p)
+              (HilbertDrafts.Hilbert16Classification.polyhedronLocus n c)
+  HilbertDrafts.Hilbert16Classification.AlgebraicClassification.exhaustive : ∀ (d : ℕ)
+      (p : MvPolynomial (Fin (n + 1)) ℝ),
+      HilbertDrafts.Hilbert16Classification.Admissible n d smooth p →
+        ∃ c ∈ self.catalogue d,
+          HilbertDrafts.Hilbert16Classification.AmbientIsotopic (HilbertDrafts.Hilbert16Classification.zeroLocus n p)
+            (HilbertDrafts.Hilbert16Classification.polyhedronLocus n c)
+  HilbertDrafts.Hilbert16Classification.AlgebraicClassification.irredundant : ∀ (d : ℕ)
+      (i j : Fin (self.catalogue d).length),
+      HilbertDrafts.Hilbert16Classification.AmbientIsotopic
+          (HilbertDrafts.Hilbert16Classification.polyhedronLocus n ((self.catalogue d).get i))
+          (HilbertDrafts.Hilbert16Classification.polyhedronLocus n ((self.catalogue d).get j)) →
+        i = j
+  HilbertDrafts.Hilbert16Classification.AlgebraicClassification.maximumComponents : ℕ → ℕ
+  HilbertDrafts.Hilbert16Classification.AlgebraicClassification.componentBound : ∀ (d : ℕ)
+      (p : MvPolynomial (Fin (n + 1)) ℝ),
+      HilbertDrafts.Hilbert16Classification.Admissible n d smooth p →
+        ∃ m ≤ self.maximumComponents d,
+          HilbertDrafts.Hilbert16Classification.ExactComponents (HilbertDrafts.Hilbert16Classification.zeroLocus n p) m
+  HilbertDrafts.Hilbert16Classification.AlgebraicClassification.maximumAttained : ∀ (d : ℕ),
+      ∃ p,
+        HilbertDrafts.Hilbert16Classification.Admissible n d smooth p ∧
+          HilbertDrafts.Hilbert16Classification.ExactComponents (HilbertDrafts.Hilbert16Classification.zeroLocus n p)
+            (self.maximumComponents d)
+constructor:
+  HilbertDrafts.Hilbert16Classification.AlgebraicClassification.mk {n : ℕ} {smooth : Bool}
+    (catalogue : ℕ → List (HilbertDrafts.Hilbert16Classification.ProjectivePolyhedron n))
+    (realized :
+      ∀ (d : ℕ),
+        ∀ c ∈ catalogue d,
+          ∃ p,
+            HilbertDrafts.Hilbert16Classification.Admissible n d smooth p ∧
+              HilbertDrafts.Hilbert16Classification.AmbientIsotopic
+                (HilbertDrafts.Hilbert16Classification.zeroLocus n p)
+                (HilbertDrafts.Hilbert16Classification.polyhedronLocus n c))
+    (exhaustive :
+      ∀ (d : ℕ) (p : MvPolynomial (Fin (n + 1)) ℝ),
+        HilbertDrafts.Hilbert16Classification.Admissible n d smooth p →
+          ∃ c ∈ catalogue d,
+            HilbertDrafts.Hilbert16Classification.AmbientIsotopic (HilbertDrafts.Hilbert16Classification.zeroLocus n p)
+              (HilbertDrafts.Hilbert16Classification.polyhedronLocus n c))
+    (irredundant :
+      ∀ (d : ℕ) (i j : Fin (catalogue d).length),
+        HilbertDrafts.Hilbert16Classification.AmbientIsotopic
+            (HilbertDrafts.Hilbert16Classification.polyhedronLocus n ((catalogue d).get i))
+            (HilbertDrafts.Hilbert16Classification.polyhedronLocus n ((catalogue d).get j)) →
+          i = j)
+    (maximumComponents : ℕ → ℕ)
+    (componentBound :
+      ∀ (d : ℕ) (p : MvPolynomial (Fin (n + 1)) ℝ),
+        HilbertDrafts.Hilbert16Classification.Admissible n d smooth p →
+          ∃ m ≤ maximumComponents d,
+            HilbertDrafts.Hilbert16Classification.ExactComponents (HilbertDrafts.Hilbert16Classification.zeroLocus n p)
+              m)
+    (maximumAttained :
+      ∀ (d : ℕ),
+        ∃ p,
+          HilbertDrafts.Hilbert16Classification.Admissible n d smooth p ∧
+            HilbertDrafts.Hilbert16Classification.ExactComponents (HilbertDrafts.Hilbert16Classification.zeroLocus n p)
+              (maximumComponents d)) :
+    HilbertDrafts.Hilbert16Classification.AlgebraicClassification n smooth
+info: Audit.lean:342:0: structure HilbertDrafts.Hilbert16Classification.CycleClassification (System X Code : Type) [TopologicalSpace X]
+  [Encodable Code] (allowed : ℕ → System → Prop) (cycles : System → Set (Set X)) (decode : Code → Set (Set X)) : Type
+number of parameters: 8
+fields:
+  HilbertDrafts.Hilbert16Classification.CycleClassification.maximum : ℕ → ℕ
+  HilbertDrafts.Hilbert16Classification.CycleClassification.bounded : ∀ (d : ℕ) (V : System),
+      allowed d V →
+        ∀ (m : ℕ) (cs : Fin m → Set X), Function.Injective cs → (∀ (i : Fin m), cs i ∈ cycles V) → m ≤ self.maximum d
+  HilbertDrafts.Hilbert16Classification.CycleClassification.attained : ∀ (d : ℕ),
+      ∃ V, allowed d V ∧ ∃ cs, Function.Injective cs ∧ Set.range cs = cycles V
+  HilbertDrafts.Hilbert16Classification.CycleClassification.catalogue : ℕ → List Code
+  HilbertDrafts.Hilbert16Classification.CycleClassification.realized : ∀ (d : ℕ),
+      ∀ c ∈ self.catalogue d,
+        ∃ V, allowed d V ∧ HilbertDrafts.Hilbert16Classification.FamilyAmbientIsotopic (cycles V) (decode c)
+  HilbertDrafts.Hilbert16Classification.CycleClassification.exhaustive : ∀ (d : ℕ) (V : System),
+      allowed d V →
+        ∃ c ∈ self.catalogue d, HilbertDrafts.Hilbert16Classification.FamilyAmbientIsotopic (cycles V) (decode c)
+  HilbertDrafts.Hilbert16Classification.CycleClassification.irredundant : ∀ (d : ℕ)
+      (i j : Fin (self.catalogue d).length),
+      HilbertDrafts.Hilbert16Classification.FamilyAmbientIsotopic (decode ((self.catalogue d).get i))
+          (decode ((self.catalogue d).get j)) →
+        i = j
+constructor:
+  HilbertDrafts.Hilbert16Classification.CycleClassification.mk {System X Code : Type} [TopologicalSpace X]
+    [Encodable Code] {allowed : ℕ → System → Prop} {cycles : System → Set (Set X)} {decode : Code → Set (Set X)}
+    (maximum : ℕ → ℕ)
+    (bounded :
+      ∀ (d : ℕ) (V : System),
+        allowed d V →
+          ∀ (m : ℕ) (cs : Fin m → Set X), Function.Injective cs → (∀ (i : Fin m), cs i ∈ cycles V) → m ≤ maximum d)
+    (attained : ∀ (d : ℕ), ∃ V, allowed d V ∧ ∃ cs, Function.Injective cs ∧ Set.range cs = cycles V)
+    (catalogue : ℕ → List Code)
+    (realized :
+      ∀ (d : ℕ),
+        ∀ c ∈ catalogue d,
+          ∃ V, allowed d V ∧ HilbertDrafts.Hilbert16Classification.FamilyAmbientIsotopic (cycles V) (decode c))
+    (exhaustive :
+      ∀ (d : ℕ) (V : System),
+        allowed d V →
+          ∃ c ∈ catalogue d, HilbertDrafts.Hilbert16Classification.FamilyAmbientIsotopic (cycles V) (decode c))
+    (irredundant :
+      ∀ (d : ℕ) (i j : Fin (catalogue d).length),
+        HilbertDrafts.Hilbert16Classification.FamilyAmbientIsotopic (decode ((catalogue d).get i))
+            (decode ((catalogue d).get j)) →
+          i = j) :
+    HilbertDrafts.Hilbert16Classification.CycleClassification System X Code allowed cycles decode
+info: Audit.lean:343:0: HilbertDrafts.Hilbert16Classification.ClassificationOutput : Type
+info: Audit.lean:344:0: HilbertDrafts.Hilbert12ClassField.ArithmeticOutput : Type 1
+info: Audit.lean:345:0: def HilbertDrafts.Hilbert12Universal.FieldHilbert12For : HilbertDrafts.Hilbert12Universal.FieldRecipe → Prop :=
+fun R =>
+  ∀ (K : Type) [inst : Field K] [NumberField K] (ι : HilbertDrafts.Hilbert12.Ambient K →+* ℂ),
+    HilbertDrafts.Hilbert12Universal.GenerationContract K ι
+      (R.parameters (HilbertDrafts.Hilbert12Universal.embeddedField K ι))
+Build completed successfully (8938 jobs).

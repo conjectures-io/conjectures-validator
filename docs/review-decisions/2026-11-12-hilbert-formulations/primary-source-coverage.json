@@ -1,0 +1,222 @@
+{
+  "review_date": "2026-11-13",
+  "scope_authority": "Hilbert, Mathematical Problems, authorized 1902 English translation, AMS 2000 reprint",
+  "source_url": "https://people.seas.harvard.edu/~salil/cs121/fall12/handouts/Hilbert.pdf",
+  "page_numbering": "Printed AMS reprint pages, not PDF zero-based indices",
+  "full_source_scope_accepted": false,
+  "clauses": [
+    {
+      "id": "H6-AXIOMS",
+      "problem": "6",
+      "location": "418, opening paragraph",
+      "requirement": "Axiomatic treatment of the physical sciences",
+      "formalization": "partial",
+      "declarations": [
+        "HilbertDrafts.Hilbert6Probability.ProbabilityAxioms",
+        "HilbertDrafts.Hilbert6Mechanics.Newtonian"
+      ],
+      "review_accepted": true,
+      "limitation": "Probability and classical mechanics are explicit choices; claims about all conceivable physics are programme text.",
+      "acceptance_scope": "Validity of the stated formulation or optional illustration under its declared interpretation; not literal unrestricted completeness."
+    },
+    {
+      "id": "H6-PROBABILITY",
+      "problem": "6",
+      "location": "418, second paragraph",
+      "requirement": "Probability foundations and mean values",
+      "formalization": "specified_for_selected_interpretation",
+      "declarations": [
+        "HilbertDrafts.Hilbert6Probability.ProbabilityAxioms.toMeasure",
+        "HilbertDrafts.Hilbert6Probability.meanValueLaw",
+        "HilbertDrafts.Hilbert6Probability.probability_axioms_consistent"
+      ],
+      "review_accepted": true,
+      "limitation": "Chosen Kolmogorov and mean-value interpretation; kinetic concentration is also included.",
+      "acceptance_scope": "Validity of the stated formulation or optional illustration under its declared interpretation; not literal unrestricted completeness."
+    },
+    {
+      "id": "H6-MECHANICS",
+      "problem": "6",
+      "location": "419, first paragraph",
+      "requirement": "Foundations of mechanics",
+      "formalization": "specified_for_selected_interpretation",
+      "declarations": [
+        "HilbertDrafts.Hilbert6Mechanics.newtonian_iff_momentum"
+      ],
+      "review_accepted": true,
+      "limitation": "Positive-mass finite Newtonian systems and momentum variables.",
+      "acceptance_scope": "Validity of the stated formulation or optional illustration under its declared interpretation; not literal unrestricted completeness."
+    },
+    {
+      "id": "H6-PARTICLE-CONTINUUM",
+      "problem": "6",
+      "location": "419, first paragraph",
+      "requirement": "Particle-to-continuum limits",
+      "formalization": "specified_for_selected_interpretation",
+      "declarations": [
+        "HilbertDrafts.Hilbert6Kinetic.NewtonBoltzmannLimit",
+        "HilbertDrafts.Hilbert6Fluid.FluidLimitProgram"
+      ],
+      "review_accepted": true,
+      "limitation": "Explicit hard-sphere, kinetic, Euler, and NSF choices; reference equivalence not proved.",
+      "acceptance_scope": "Validity of the stated formulation or optional illustration under its declared interpretation; not literal unrestricted completeness."
+    },
+    {
+      "id": "H6-CONTINUUM-RIGID",
+      "problem": "6",
+      "location": "419, first paragraph",
+      "requirement": "Continuum-to-rigid-body dynamics",
+      "formalization": "specified_for_selected_interpretation",
+      "declarations": [
+        "HilbertDrafts.Hilbert6Rigid.ContinuumRigidLimit",
+        "HilbertDrafts.Hilbert6Rigid.LocalHyperelasticFamily",
+        "HilbertDrafts.Hilbert6Rigid.ElasticityToStiff",
+        "HilbertDrafts.Hilbert6Rigid.stationary_elastic_model"
+      ],
+      "review_accepted": true,
+      "limitation": "Local PDE, material law and boundary are explicit; convergence is conditional on uniformly existing smooth elastic solutions.",
+      "acceptance_scope": "Validity of the stated formulation or optional illustration under its declared interpretation; not literal unrestricted completeness."
+    },
+    {
+      "id": "H6-EQUIVALENCE",
+      "problem": "6",
+      "location": "419, first/second paragraphs",
+      "requirement": "Equivalence and specialization of axioms",
+      "formalization": "partial",
+      "declarations": [
+        "HilbertDrafts.Hilbert6Mechanics.newtonian_iff_momentum"
+      ],
+      "review_accepted": true,
+      "limitation": "Solution equivalence supplied; generic first-order theory retained as optional appendix.",
+      "acceptance_scope": "Validity of the stated formulation or optional illustration under its declared interpretation; not literal unrestricted completeness."
+    },
+    {
+      "id": "H6-CONSEQUENCES",
+      "problem": "6",
+      "location": "419, second paragraph",
+      "requirement": "Possible theories and their consequences",
+      "formalization": "partial",
+      "declarations": [
+        "HilbertDrafts.Hilbert6Logic.consequences",
+        "HilbertDrafts.Hilbert6Logic.consequence_has_finite_basis"
+      ],
+      "review_accepted": true,
+      "limitation": "Recorded as programme text; compactness is an optional illustration, not a claimed exhaustive survey.",
+      "acceptance_scope": "Validity of the stated formulation or optional illustration under its declared interpretation; not literal unrestricted completeness."
+    },
+    {
+      "id": "H6-COMPATIBILITY",
+      "problem": "6",
+      "location": "419, final paragraph of problem 6",
+      "requirement": "Compatibility of new and existing axioms",
+      "formalization": "partial",
+      "declarations": [
+        "HilbertDrafts.Hilbert6Probability.probability_axioms_consistent",
+        "HilbertDrafts.Hilbert6Mechanics.freeMotion",
+        "HilbertDrafts.Hilbert6Rigid.stationary_elastic_model"
+      ],
+      "review_accepted": true,
+      "limitation": "Actual model witnesses for the selected axiom systems; no requirement of first-order translation.",
+      "acceptance_scope": "Validity of the stated formulation or optional illustration under its declared interpretation; not literal unrestricted completeness."
+    },
+    {
+      "id": "H12-ARITHMETIC",
+      "problem": "12",
+      "location": "422, First and following paragraph",
+      "requirement": "Prescribed degree, group, discriminant and arithmetic determination",
+      "formalization": "specified_for_selected_interpretation",
+      "declarations": [
+        "HilbertDrafts.Hilbert12Arithmetic.relativeDiscriminant",
+        "HilbertDrafts.Hilbert12Arithmetic.HasArithmeticData",
+        "HilbertDrafts.Hilbert12Arithmetic.ArithmeticCatalogue",
+        "HilbertDrafts.Hilbert12ClassField.ClassFieldClassification",
+        "HilbertDrafts.Hilbert12ClassField.ConductorDiscriminant",
+        "HilbertDrafts.Hilbert12ClassField.ArithmeticOutput"
+      ],
+      "review_accepted": true,
+      "limitation": "Actual arithmetic classification output type and class-field theorem statements supplied.",
+      "acceptance_scope": "Validity of the stated formulation or optional illustration under its declared interpretation; not literal unrestricted completeness."
+    },
+    {
+      "id": "H12-RATIONAL",
+      "problem": "12",
+      "location": "422, Second and following paragraph",
+      "requirement": "Cyclotomic/exponential benchmark",
+      "formalization": "specified_for_selected_interpretation",
+      "declarations": [
+        "HilbertDrafts.Hilbert12Universal.RationalBenchmark",
+        "HilbertDrafts.Hilbert12Universal.cyclotomic_evaluation_primitive",
+        "HilbertDrafts.Hilbert12Universal.RationalAllArguments",
+        "HilbertDrafts.Hilbert12ClassField.CyclotomicReciprocity"
+      ],
+      "review_accepted": true,
+      "limitation": "Normalized rational-input benchmark and explicit power/Frobenius action.",
+      "acceptance_scope": "Validity of the stated formulation or optional illustration under its declared interpretation; not literal unrestricted completeness."
+    },
+    {
+      "id": "H12-CM",
+      "problem": "12",
+      "location": "422, imaginary quadratic discussion",
+      "requirement": "Corrected imaginary-quadratic benchmark",
+      "formalization": "specified_for_selected_interpretation",
+      "declarations": [
+        "HilbertDrafts.Hilbert12CM.ImaginaryQuadraticBenchmark",
+        "HilbertDrafts.Hilbert12CM.weber_analyticAt",
+        "HilbertDrafts.Hilbert12CM.half_period_is_nonzero_torsion"
+      ],
+      "review_accepted": true,
+      "limitation": "Accepted as a known-theorem formulation by Fable round 2; main CM reciprocity action is not included.",
+      "modern_source": "Silverman, Arithmetic of Elliptic Curves (2nd ed.), C.11.5(b), C.11.6, pp. 428-429",
+      "acceptance_scope": "Validity of the stated formulation or optional illustration under its declared interpretation; not literal unrestricted completeness."
+    },
+    {
+      "id": "H12-ALL-FIELDS",
+      "problem": "12",
+      "location": "422-423, Finally and concluding paragraph",
+      "requirement": "All number fields and all abelian extensions",
+      "formalization": "specified_for_selected_interpretation",
+      "declarations": [
+        "HilbertDrafts.Hilbert12Universal.Hilbert12For",
+        "HilbertDrafts.Hilbert12Universal.generated_eq_maximalAbelian",
+        "HilbertDrafts.Hilbert12Universal.FieldHilbert12For"
+      ],
+      "review_accepted": true,
+      "limitation": "Free field-attached recipe contract; explicitness is not certified by existentially closing this type.",
+      "acceptance_scope": "Validity of the stated formulation or optional illustration under its declared interpretation; not literal unrestricted completeness."
+    },
+    {
+      "id": "H12-TRANSCENDENTAL",
+      "problem": "12",
+      "location": "422-423, analytic construction paragraphs",
+      "requirement": "Explicit transcendental construction",
+      "formalization": "partial",
+      "declarations": [
+        "HilbertDrafts.Hilbert12Universal.AnalyticFamily",
+        "HilbertDrafts.Hilbert12Universal.Recipe",
+        "HilbertDrafts.Hilbert12.constantOracle_covers",
+        "HilbertDrafts.Hilbert12Universal.identity_reencoding_preserves_contract",
+        "HilbertDrafts.Hilbert12Universal.RationalPointContract"
+      ],
+      "review_accepted": true,
+      "limitation": "Checked identity-reencoding limitation; rational-point profile is optional and not a sufficient explicitness condition. No impossibility theorem about all admissibility predicates is asserted.",
+      "acceptance_scope": "Validity of the stated formulation or optional illustration under its declared interpretation; not literal unrestricted completeness."
+    }
+  ],
+  "contextual_passages": [
+    {
+      "problem": "6",
+      "location": "419, second paragraph",
+      "topic": "Lie transformation-group suggestion",
+      "treatment": "Recorded as a research suggestion, not asserted to specify a separate closed classification conjecture."
+    },
+    {
+      "problem": "12",
+      "location": "423",
+      "topic": "Riemann surfaces, Hensel, Riemann-Roch, quadratic reciprocity analogies",
+      "treatment": "Motivation and suggested methods; not treated as proofs of a universal analytic construction."
+    }
+  ],
+  "completion_rule": "Every main clause needs an adequate interpretation, valid formal specification, and recorded semantic acceptance. Declaration existence alone is not acceptance.",
+  "clause_complete_under_declared_interpretation": true,
+  "review_basis": "Fable round 3; semantic acceptance concerns the declared interpretations and limitations below. Wording conditions applied in revision 10; see review-status.json for final snapshot confirmation."
+}

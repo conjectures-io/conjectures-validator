@@ -1,0 +1,376 @@
+[
+  {
+    "number": 151,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": []
+      },
+      "isError": false
+    }
+  },
+  {
+    "number": 159,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": []
+      },
+      "isError": false
+    }
+  },
+  {
+    "number": 173,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": []
+      },
+      "isError": false
+    }
+  },
+  {
+    "number": 295,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": []
+      },
+      "isError": false
+    }
+  },
+  {
+    "number": 311,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": []
+      },
+      "isError": false
+    }
+  },
+  {
+    "number": 322,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": []
+      },
+      "isError": false
+    }
+  },
+  {
+    "number": 345,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": []
+      },
+      "isError": false
+    }
+  },
+  {
+    "number": 388,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": []
+      },
+      "isError": false
+    }
+  },
+  {
+    "number": 389,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": []
+      },
+      "isError": false
+    }
+  },
+  {
+    "number": 393,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": [
+          {
+            "url": "https://github.com/google-deepmind/formal-conjectures/pull/7762",
+            "title": "feat(ErdosProblems/393): link the Palomar entry for the formal proof",
+            "issue_number": 7762,
+            "body": "Links a formal proof of `erdos_393.variants.luca`: assuming the $abc$ conjecture (`ABC.abc`), $f(n) \\to \\infty$. The link points to the Palomar entry [PALOMAR-2026-11-02-000011](https://palomar-registry.org/entry.html?id=PALOMAR-2026-11-02-000011), which registers [veljjanoski/erdos393-palomar](https://github.com/veljjanoski/erdos393-palomar) at commit ec057686.\n\nThe proof follows Luca's proof of Proposition 1 in [Lu02] for the polynomials $\\prod_{i \\in T} (x + i)$. If $f(n) \\not\\to \\infty$, one set of offsets $T$ gives $\\prod_{i \\in T} (a + i) = n!$ for infinitely many $n$. With $d = |T|$, the shift $y = d a + \\sum_{i \\in T} i$ turns this into $y^d + y^k R(y) = d^d n!$ with $k + \\deg R \\leq d - 2$ and $R(0) \\neq 0$. The $abc$ conjecture with $\\varepsilon = 1/(2d)$, together with $\\mathrm{rad}(n!) \\leq 4^n$, then bounds $y$ by an exponential in $n$, while $y^d \\geq n!$. Two details differ from Luca: the common factor of the two summands is bounded by a power of $R(0)$ instead of cancelled, and the last step uses that $n!$ eventually exceeds every $K X^n$ instead of Stirling's formula.\n\nPalomar needs Lean v4.35 or later, so the Palomar project does not import formal-conjectures. Its `Challenge.lean` copies `ABC.radical` and `Erdos393.f` verbatim from a64e959c (unchanged on main), and writes the hypothesis `type_of% ABC.abc` out as the statement of `ABC.abc`, also copied verbatim. A check in formal-conjectures showed that the two statements are the same expression up to the names of the auxiliary `match` functions, and that they are equal by `rfl`. Palomar's comparator checked that `Solution.lean` proves the statement. `#print axioms` gives `[propext, Classical.choice, Quot.sound]`.\n\nNo statement changes.\n\nChecked by building the file with `lake build --wfail`.\n\nAI-usage disclosure: Claude (Anthropic) was used as assistant.\n",
+            "state": null,
+            "user": null,
+            "assignees": null,
+            "labels": null,
+            "milestone": null,
+            "state_reason": null,
+            "comments": null,
+            "created_at": null,
+            "updated_at": null,
+            "closed_at": null,
+            "display_url": "https://github.com/google-deepmind/formal-conjectures/pull/7762",
+            "display_title": "feat(ErdosProblems/393): link the Palomar entry for the formal proof"
+          }
+        ]
+      },
+      "isError": false
+    }
+  },
+  {
+    "number": 422,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": []
+      },
+      "isError": false
+    }
+  },
+  {
+    "number": 423,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": [
+          {
+            "url": "https://github.com/google-deepmind/formal-conjectures/pull/7287",
+            "title": "WrittenOnTheWallII: certify 423 and its additive cut strengthening",
+            "issue_number": 7287,
+            "body": "Adds WOWII 423 and Gebendorfer's stronger additive cut theorem with a complete external Lean certificate. The original result covers every connected finite graph of order greater than three, including the regular case.\n\nWritten source: Jonas J. Gebendorfer, *Independent Domination Across a Vertex Cut and a Resolution of WOWII Conjecture 423*, 1 September 2026. [Complete manuscript and frozen source records](https://github.com/user-attachments/files/33373559/Gebendorfer_WOWII_423_Intake_2026-10-13.zip).\n\n[Immutable proof](https://github.com/RhudeJJJJ/formal-conjectures/blob/a76806d654092689138c922a8b62ca7bebf3253b/Proofs/WOWII423Proof.lean) · [Separate type/axiom audit](https://github.com/RhudeJJJJ/formal-conjectures/blob/a76806d654092689138c922a8b62ca7bebf3253b/Proofs/WOWII423Audit.lean) · [Reproduction instructions](https://github.com/RhudeJJJJ/formal-conjectures/blob/a76806d654092689138c922a8b62ca7bebf3253b/Proofs/README-WOWII423.md).\n\nThe 251-line proof stays external under PROOFS.md. The upstream diff contains only the statements and stable `formal_proof using lean4` links. Their placeholder bodies follow repository convention; the linked proofs do not contain placeholders.\n\nValidation, 13 October 2026: official Lean 4.33.1; Mathlib 0df444a360eaa60ab8c11dca51a86af692955474. Proof compilation and the separate source-type audit exit 0 without warnings. All five audited declarations depend only on `propext`, `Classical.choice`, and `Quot.sound`; no `sorryAx`, custom axioms or native-evaluation dependencies. Published Git blobs match the tested bytes. The exact updated statement passed `lake --wfail build FormalConjectures.WrittenOnTheWallII.GraphConjecture423`. The environment-only executable-path adapter is disclosed in the README; the kernel and sources are unchanged.\n\nSource caveat: the surviving 2010 HTML has a blank comparison glyph. This PR explicitly uses the recovered non-strict upper-bound reading: the reverse direction fails on K4, and strict `<` fails on the equality family. Formal verification proves the specified mathematical statement; it does not certify historical author intent, exclusive priority or independent external review.\n\nFixes #7272. Author: Jonas J. Gebendorfer. OpenAI Codex assisted with source checking, formalization and compilation/axiom checks.\n",
+            "state": null,
+            "user": null,
+            "assignees": null,
+            "labels": null,
+            "milestone": null,
+            "state_reason": null,
+            "comments": null,
+            "created_at": null,
+            "updated_at": null,
+            "closed_at": null,
+            "display_url": "https://github.com/google-deepmind/formal-conjectures/pull/7287",
+            "display_title": "WrittenOnTheWallII: certify 423 and its additive cut strengthening"
+          },
+          {
+            "url": "https://github.com/google-deepmind/formal-conjectures/pull/7622",
+            "title": "feat(ErdosProblems/423): link Lean proofs for three solved variants",
+            "issue_number": 7622,
+            "body": "Links verified Lean 4 proofs for the nondecreasing-excess, unbounded-excess, and infinite-complement variants in [FormalConjectures/ErdosProblems/423.lean](https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/423.lean). The nondecreasing variant follows from a one-step excess inequality and induction, while unboundedness and the infinite complement follow from Tang's completed-square obstruction to eventual linear stabilization.\n\n**Linked theorems** ([linrock/math-proofs/erdos-423](https://github.com/linrock/math-proofs/tree/994b4c04dc4cf77c4b27364e27f179622104c681/erdos-423)):\n\n- [Erdos423.erdos_423.variants.nondecreasing](https://github.com/linrock/math-proofs/blob/994b4c04dc4cf77c4b27364e27f179622104c681/erdos-423/Proofs/Blueprint423.lean#L693)\n- [Erdos423.erdos_423.variants.unbounded](https://github.com/linrock/math-proofs/blob/994b4c04dc4cf77c4b27364e27f179622104c681/erdos-423/Proofs/CompletedSquareDiscriminantAndSmallThresholdObstruction423.lean#L763)\n- [Erdos423.erdos_423.variants.infinite_complement](https://github.com/linrock/math-proofs/blob/994b4c04dc4cf77c4b27364e27f179622104c681/erdos-423/Proofs/CompletedSquareDiscriminantAndSmallThresholdObstruction423.lean#L771)\n\n**Verification** ([report](https://github.com/linrock/math-proofs/blob/verification-records/records/erdos-423/2026-10-25-994b4c04.md)):\n\n- **Statements:** match [FormalConjectures/ErdosProblems/423.lean](https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/423.lean) verbatim\n- **Kernels:** Comparator (`con-ron`, `nanoda_bin`, Lean 4.35.0-rc2) on [Solution.lean](https://github.com/linrock/math-proofs/blob/994b4c04dc4cf77c4b27364e27f179622104c681/erdos-423/Solution.lean) vs. Mathlib-only [Challenge.lean](https://github.com/linrock/math-proofs/blob/994b4c04dc4cf77c4b27364e27f179622104c681/erdos-423/Challenge.lean)\n- **Axioms:** `propext`, `Classical.choice`, and `Quot.sound` only (no `sorry` or `native_decide`)\n\nAI assistance was used to prepare the formalization and this PR.",
+            "state": null,
+            "user": null,
+            "assignees": null,
+            "labels": null,
+            "milestone": null,
+            "state_reason": null,
+            "comments": null,
+            "created_at": null,
+            "updated_at": null,
+            "closed_at": null,
+            "display_url": "https://github.com/google-deepmind/formal-conjectures/pull/7622",
+            "display_title": "feat(ErdosProblems/423): link Lean proofs for three solved variants"
+          },
+          {
+            "url": "https://github.com/google-deepmind/formal-conjectures/pull/7668",
+            "title": "feat(ErdosProblems): prove 423, 1098, 1193, 427 solved statements",
+            "issue_number": 7668,
+            "body": "Replaces `sorry` with short proofs for six statements tagged `research solved`. The statements are unchanged: the diff only removes the six `sorry` lines and adds proofs (79 lines in total).\n\n- `Erdos423.erdos_423.variants.nondecreasing`: $a_n - n$ is nondecreasing (Bolan; Tang [Ta26]). The definition forces $a_{k-1} < a_k$, so $a_k - k$ never decreases, and $a_k \\ge k$ keeps natural subtraction exact.\n- `Erdos1098.erdos_1098.variants.upper_bound`: the non-commuting graph has no clique on $[G:Z(G)]+1$ vertices (Neumann [Ne76]). Two clique vertices in the same coset of the centre commute, so a clique maps injectively to $G/Z(G)$.\n- `Erdos1193.erdos_1193.parts.i`, `parts.ii`, `variants.upper_density_pos`: as the docstrings say, take $A = \\mathbb{N}$ and $g(n) = n + 1$. Then $1_A * 1_A(n) = n + 1$, so the set is all of $\\mathbb{N}$, which has lower and upper density $1$.\n- `Erdos427.erdos_427.variants.of_shiu`: Shiu's theorem implies Erdős 427 (Pilatte's observation; Shiu [Sh00]). Take $d$ consecutive primes $\\equiv 1 \\pmod d$ beyond $p_n$. Adding $j$ of them shifts the partial sum by $j$ modulo $d$, so some $j \\in [1, d]$ gives a multiple of $d$.\n\nValidation:\n- Base: `5a2fb85045c86e4a184b15ce7531ba199a3c4580`, Lean `v4.33.1`.\n- `lake --wfail build` succeeds for `FormalConjectures.ErdosProblems.«423»`, `«1098»`, `«1193»` and `«427»`.\n- `#print axioms` for all six: `[propext, Classical.choice, Quot.sound]`. No `sorry`, `native_decide` or new axioms.\n- No line is over 100 characters, and no statement, docstring or attribute changed.\n\nThe proofs were written with AI assistance (Claude, Anthropic) and are checked by the Lean kernel.\n",
+            "state": null,
+            "user": null,
+            "assignees": null,
+            "labels": null,
+            "milestone": null,
+            "state_reason": null,
+            "comments": null,
+            "created_at": null,
+            "updated_at": null,
+            "closed_at": null,
+            "display_url": "https://github.com/google-deepmind/formal-conjectures/pull/7668",
+            "display_title": "feat(ErdosProblems): prove 423, 1098, 1193, 427 solved statements"
+          }
+        ]
+      },
+      "isError": false
+    }
+  },
+  {
+    "number": 430,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": []
+      },
+      "isError": false
+    }
+  },
+  {
+    "number": 461,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": []
+      },
+      "isError": false
+    }
+  },
+  {
+    "number": 462,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": []
+      },
+      "isError": false
+    }
+  },
+  {
+    "number": 467,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": []
+      },
+      "isError": false
+    }
+  },
+  {
+    "number": 472,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": []
+      },
+      "isError": false
+    }
+  },
+  {
+    "number": 478,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": []
+      },
+      "isError": false
+    }
+  },
+  {
+    "number": 483,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": []
+      },
+      "isError": false
+    }
+  },
+  {
+    "number": 545,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "issues": []
+      },
+      "isError": false
+    }
+  }
+]

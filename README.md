@@ -417,12 +417,12 @@ python -m verifier catalog build \
 python -m verifier catalog stats --catalog data/catalog.json
 ```
 
-The checked-in catalog covers the full Formal Conjectures source snapshot. The November 4
-batch selects 20 additions from the October intake, including Erdős 12(iii), for 309 targets
-and 618 bundles. The #12 listing includes all three questions and their statuses, with only
-part (iii) active for rewards. See the [batch review](docs/review-decisions/2026-11-04-erdos20/README.md)
-and the [source admission review](docs/review-decisions/2026-10-28-erdos-expansion/README.md).
-The candidate changes require the normal release workflow before deployment.
+The checked-in catalog covers 6,064 declarations in the full Formal Conjectures source snapshot.
+The November 13 release prepares 327 reward targets and 654 bundles, including nineteen
+additional Erdős problems, algebraic Hilbert 13 and the rank-one abelian Stark conjecture
+associated with Hilbert 12. The reviewed formulations for Hilbert 6, 12, algebraic 13 and 16
+are published with their scope and claim-status records. Release validation and deployment
+coordinates are recorded in the [combined release report](docs/review-decisions/2026-11-13-erdos19-hilbert-release/README.md).
 
 Generate one target or a category batch:
 

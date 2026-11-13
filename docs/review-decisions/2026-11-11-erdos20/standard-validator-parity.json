@@ -1,0 +1,33 @@
+{
+  "passed": true,
+  "bundles": [
+    {
+      "theorem": "Erdos151.erdos_151",
+      "mode": "formalized",
+      "type_hash": "sha256:8fe6fe1f34c475941fec16b696012279f56c5dbff94a1c1349a21048a017e61a",
+      "passed": true,
+      "seconds": 36.07938098534942
+    },
+    {
+      "theorem": "Erdos151.erdos_151",
+      "mode": "counterexample",
+      "type_hash": "sha256:8fe4bb1cbdb76f950cad11c0ae15a6e64b471fdeb51c8df5385189da1e2ef984",
+      "passed": true,
+      "seconds": 34.01264246366918
+    },
+    {
+      "theorem": "Erdos159.erdos_159",
+      "mode": "formalized",
+      "type_hash": "sha256:60360e852c591068857b32f45153f70b35b17971268b92cc2b0bed5fbda12ac1",
+      "passed": true,
+      "seconds": 34.40387267805636
+    },
+    {
+      "theorem": "Erdos159.erdos_159",
+      "mode": "counterexample",
+      "type_hash": "sha256:4f216f8a6dfda2d861d1a82edc00b90e6bdd0f7d9c60bf467a5e98ade8729bc4",
+      "passed": true,
+      "seconds": 32.87737392447889
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "revision": 10,
+  "review_date": "2026-11-13",
+  "author": "Codex",
+  "independent_review": "Confirmed by Fable 5.2 round 4 on revision 10; all blocking conditions closed; author agrees.",
+  "activation": "none",
+  "formulation_status": "All precise specifications accepted under declared interpretations. Literal unrestricted completeness remains unestablished for Hilbert 6 and 12; no target is claimed proved.",
+  "entries": [
+    {
+      "problem": "Hilbert 6 classical gas program",
+      "formalization": "confirmed_by_fable_round_4_on_revision_10",
+      "target": "HilbertDrafts.Hilbert6Rigid.ClassicalLimitsProgram",
+      "admission": "no_bounty_activation",
+      "scope": "Selected probability, mechanics, particle/kinetic/fluid and continuum/rigid limit specifications, with a separate optional first-order appendix",
+      "excluded_scope": [
+        "A claim to exhaust all possible physical theories"
+      ],
+      "source": "https://arxiv.org/html/2408.07818v1",
+      "source_locations": [
+        "Definition 1.1",
+        "Definition 1.4",
+        "Theorem 1",
+        "Remark 1.5(4)"
+      ],
+      "full_scope_admission": "literal_scope_limit_declared",
+      "change": "Added local hyperelastic PDE and traction-free boundary, balance/rigidity obligations, stationary continuum and probability witnesses, kinetic concentration, and local fluid existence statements.",
+      "fluid_reference": "https://arxiv.org/html/2503.01800v1",
+      "variants": [
+        "Canonical ensemble is a variant asserted without proof in DHM Remark 1.5(4).",
+        "The fluid paper uses a grand-canonical ensemble.",
+        "Exact-Maxwellian Euler initial data require an additional initial-layer argument not verified here."
+      ],
+      "clause_complete_under_declared_interpretation": true,
+      "semantic_review": "accepted_under_declared_interpretation"
+    },
+    {
+      "problem": "Hilbert 12 universal recipe contract and Stark route",
+      "formalization": "confirmed_by_fable_round_4_on_revision_10",
+      "target": "HilbertDrafts.Hilbert12Universal.FieldHilbert12For",
+      "admission": "no_bounty_activation",
+      "scope": "All number fields, all finite abelian extensions, finitely many actual analytic evaluations per stage; retained exact Stark target",
+      "excluded_scope": [
+        "No sufficient formal explicitness criterion for arbitrary proposed analytic constructions is claimed."
+      ],
+      "source": "https://www.cambridge.org/core/services/aop-cambridge-core/content/view/853876BFEE7F6C3686DB9381CB3BF08F/S0010437X03100371a.pdf/local_stark_conjecture_at_a_real_place.pdf",
+      "source_locations": [
+        "Conjecture 1.1"
+      ],
+      "formula_crosscheck": "https://math.berkeley.edu/~hhao/notes/Rank-one%20abelian%20Stark%20conjecture.pdf",
+      "status_note": "Bounded current searches found no general resolution; this is not an exhaustive certification of unsolvedness.",
+      "full_scope_admission": "literal_scope_limit_declared",
+      "target_kind": "Free-recipe review contract plus arithmetic output and named benchmark/conjecture statements; no universal existential is called Hilbert 12.",
+      "change": "Added ray moduli, ray class groups, Artin reciprocity/existence/correspondence, conductor-discriminant formula, arithmetic output type, rational inputs and cyclotomic action, CM benchmark, field-attached recipe interface, optional rational-point profile, and checked identity reencoding regression.",
+      "clause_complete_under_declared_interpretation": true,
+      "semantic_review": "accepted_under_declared_interpretation"
+    },
+    {
+      "problem": "Hilbert 13 algebraic",
+      "formalization": "confirmed_by_fable_round_4_on_revision_10",
+      "target": "HilbertDrafts.Hilbert13.AlgebraicHilbert13",
+      "admission": "no_bounty_activation",
+      "scope": "Generic degree-seven root-cover resolvent degree exactly three over the complex numbers",
+      "source": "https://www.math.uchicago.edu/~farb/papers/RD.pdf",
+      "source_locations": [
+        "Problem 1.5",
+        "Definition 2.3",
+        "Proposition 2.4"
+      ],
+      "change": "Added the upper bound to the lower-bound assertion and proved equivalence to least parameter count three.",
+      "clause_complete_under_declared_interpretation": true,
+      "semantic_review": "accepted_under_declared_interpretation"
+    },
+    {
+      "problem": "Hilbert 16 classification output",
+      "formalization": "confirmed_by_fable_round_4_on_revision_10",
+      "target": "HilbertDrafts.Hilbert16Classification.ClassificationOutput",
+      "admission": "no_bounty_activation",
+      "excluded_scope": [],
+      "definition_source": "https://github.com/openai/math/blob/4eaee87548250b2682affda7d05d947c05554bae/lean/ComparatorChallenges/QuinticLienard.lean",
+      "change": "Separated classification output from existence and computability; primary surface class is nonsingular; added Harnack sharp bound and quartic-surface maximum statements.",
+      "full_scope_admission": "accepted_under_declared_interpretation",
+      "scope": "Output type for nonsingular projective curves and surfaces, sharp maxima and whole-family ambient isotopy arrangements, plus affine and projective cycles. Computability is optional.",
+      "interpretation_decisions": [
+        "Whole-family unoriented ambient isotopy",
+        "Nonsingular curves and surfaces in the primary output",
+        "Affine degree at most d and projective homogeneous degree d are separate tasks",
+        "Flow stability, multiplicity and placement relative to singular points are not encoded",
+        "Effective algorithms and unrestricted singular loci are optional extensions"
+      ],
+      "specification": "HILBERT16_SPECIFICATION.md",
+      "target_kind": "Output type; UniformBound is the core closed Part 2 proposition",
+      "clause_complete_under_declared_interpretation": true,
+      "semantic_review": "accepted_under_declared_interpretation"
+    }
+  ],
+  "validation": "evidence/validation.json",
+  "literature_scope": "Primary-source formulation checks, a bounded current literature search, and retained general #16 proof-claim hold. No exhaustive certification of unsolvedness or classification-algorithm construction is claimed.",
+  "full_request_complete": false,
+  "coverage": "coverage.json",
+  "compilation_status": "complete_for_all_supplied_Lean_files",
+  "clean_build": "evidence/clean-build.json",
+  "clean_build_log": "evidence/clean-lake.log",
+  "build_change": "Revision 10: normal and fresh standalone builds pass; all 295 declarations audited with only standard logical axioms. All four mathematical module bodies are unchanged from reviewed revision 9.",
+  "scope_specification": "PRIMARY_SOURCE_REVIEW.md",
+  "primary_source_coverage": "primary-source-coverage.json",
+  "review_record": "review-status.json",
+  "remaining_blocking_review_findings": []
+}

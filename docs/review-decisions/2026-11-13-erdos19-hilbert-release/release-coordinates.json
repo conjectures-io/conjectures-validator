@@ -1,0 +1,17 @@
+{
+  "tasks_pr": "https://github.com/conjectures-io/conjectures-tasks/pull/27",
+  "tasks_commit": "ab3ecc93d19428ced0f14cdc467a6a075e3dd852",
+  "source_commit": "33b3c405cc7f6499595ce65c50e86be40354d372",
+  "reviewed_formulation_commit": "81d8139",
+  "active_reward_targets": 327,
+  "active_bundles": 654,
+  "new_erdos_targets": 19,
+  "new_hilbert_related_targets": 2,
+  "published_hilbert_specifications": [
+    6,
+    12,
+    "13_algebraic",
+    16
+  ],
+  "deployment_status": "prepared"
+}

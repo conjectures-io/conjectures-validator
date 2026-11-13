@@ -1,0 +1,202 @@
+[
+  {
+    "number": 151,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/151",
+    "fetched_at": "2026-11-11T20:09:03.585107+00:00",
+    "status": 200,
+    "file": "evidence/151-forum.html.gz",
+    "uncompressed_sha256": "5ef38c3f27d1fa870b931b2ba6a488f72b31c86413cf42fbead24dcaa8475d1b",
+    "sha256": "70fb297b4481e1b77bebb07cd6baa1c032340e2ca9cd97a3decdbb591a1a3ac1"
+  },
+  {
+    "number": 159,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/159",
+    "fetched_at": "2026-11-11T20:09:03.586640+00:00",
+    "status": 200,
+    "file": "evidence/159-forum.html.gz",
+    "uncompressed_sha256": "b6debdce1b54df867b878ac0182414a7d645742d728838e8099f0e9f6315ef3a",
+    "sha256": "c09316c3ad50f6609c4446aa75648824d554ebbb3c8c14627ffc27789f3fc997"
+  },
+  {
+    "number": 173,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/173",
+    "fetched_at": "2026-11-11T20:09:03.587765+00:00",
+    "status": 200,
+    "file": "evidence/173-forum.html.gz",
+    "uncompressed_sha256": "b4af44335df38686a427d01be5c678aad1755affdd8a981d018ef09a13f78a94",
+    "sha256": "d3b2f710465ffe9b913f99949bf215e829585e72a3d7162a905b8c0f4cab8503"
+  },
+  {
+    "number": 295,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/295",
+    "fetched_at": "2026-11-11T20:09:03.588694+00:00",
+    "status": 200,
+    "file": "evidence/295-forum.html.gz",
+    "uncompressed_sha256": "f722336248fb3442847d50e5fe40aaf37ee2df7cbec5c8ea8645ebf35ad22103",
+    "sha256": "ddd1c95146779ac98fe094e420548a8269fa92d38b797342e21c111b2ed56b77"
+  },
+  {
+    "number": 311,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/311",
+    "fetched_at": "2026-11-11T20:09:03.589295+00:00",
+    "status": 200,
+    "file": "evidence/311-forum.html.gz",
+    "uncompressed_sha256": "9450962eae79e25ff3bfb6eede853bc8886add02671e022f6935a6a3525d2f9e",
+    "sha256": "2d45e74912a4705b9356222bbedf36958a039f0b283879620c51710f85e96cea"
+  },
+  {
+    "number": 322,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/322",
+    "fetched_at": "2026-11-11T20:09:03.589868+00:00",
+    "status": 200,
+    "file": "evidence/322-forum.html.gz",
+    "uncompressed_sha256": "53ee5c7168ccf3920e30195ae1c5d2200af53c02400022b6af4ecab5e22109e5",
+    "sha256": "60f3fb0e3d503cccc5fe3a7cc5cb1025304db4ed8b3ad5a71e5da54859fbc022"
+  },
+  {
+    "number": 326,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/326",
+    "fetched_at": "2026-11-11T20:09:03.590506+00:00",
+    "status": 200,
+    "file": "evidence/326-forum.html.gz",
+    "uncompressed_sha256": "f47469908093ea58978d4374830b10287b89b9cacf96532a439d2d988250fcdd",
+    "sha256": "82951c6249629b739092efe2a49faeae7c02e3d29d682519507998e46b466192"
+  },
+  {
+    "number": 345,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/345",
+    "fetched_at": "2026-11-11T20:09:03.591105+00:00",
+    "status": 200,
+    "file": "evidence/345-forum.html.gz",
+    "uncompressed_sha256": "d06d5c243bc62cd72f94cda505255e555d1e79a801af87909ceab651503a1fb9",
+    "sha256": "cdb708403c0e3223803ac555fd774a227a95945f2b608e22b7aa0454be6aa09d"
+  },
+  {
+    "number": 388,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/388",
+    "fetched_at": "2026-11-11T20:09:04.088624+00:00",
+    "status": 200,
+    "file": "evidence/388-forum.html.gz",
+    "uncompressed_sha256": "b45d6fad66c1b6931624d69e995a9c30f3997f9ee03e64f4b95cf0630e27f5fb",
+    "sha256": "4aaf897fc32cdd6b1036e34cf99400f9f25445c63a5c3c9e1b64f9d77b018ea8"
+  },
+  {
+    "number": 389,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/389",
+    "fetched_at": "2026-11-11T20:09:04.114715+00:00",
+    "status": 200,
+    "file": "evidence/389-forum.html.gz",
+    "uncompressed_sha256": "089d259354523d5334ac6f907935fc80fc9d5799015b4e8d139eed06b7e59593",
+    "sha256": "2cf5aa29f56fcac9225dc092851290371e8e172bbd2686b9c1ca5317dfc18096"
+  },
+  {
+    "number": 393,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/393",
+    "fetched_at": "2026-11-11T20:09:04.163151+00:00",
+    "status": 200,
+    "file": "evidence/393-forum.html.gz",
+    "uncompressed_sha256": "71801086b5178df678390161917367df502c93a68665e964e528bd6b97b626ab",
+    "sha256": "f9331cebc2cdfd0d5b0ba7d5bb5d8c82260331b3af2b6185a51ebf65a6593fae"
+  },
+  {
+    "number": 422,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/422",
+    "fetched_at": "2026-11-11T20:09:04.191475+00:00",
+    "status": 200,
+    "file": "evidence/422-forum.html.gz",
+    "uncompressed_sha256": "4d1b7ffd198955866c70a20a25e42e03f213699ca2e7067d7811979c4022ded6",
+    "sha256": "0ad776251bfc44042bdb563d7094a5774eb548906199ede73f1e715104827a09"
+  },
+  {
+    "number": 423,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/423",
+    "fetched_at": "2026-11-11T20:09:04.207252+00:00",
+    "status": 200,
+    "file": "evidence/423-forum.html.gz",
+    "uncompressed_sha256": "d7f9c71809c5f4b98f9e86a54677e3d89c64144e5f27ec8a04a1d0a0974906b7",
+    "sha256": "e4ac0897360e69b1542dd6c900eaeb3be6df3f01de252580307da59b91824c5b"
+  },
+  {
+    "number": 430,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/430",
+    "fetched_at": "2026-11-11T20:09:04.244691+00:00",
+    "status": 200,
+    "file": "evidence/430-forum.html.gz",
+    "uncompressed_sha256": "afc16e1ad81ee43b683a43cdbdec43d39052609e8279387deac626ea2c0e18fa",
+    "sha256": "e91e37f0bfd0c72de1f3bbcc09a9afa559fd25d31415f9221336f9cf1817e4fa"
+  },
+  {
+    "number": 461,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/461",
+    "fetched_at": "2026-11-11T20:09:04.246212+00:00",
+    "status": 200,
+    "file": "evidence/461-forum.html.gz",
+    "uncompressed_sha256": "dc89ef6cb4833fefab1260b50c105433174be3887403a93d2bba22c82de0f15a",
+    "sha256": "622f7ee4e6f94ba2fc26e7589bfaa9537f2e3d33007704aa017e0a71e8fa68e7"
+  },
+  {
+    "number": 462,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/462",
+    "fetched_at": "2026-11-11T20:09:04.340211+00:00",
+    "status": 200,
+    "file": "evidence/462-forum.html.gz",
+    "uncompressed_sha256": "a2d9f761b7efafd3c1720f826026137ee653b66d9137df32c207593f5788ad7a",
+    "sha256": "308c7392b219994751ebf824c9af302993272a3cea2ced44def1e504130e9a29"
+  },
+  {
+    "number": 467,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/467",
+    "fetched_at": "2026-11-11T20:09:04.591309+00:00",
+    "status": 200,
+    "file": "evidence/467-forum.html.gz",
+    "uncompressed_sha256": "6e252e7f50f391cc5e3144a4c60e5852141349b7d4850ea9c80a1e98a38f2107",
+    "sha256": "07937a2d9228fed55a193b8281a9fd8a9a2cef4d8135a383ee05415c53419066"
+  },
+  {
+    "number": 472,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/472",
+    "fetched_at": "2026-11-11T20:09:04.601568+00:00",
+    "status": 200,
+    "file": "evidence/472-forum.html.gz",
+    "uncompressed_sha256": "a5ce93f2e37a2129405d7ba4c71a5fa5a71b2238a5c85b12470ab907c99d8617",
+    "sha256": "8d1d7fb72b53324a3cecfe65a3959b1441cfbce974eedb7ad94916ba6e293427"
+  },
+  {
+    "number": 478,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/478",
+    "fetched_at": "2026-11-11T20:09:04.624981+00:00",
+    "status": 200,
+    "file": "evidence/478-forum.html.gz",
+    "uncompressed_sha256": "ddd2903524baf8e8d6a605d8b228c1601d11641dfa34d10998e018edb2bd9a38",
+    "sha256": "b0d139a9f9bac6e760a0cd585b5156afe190d8c2185753ec82aa5908ceb65e1e"
+  },
+  {
+    "number": 483,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/483",
+    "fetched_at": "2026-11-11T20:09:04.629746+00:00",
+    "status": 200,
+    "file": "evidence/483-forum.html.gz",
+    "uncompressed_sha256": "1c9cebc827dea543e83891a26f3cd319161fb05884e30bd54c9953848a2c50c7",
+    "sha256": "bff15686f4b6b7b1c05430308ceb6b910e6f439e31d59c0f5d82bd045042adbb"
+  }
+]

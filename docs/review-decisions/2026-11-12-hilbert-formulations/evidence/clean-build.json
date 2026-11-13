@@ -1,0 +1,40 @@
+{
+  "method": "Fresh source-only standalone package; lake build includes every module and Audit",
+  "command": "lake build",
+  "lean": "Lean (version 4.35.0-rc2, x86_64-unknown-linux-gnu, commit 11acb17ec6b07a8f9e9173e6845197929540936b, Release)",
+  "mathlib": "065356127b1dc0016f66b7283ce0ce2c4055aa55",
+  "network": "disabled by Docker invocation",
+  "reused_project_artifacts": false,
+  "reused_pinned_dependency_cache": true,
+  "warnings_as_errors": true,
+  "source_sha256": {
+    "Audit.lean": "c9e61b5f5a5a30d4c0a40f29ec56fa213fee3d0e2030a2d2eca089af80a3e812",
+    "HilbertDrafts/Hilbert12.lean": "2a8006ae7579e5269cca0a88a3d8f1e5dc6898ec04c7d8228cb591e76fe8b19c",
+    "HilbertDrafts/Hilbert13.lean": "b2bb347080d5c4b1b04ef343f0945c841c7a85f37d2fbc5b6faed73c6e04f3f0",
+    "HilbertDrafts/Hilbert16.lean": "2a0330f6e2424f6a3bb069ac4fe3ce01df5101252f9694597872d489451c0b18",
+    "HilbertDrafts/Hilbert6.lean": "b15cea7afccf3daefe69de272cae19970929ede0f93a6934e4326a7de21a25fd",
+    "HilbertDrafts.lean": "10c63c0be3fd142546eb88728f9da0377847e413fa4cc0154eff21794bb4ec19",
+    "lakefile.toml": "f474fc1a4dbb28b34067ef7d58f73c0a0024181f371351760eb5939fda3929d8",
+    "lake-manifest.json": "5aaa1939ab0d54d47438f94a7585c0e89b3f07ce5be26164b27899d386c69cda",
+    "lean-toolchain": "8dc8d6f560141069d9073e370611716ef77ada0da8ffa37e2149f44b2e63ac7a"
+  },
+  "exit_code": 0,
+  "compiled_artifacts": {
+    "Audit.lean": true,
+    "HilbertDrafts/Hilbert12.lean": true,
+    "HilbertDrafts/Hilbert13.lean": true,
+    "HilbertDrafts/Hilbert16.lean": true,
+    "HilbertDrafts/Hilbert6.lean": true,
+    "HilbertDrafts.lean": true
+  },
+  "audited_declarations": 295,
+  "observed_axioms": [
+    "Classical.choice",
+    "Quot.sound",
+    "propext"
+  ],
+  "axiom_audit_passed": true,
+  "passed": true,
+  "full_request_complete": false,
+  "scope": "Compilation of the supplied formulations; not a proof of full historical coverage."
+}
