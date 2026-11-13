@@ -1,0 +1,183 @@
+{
+  "items": [
+    {
+      "slug": "hilbert-6",
+      "number": 6,
+      "display_title": "Hilbert 6",
+      "ams_subjects": [
+        82,
+        60,
+        70
+      ],
+      "summary": "Axiomatization of physics through probability, mechanics and classical limiting processes. The reviewed Lean package specifies selected kinetic, fluid, elastic and rigid-body models.",
+      "display_status": "research",
+      "scope": [
+        "The package includes probability consistency, Newtonian mechanics, kinetic-to-fluid limits and elasticity-to-rigid-body limits for explicitly chosen models.",
+        "The gas formulations include ensemble and initial-data variants. Their relation to the cited physical models remains part of the stated scope.",
+        "Hilbert’s unrestricted physical-sciences programme extends beyond this selected collection. Fable 5.2 accepted the precise specifications under their declared interpretations after four review rounds."
+      ],
+      "proof_status": "The specification and its supporting lemmas compile. The classical-limit obligations remain statements to establish, including known-theorem obligations under the declared hypotheses.",
+      "sources": [
+        {
+          "declaration": "HilbertDrafts.Hilbert6Rigid.ClassicalLimitsProgram",
+          "description": "The combined obligation for the chosen classical limiting processes.",
+          "lean": "def ClassicalLimitsProgram : Prop :=\n  Hilbert6Fluid.ClassicalGasProgram ∧ PolynomialMaterialWitness ∧\n    ElasticityToStiff ∧ ContinuumRigidLimit",
+          "source_url": "https://github.com/conjectures-io/conjectures-tasks/blob/ab3ecc93d19428ced0f14cdc467a6a075e3dd852/staged/hilbert-formulations-20261113/draft/HilbertDrafts/Hilbert6.lean",
+          "source_sha256": "b15cea7afccf3daefe69de272cae19970929ede0f93a6934e4326a7de21a25fd"
+        }
+      ],
+      "references": [
+        {
+          "label": "Primary-source coverage and model assumptions",
+          "url": "https://github.com/conjectures-io/conjectures-tasks/tree/ab3ecc93d19428ced0f14cdc467a6a075e3dd852/staged/hilbert-formulations-20261113/PRIMARY_SOURCE_REVIEW.md"
+        }
+      ],
+      "related_targets": [],
+      "active_target_slug": null,
+      "reviewed_at": "2026-11-13",
+      "review_url": "https://github.com/conjectures-io/conjectures-validator/blob/main/docs/review-decisions/2026-11-13-hilbert-publication/REVIEW.md",
+      "package_url": "https://github.com/conjectures-io/conjectures-tasks/tree/ab3ecc93d19428ced0f14cdc467a6a075e3dd852/staged/hilbert-formulations-20261113"
+    },
+    {
+      "slug": "hilbert-12",
+      "number": 12,
+      "display_title": "Hilbert 12",
+      "ams_subjects": [
+        11
+      ],
+      "summary": "Explicit construction of abelian extensions of number fields. The package specifies arithmetic classification, rational and imaginary-quadratic benchmarks, and field-attached analytic recipes.",
+      "display_status": "research",
+      "scope": [
+        "Arithmetic output includes ray class groups, Frobenius reciprocity, conductors, discriminants and exact catalogues with prescribed degree, group and relative discriminant.",
+        "The benchmarks use the exponential over the rationals and actual Weierstrass, j and Weber values for imaginary quadratic fields.",
+        "A proposed general analytic recipe must meet the generation contract. Its mathematical explicitness needs an additional criterion beyond this contract.",
+        "The separately available rank-one abelian Stark target is a specified route associated with Hilbert 12."
+      ],
+      "proof_status": "Fable 5.2 accepted the stated interpretation. The general explicitness requirement remains an open formulation issue, and the displayed arithmetic output is an obligation to supply.",
+      "sources": [
+        {
+          "declaration": "HilbertDrafts.Hilbert12ClassField.ArithmeticOutput",
+          "description": "The required arithmetic classification output.",
+          "lean": "structure ArithmeticOutput where\n  reciprocity : ClassFieldClassification\n  conductor_discriminant : ConductorDiscriminant\n  catalogue : (K : Type) → [Field K] → [NumberField K] →\n    (n : ℕ) → (G : Type) → [CommGroup G] → [Finite G] →\n    (D : Ideal (𝓞 K)) → ArithmeticCatalogue K n G D",
+          "source_url": "https://github.com/conjectures-io/conjectures-tasks/blob/ab3ecc93d19428ced0f14cdc467a6a075e3dd852/staged/hilbert-formulations-20261113/draft/HilbertDrafts/Hilbert12.lean",
+          "source_sha256": "2a8006ae7579e5269cca0a88a3d8f1e5dc6898ec04c7d8228cb591e76fe8b19c"
+        },
+        {
+          "declaration": "HilbertDrafts.Hilbert12Universal.FieldHilbert12For",
+          "description": "The generation contract for a proposed field-attached analytic recipe.",
+          "lean": "def FieldHilbert12For (R : FieldRecipe) : Prop :=\n  ∀ (K : Type) [Field K] [NumberField K] (ι : Ambient K →+* ℂ),\n    GenerationContract K ι (R.parameters (embeddedField K ι))",
+          "source_url": "https://github.com/conjectures-io/conjectures-tasks/blob/ab3ecc93d19428ced0f14cdc467a6a075e3dd852/staged/hilbert-formulations-20261113/draft/HilbertDrafts/Hilbert12.lean",
+          "source_sha256": "2a8006ae7579e5269cca0a88a3d8f1e5dc6898ec04c7d8228cb591e76fe8b19c"
+        }
+      ],
+      "references": [
+        {
+          "label": "Primary-source review and explicitness analysis",
+          "url": "https://github.com/conjectures-io/conjectures-tasks/tree/ab3ecc93d19428ced0f14cdc467a6a075e3dd852/staged/hilbert-formulations-20261113/PRIMARY_SOURCE_REVIEW.md"
+        }
+      ],
+      "related_targets": [
+        {
+          "label": "Rank-one abelian Stark",
+          "url": "/problems/hilbertcatalog-rankoneabelianstark-conjecture"
+        }
+      ],
+      "active_target_slug": null,
+      "reviewed_at": "2026-11-13",
+      "review_url": "https://github.com/conjectures-io/conjectures-validator/blob/main/docs/review-decisions/2026-11-13-hilbert-publication/REVIEW.md",
+      "package_url": "https://github.com/conjectures-io/conjectures-tasks/tree/ab3ecc93d19428ced0f14cdc467a6a075e3dd852/staged/hilbert-formulations-20261113"
+    },
+    {
+      "slug": "hilbertcatalog-hilbert13-conjecture",
+      "number": 13,
+      "display_title": "Hilbert 13",
+      "ams_subjects": [
+        12
+      ],
+      "summary": "The algebraic formulation asks whether the generic complex septimic has resolvent degree exactly three.",
+      "display_status": "open",
+      "scope": [
+        "The active target is the reviewed complex algebraic formulation RD(7) = 3. Its upper- and lower-bound assertions are explicit in the Lean package."
+      ],
+      "proof_status": "The reviewed algebraic statement accepts proof and refutation submissions through its existing task bundles.",
+      "sources": [
+        {
+          "declaration": "HilbertDrafts.Hilbert13.AlgebraicHilbert13",
+          "description": "The conjunction defining the algebraic Hilbert 13 target.",
+          "lean": "def AlgebraicHilbert13 : Prop := ClassicalUpperBound ∧ AlgebraicLowerBound",
+          "source_url": "https://github.com/conjectures-io/conjectures-tasks/blob/ab3ecc93d19428ced0f14cdc467a6a075e3dd852/staged/hilbert-formulations-20261113/draft/HilbertDrafts/Hilbert13.lean",
+          "source_sha256": "b2bb347080d5c4b1b04ef343f0945c841c7a85f37d2fbc5b6faed73c6e04f3f0"
+        }
+      ],
+      "references": [
+        {
+          "label": "Farb and Wolfson on resolvent degree",
+          "url": "https://www.math.uchicago.edu/~farb/papers/RD.pdf"
+        }
+      ],
+      "related_targets": [],
+      "active_target_slug": "hilbertcatalog-hilbert13-conjecture",
+      "reviewed_at": "2026-11-13",
+      "review_url": "https://github.com/conjectures-io/conjectures-validator/blob/main/docs/review-decisions/2026-11-13-hilbert-publication/REVIEW.md",
+      "package_url": "https://github.com/conjectures-io/conjectures-tasks/tree/ab3ecc93d19428ced0f14cdc467a6a075e3dd852/staged/hilbert-formulations-20261113"
+    },
+    {
+      "slug": "hilbert-16",
+      "number": 16,
+      "display_title": "Hilbert 16",
+      "ams_subjects": [
+        14,
+        34,
+        37
+      ],
+      "summary": "Classification of real algebraic curves and surfaces, and the number and arrangement of planar limit cycles. A general uniform-bound proof has been claimed and awaits independent verification.",
+      "display_status": "proof_claimed",
+      "scope": [
+        "The reviewed output specifies catalogues, realizability, exhaustion, irredundancy and sharp maxima for nonsingular curves and surfaces, together with affine and projective cycle arrangements.",
+        "The uniform-bound proposition quantifies over all real planar polynomial vector fields and requires a finite bound depending only on degree.",
+        "OpenAI’s September 24, 2026 manuscript claims this uniform-bound assertion. Exact maxima and complete arrangement classifications remain outside its stated result.",
+        "The published Lean companion treats quintic Liénard systems with an exact maximum of two cycles. The general uniform bound has no listed Lean proof in that release."
+      ],
+      "proof_status": "Reviewed on November 13, 2026. The manuscript claims the uniform bound, and Chen, Xiao and Zhang’s October 23 preprint explicitly calls for independent verification. This review found no published full verification or specific refutation of the general argument.",
+      "sources": [
+        {
+          "declaration": "HilbertDrafts.Hilbert16.UniformBound",
+          "description": "A degree-dependent bound on every finite family of distinct isolated periodic orbits.",
+          "lean": "def UniformBound : Prop :=\n  ∀ d : ℕ, ∃ N : ℕ, ∀ V : PolynomialVectorField,\n    V.DegreeAtMost d →\n    ∀ (m : ℕ) (cycles : Fin m → Set Plane),\n      Function.Injective cycles →\n      (∀ i, IsLimitCycle V (cycles i)) → m ≤ N",
+          "source_url": "https://github.com/conjectures-io/conjectures-tasks/blob/ab3ecc93d19428ced0f14cdc467a6a075e3dd852/staged/hilbert-formulations-20261113/draft/HilbertDrafts/Hilbert16.lean",
+          "source_sha256": "2a0330f6e2424f6a3bb069ac4fe3ce01df5101252f9694597872d489451c0b18"
+        },
+        {
+          "declaration": "HilbertDrafts.Hilbert16Classification.ClassificationOutput",
+          "description": "The required classification output.",
+          "lean": "structure ClassificationOutput where\n  curves : AlgebraicClassification 2 true\n  surfaces : AlgebraicClassification 3 true\n  affineCycles : AffineCycleClassification\n  projectiveCycles : ProjectiveCycleClassification",
+          "source_url": "https://github.com/conjectures-io/conjectures-tasks/blob/ab3ecc93d19428ced0f14cdc467a6a075e3dd852/staged/hilbert-formulations-20261113/draft/HilbertDrafts/Hilbert16.lean",
+          "source_sha256": "2a0330f6e2424f6a3bb069ac4fe3ce01df5101252f9694597872d489451c0b18"
+        }
+      ],
+      "references": [
+        {
+          "label": "General uniform-bound manuscript",
+          "url": "https://github.com/openai/math/tree/4eaee87548250b2682affda7d05d947c05554bae/preprints/uniform-bounds-for-planar-polynomial-limit-cycles-September-24-2026"
+        },
+        {
+          "label": "Published Lean scope for quintic Liénard systems",
+          "url": "https://github.com/openai/math/blob/4eaee87548250b2682affda7d05d947c05554bae/lean/docs/143.md"
+        },
+        {
+          "label": "Chen, Xiao and Zhang on the verification status",
+          "url": "https://arxiv.org/html/2610.33114v1#S1"
+        },
+        {
+          "label": "Qin and Sun on complementary lower bounds",
+          "url": "https://arxiv.org/abs/2610.12218"
+        }
+      ],
+      "related_targets": [],
+      "active_target_slug": null,
+      "reviewed_at": "2026-11-13",
+      "review_url": "https://github.com/conjectures-io/conjectures-validator/blob/main/docs/review-decisions/2026-11-13-hilbert-publication/REVIEW.md",
+      "package_url": "https://github.com/conjectures-io/conjectures-tasks/tree/ab3ecc93d19428ced0f14cdc467a6a075e3dd852/staged/hilbert-formulations-20261113"
+    }
+  ]
+}

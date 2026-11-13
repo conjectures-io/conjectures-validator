@@ -4627,6 +4627,76 @@
         "title": "FacetValue",
         "type": "object"
       },
+      "FormulationLink": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "url"
+        ],
+        "title": "FormulationLink",
+        "type": "object"
+      },
+      "FormulationList": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PublishedFormulation"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "FormulationList",
+        "type": "object"
+      },
+      "FormulationSource": {
+        "additionalProperties": false,
+        "properties": {
+          "declaration": {
+            "title": "Declaration",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "lean": {
+            "title": "Lean",
+            "type": "string"
+          },
+          "source_sha256": {
+            "title": "Source Sha256",
+            "type": "string"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "declaration",
+          "description",
+          "lean",
+          "source_url",
+          "source_sha256"
+        ],
+        "title": "FormulationSource",
+        "type": "object"
+      },
       "FundingSummary": {
         "additionalProperties": false,
         "description": "How this submission was paid for.\n\nExactly one of the two shapes, which is a schema CHECK rather than a convention:\n`extrinsic` for the direct payment path, `credit` for the intent path.",
@@ -7165,6 +7235,117 @@
           "report"
         ],
         "title": "PublicVerificationReport",
+        "type": "object"
+      },
+      "PublishedFormulation": {
+        "additionalProperties": false,
+        "properties": {
+          "active_target_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Target Slug"
+          },
+          "ams_subjects": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Ams Subjects",
+            "type": "array"
+          },
+          "display_status": {
+            "enum": [
+              "research",
+              "proof_claimed",
+              "open"
+            ],
+            "title": "Display Status",
+            "type": "string"
+          },
+          "display_title": {
+            "title": "Display Title",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "package_url": {
+            "title": "Package Url",
+            "type": "string"
+          },
+          "proof_status": {
+            "title": "Proof Status",
+            "type": "string"
+          },
+          "references": {
+            "items": {
+              "$ref": "#/components/schemas/FormulationLink"
+            },
+            "title": "References",
+            "type": "array"
+          },
+          "related_targets": {
+            "items": {
+              "$ref": "#/components/schemas/FormulationLink"
+            },
+            "title": "Related Targets",
+            "type": "array"
+          },
+          "review_url": {
+            "title": "Review Url",
+            "type": "string"
+          },
+          "reviewed_at": {
+            "title": "Reviewed At",
+            "type": "string"
+          },
+          "scope": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scope",
+            "type": "array"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/FormulationSource"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "number",
+          "display_title",
+          "summary",
+          "ams_subjects",
+          "display_status",
+          "scope",
+          "proof_status",
+          "reviewed_at",
+          "review_url",
+          "package_url",
+          "active_target_slug",
+          "sources",
+          "references",
+          "related_targets"
+        ],
+        "title": "PublishedFormulation",
         "type": "object"
       },
       "PurchaseRequest": {
@@ -15636,6 +15817,27 @@
           }
         },
         "summary": "What a credit costs and how to buy one",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/v1/catalog/formulations": {
+      "get": {
+        "operationId": "read_formulations_v1_catalog_formulations_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormulationList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Published research formulations and their proof status",
         "tags": [
           "catalog"
         ]
