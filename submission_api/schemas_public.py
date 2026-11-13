@@ -168,6 +168,41 @@ class ResultStats(Model):
 # --- Catalog -------------------------------------------------------------------------------
 
 
+class FormulationSource(Model):
+    declaration: str
+    description: str
+    lean: str
+    source_url: str
+    source_sha256: str
+
+
+class FormulationLink(Model):
+    label: str
+    url: str
+
+
+class PublishedFormulation(Model):
+    slug: str
+    number: int
+    display_title: str
+    summary: str
+    ams_subjects: tuple[int, ...]
+    display_status: Literal["research", "proof_claimed", "open"]
+    scope: tuple[str, ...]
+    proof_status: str
+    reviewed_at: str
+    review_url: str
+    package_url: str
+    active_target_slug: str | None
+    sources: tuple[FormulationSource, ...]
+    references: tuple[FormulationLink, ...]
+    related_targets: tuple[FormulationLink, ...]
+
+
+class FormulationList(Model):
+    items: tuple[PublishedFormulation, ...]
+
+
 class Reference(Model):
     """A pointer to where the conjecture is stated, as the source declaration records it.
 

@@ -1,0 +1,55 @@
+{
+  "checked_at_utc": "2026-11-13T20:12:56.788781+00:00",
+  "repository_commit": "4eaee87548250b2682affda7d05d947c05554bae",
+  "files": [
+    {
+      "path": "README.md",
+      "git_blob": "cc5b0a03bca6c742f045d683b6647a6f44ef2cae",
+      "sha256": "6cb7f0e387b67c051227c6ba27aca87ee82d9dd2530b6452b86b8681a2e2743a",
+      "url": "https://github.com/openai/math/blob/4eaee87548250b2682affda7d05d947c05554bae/README.md"
+    },
+    {
+      "path": "lean/docs/143.md",
+      "git_blob": "c5bd183a050b32edf8c9c59f585de18e73a352bd",
+      "sha256": "eba1a207ef82be58eaf4ad9f6f1bfa1f49fda20099a2145f43144188c8344161",
+      "url": "https://github.com/openai/math/blob/4eaee87548250b2682affda7d05d947c05554bae/lean/docs/143.md"
+    },
+    {
+      "path": "lean/ComparatorChallenges/QuinticLienard.lean",
+      "git_blob": "aaa3712a73aa86b4c6a7a0e0a6007eb62feb135a",
+      "sha256": "cb34f454db432f46902a17036812adde4c73fe276d6d7a8a8b21797ace40d000",
+      "url": "https://github.com/openai/math/blob/4eaee87548250b2682affda7d05d947c05554bae/lean/ComparatorChallenges/QuinticLienard.lean"
+    },
+    {
+      "path": "lean/formalization.yaml",
+      "git_blob": "372bcd714cd3a186a9139ac8e0f3318961fb2df1",
+      "sha256": "b8e7072ab9ac195a290110d78c3a3497608ce76ac5b67d307685f38408299b39",
+      "url": "https://github.com/openai/math/blob/4eaee87548250b2682affda7d05d947c05554bae/lean/formalization.yaml"
+    }
+  ],
+  "uniform_bound_manuscript": {
+    "url": "https://raw.githubusercontent.com/openai/math/main/preprints/uniform-bounds-for-planar-polynomial-limit-cycles-September-24-2026/uniform-bounds-for-planar-polynomial-limit-cycles-September-24-2026.pdf",
+    "sha256": "8ff8e55372a94e4f494f3412539a3dfb05cb7f36b66e7b94d9be8f99603fbe89",
+    "retrieved_at_utc": "2026-11-13T18:02:27.075666+00:00"
+  },
+  "manuscript_path_history": [
+    {
+      "commit": "adc7f1241b42e322a6451854ab7e4b4c146bf78a",
+      "date": "2026-10-06T21:58:50Z",
+      "message": "Initial commit"
+    }
+  ],
+  "primary_followups": [
+    "https://arxiv.org/html/2610.33114v1#S1",
+    "https://arxiv.org/html/2610.12218v1"
+  ],
+  "searches": [
+    "\"Uniform bounds for planar polynomial limit cycles\" review proof error",
+    "\"uniform bounds for planar polynomial limit cycles\" gap counterexample referee",
+    "\"Hilbert\" \"OpenAI\" \"sixteenth\" Lean 2026",
+    "\"Hilbert\" \"OpenAI\" \"sixteenth\" Ilyashenko Yakovenko",
+    "\"uniform bounds for planar polynomial limit cycles\" site:arxiv.org"
+  ],
+  "assessment": "General uniform bound claimed. Released Lean scope covers quintic Lienard systems. No full independent verification or specific refutation of the general manuscript located in the bounded search.",
+  "review_depth": "Literature and source-statement audit, plus comparison of the manuscript introduction and final proof structure with the reviewed local statement. The complete analytic proof was not independently verified or formalized."
+}

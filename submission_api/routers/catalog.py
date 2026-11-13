@@ -49,6 +49,7 @@ from submission_api.conjectures import Conjecture, ConjectureIndex
 from submission_api.problem_context import problem_summary
 from submission_api.dependencies import ServicesDep, SessionDep
 from submission_api.errors import NotFound, ServiceUnavailable
+from submission_api.formulations import published_formulations
 from submission_api.pagination import SnapshotLimit, SnapshotOffset, window
 from submission_api.pins import PinSet
 from submission_api.links import CatalogLinks
@@ -504,6 +505,16 @@ def _retired_detail(
 
 
 # --- Endpoints -----------------------------------------------------------------------------
+
+
+@router.get(
+    "/formulations",
+    response_model=public.FormulationList,
+    summary="Published research formulations and their proof status",
+)
+async def read_formulations(response: Response, services: ServicesDep) -> public.FormulationList:
+    _cache(response, services.settings)
+    return published_formulations()
 
 
 @router.get(
