@@ -1,0 +1,7 @@
+Running as unit: conjectures-erdos-next20-preflight-20261111.service; invocation ID: d9460bb8882247248799ab789adb8f41
+Finished with result: success
+Main processes terminated with: code=exited/status=0
+Service runtime: 17.777s
+CPU time consumed: 13.112s
+Memory peak: 256.0K
+Memory swap peak: 0B

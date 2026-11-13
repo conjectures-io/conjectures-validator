@@ -87,6 +87,43 @@ def test_changed_review_bytes_are_rejected(tmp_path):
         load_selection_audit(path)
 
 
+@pytest.mark.parametrize("slug", ["Hilbert13", "RankOneAbelianStark"])
+def test_hilbert_admission_requires_exact_statement_and_unresolved_claim_screen(tmp_path, slug):
+    from verifier.task_pool import HISTORICAL_STATUS_LOCATOR
+
+    audit, evidence = evidence_pair(tmp_path)
+    name = f"HilbertCatalog.{slug}.conjecture"
+    source = f"FormalConjectures/HistoricalOpen/{slug}.lean"
+    entry = audit["selected"][1]
+    entry.update(theorem=name, source_path=source, source_family="historical-open",
+                 source_problem_number=slug)
+    target = evidence["targets"][0]
+    target.update(theorem=name, source_path=source, source_family="historical-open", number=slug)
+    status = {"schema_version": 1, "candidates": [{
+        "theorem": name, "source_path": source, "disposition": "retain_provisionally_open",
+        "full_original_question": True, "full_resolution_claim_found": False,
+    }]}
+    status_path = tmp_path / "historical-open-status-audit.json"
+    status_path.write_text(json.dumps(status))
+    reference = {"family": "historical-open", "locator": HISTORICAL_STATUS_LOCATOR,
+                 "revision": sha256_bytes(status_path.read_bytes()).removeprefix("sha256:")}
+    audit["source_status_sources"].append(reference)
+    assert name in load_selection_audit(write_pair(tmp_path, audit, evidence)).theorems
+
+    status["candidates"][0]["full_resolution_claim_found"] = True
+    status_path.write_text(json.dumps(status))
+    reference["revision"] = sha256_bytes(status_path.read_bytes()).removeprefix("sha256:")
+    with pytest.raises(VerifierError, match="full-problem status review"):
+        load_selection_audit(write_pair(tmp_path, audit, evidence))
+
+    status["candidates"][0]["full_resolution_claim_found"] = False
+    status_path.write_text(json.dumps(status))
+    reference["revision"] = sha256_bytes(status_path.read_bytes()).removeprefix("sha256:")
+    target["source_family"] = "erdos"
+    with pytest.raises(VerifierError, match="target-specific status evidence"):
+        load_selection_audit(write_pair(tmp_path, audit, evidence))
+
+
 def test_legacy_selection_audits_still_load(tmp_path):
     audit, evidence = evidence_pair(tmp_path)
     audit["schema_version"] = 2

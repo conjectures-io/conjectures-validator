@@ -26,7 +26,7 @@ from conjectures_subnet import transfers as chain
 from conjectures_subnet.axiom import Severity, get_axiom
 from conjectures_subnet.db import async_session_scope
 from conjectures_subnet.db import payouts as store
-from conjectures_subnet.db.models import PayoutWatchCursor
+from conjectures_subnet.db.models import PayoutWatchCursor, TreasuryPayoutState
 from payout_watcher.settings import PayoutWatcherSettings, SettingsError
 
 logger = logging.getLogger("payout_watcher")
@@ -43,6 +43,12 @@ _BACKOFF_CEILING_STEPS = 16
 # so a live watcher records each payout within this window. A backlog, a restart after an outage or
 # a rescan does not, and those rows are recorded with no price rather than with a later one.
 PRICE_FRESHNESS = dt.timedelta(minutes=10)
+# How far behind the finalized head the archive endpoint may be before a block it cannot serve is
+# a failure rather than lag.  The heads come from the head-following endpoint and blocks from the
+# archive, which trails it by a block or two: in the 30 days to 2026-11-13 that difference failed
+# about a thousand passes ("no block at height N"), each reported as an `unexpected_error`.  Three
+# blocks is 36 s; an archive stuck on one block falls outside it within that and fails as before.
+ARCHIVE_LAG_BLOCKS = 3
 
 # Alpha/USD now, or None when it cannot be had. Must not raise: a price is decoration on a ledger
 # row, and the row is what has to be recorded.
@@ -64,6 +70,10 @@ class Scanned:
     confirmed: int = 0
     reorged: int = 0
     unmatched: int = 0
+    # Finalized transfers that pay a prepared historical bonus: settled by an operator, not here.
+    bonus: int = 0
+    # The block the archive could not serve yet, when this pass stopped short because of it.
+    archive_lag_block: int | None = None
 
     @property
     def finalized_blocks(self) -> int:
@@ -201,7 +211,24 @@ class PayoutWatcher:
         )
 
         for number in range(first, last + 1):
-            await self._scan_finalized_block(number, scanned)
+            try:
+                await self._scan_finalized_block(number, scanned)
+            except chain.ChainUnavailable as exc:
+                # Nothing of this block was written: its only chain read is the first statement,
+                # and the cursor advances only after a block completes.  So stopping here is the
+                # same replay a failed pass would cost, without reporting lag as a failure.
+                if finalized_head - number >= ARCHIVE_LAG_BLOCKS:
+                    raise
+                logger.info(
+                    "archive has not served finalized block %d yet (head %d): %s; "
+                    "resuming next pass",
+                    number,
+                    finalized_head,
+                    exc,
+                )
+                scanned.finalized_through = number - 1
+                scanned.archive_lag_block = number
+                return scanned
 
         # Only inspect the best-chain tail after the finalized cursor is caught up.  Otherwise a
         # payout already in an older finalized block could be presented as merely SUBMITTED while
@@ -223,14 +250,23 @@ class PayoutWatcher:
             # idempotent on the reference -- so a crash between the two costs a replay, not a fact.
             price = await self._price_for(observed)
             async with async_session_scope(self.sessions) as session:
-                payout_id = (
-                    await store.record_payout(session, observed, price=price)
-                ).id
+                recorded = await store.record_payout(session, observed, price=price)
+                payout_id, status = recorded.id, recorded.status
+            if status is not TreasuryPayoutState.UNCLAIMED:
+                # A replay of a payout already settled -- claimed by a proof reward, confirmed
+                # against a bonus, or ruled out by an operator.  It needs nobody, so it says nothing.
+                continue
             async with async_session_scope(self.sessions) as session:
                 update = await store.claim_payout(session, payout_id)
             if update is None:
-                scanned.unmatched += 1
-                self._log_unmatched(observed, finalized=True)
+                async with async_session_scope(self.sessions) as session:
+                    bonus = await store.reserved_bonus(session, observed)
+                if bonus:
+                    scanned.bonus += 1
+                    self._log_bonus(observed)
+                else:
+                    scanned.unmatched += 1
+                    self._log_unmatched(observed)
             elif update.changed:
                 scanned.confirmed += 1
                 logger.info(
@@ -323,7 +359,26 @@ class PayoutWatcher:
         scanned.best_head = best_head
         seen: set[str] = set()
         for number in range(scanned.finalized_head + 1, best_head + 1):
-            for observed in await self.source.payouts_in(block=number):
+            try:
+                observed_events = await self.source.payouts_in(block=number)
+            except chain.ChainUnavailable as exc:
+                # The best head comes from the head-following endpoint and blocks from the
+                # archive, which is usually a block or two behind it: ~97% of this watcher's
+                # failed passes were this read.  The tail is advisory -- money is only ever
+                # declared paid from a finalized block -- so the rest of it waits for the next
+                # pass, and the finalized scan is still where a real archive outage surfaces.
+                logger.info(
+                    "archive has not served best-chain block %d yet (best %d): %s; "
+                    "tail resumes next pass",
+                    number,
+                    best_head,
+                    exc,
+                )
+                scanned.archive_lag_block = number
+                # `seen` now misses the unread blocks, so absence from it proves nothing: a
+                # reorg check against it would send real SUBMITTED payouts back to PENDING.
+                return
+            for observed in observed_events:
                 if not self._ours(observed):
                     continue
                 seen.add(observed.reference)
@@ -331,8 +386,18 @@ class PayoutWatcher:
                 async with async_session_scope(self.sessions) as session:
                     update = await store.mark_submitted(session, observed)
                 if update is None:
+                    # Logged, not reported: every pass re-reads the unfinalized tail, so an event
+                    # here repeated once per pass until finality and paged three times for one
+                    # transfer (2026-11-13).  The finalized scan reports it exactly once, as
+                    # unmatched or as a bonus awaiting confirmation, about half a minute later.
                     scanned.unmatched += 1
-                    self._log_unmatched(observed, finalized=False)
+                    logger.info(
+                        "best-chain treasury payout %s to %s amount=%d matches no pending "
+                        "reward yet; judged when finalized",
+                        observed.reference,
+                        observed.destination_coldkey,
+                        observed.amount_rao,
+                    )
                 elif update.changed:
                     scanned.submitted += 1
                     logger.info(
@@ -369,12 +434,10 @@ class PayoutWatcher:
                     best_head=best_head,
                 )
 
-    def _log_unmatched(
-        self, observed: chain.ObservedPayout, *, finalized: bool
-    ) -> None:
+    def _log_unmatched(self, observed: chain.ObservedPayout) -> None:
+        """A finalized transfer out of the treasury that pays nothing we know of. Once each."""
         logger.warning(
-            "%s treasury payout %s to %s/%s amount=%d matches no pending reward",
-            "finalized" if finalized else "best-chain",
+            "finalized treasury payout %s to %s/%s amount=%d matches no pending reward",
             observed.reference,
             observed.destination_coldkey,
             observed.destination_hotkey,
@@ -383,7 +446,33 @@ class PayoutWatcher:
         get_axiom().warn(
             source="payout-watcher",
             event_type="payout_unmatched",
-            finalized=finalized,
+            # Always true now; kept because monitors and saved queries filter on it.
+            finalized=True,
+            extrinsic_reference=observed.reference,
+            block=observed.block,
+            amount_rao=observed.amount_rao,
+            destination_coldkey=observed.destination_coldkey,
+            destination_hotkey=observed.destination_hotkey,
+        )
+
+    def _log_bonus(self, observed: chain.ObservedPayout) -> None:
+        """A finalized transfer that pays a prepared historical bonus.
+
+        Accounted for -- it is exactly the amount, recipient and treasury a prepared bonus
+        reserved -- but not yet settled: an operator confirms it against the bonus ledger. A
+        warning so it shows among things to do, and its own event type so "Money needs an
+        operator", which is for money nobody can explain, does not page for it.
+        """
+        logger.warning(
+            "finalized treasury payout %s to %s amount=%d pays a prepared historical bonus; "
+            "confirm it with POST /v1/admin/trajectory-payments/{payment_id}/confirm",
+            observed.reference,
+            observed.destination_coldkey,
+            observed.amount_rao,
+        )
+        get_axiom().warn(
+            source="payout-watcher",
+            event_type="payout_bonus_awaiting_confirmation",
             extrinsic_reference=observed.reference,
             block=observed.block,
             amount_rao=observed.amount_rao,
@@ -447,7 +536,7 @@ class PayoutWatcher:
         logger.log(
             logging.INFO if active else logging.DEBUG,
             "payout scan finalized=%d-%d/%d best=%d observed=%d submitted=%d confirmed=%d "
-            "reorged=%d unmatched=%d",
+            "reorged=%d unmatched=%d bonus=%d archive_lag_block=%s",
             scanned.finalized_from,
             scanned.finalized_through,
             scanned.finalized_head,
@@ -457,6 +546,8 @@ class PayoutWatcher:
             scanned.confirmed,
             scanned.reorged,
             scanned.unmatched,
+            scanned.bonus,
+            scanned.archive_lag_block,
         )
         get_axiom().emit(
             severity=Severity.INFO if active else Severity.DEBUG,
@@ -471,6 +562,8 @@ class PayoutWatcher:
             confirmed=scanned.confirmed,
             reorged=scanned.reorged,
             unmatched=scanned.unmatched,
+            bonus=scanned.bonus,
+            archive_lag_block=scanned.archive_lag_block,
             watcher_id=self.settings.watcher_id,
         )
 

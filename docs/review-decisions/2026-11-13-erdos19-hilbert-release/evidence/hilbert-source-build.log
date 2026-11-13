@@ -1,0 +1,20 @@
+From /candidate-source
+ * branch              33b3c405cc7f6499595ce65c50e86be40354d372 -> FETCH_HEAD
+Warning: you are leaving 1 commit behind, not connected to
+any of your branches:
+
+  17acb876 fix(ErdosProblems): correct audited candidate statements
+
+If you want to keep it by creating a new branch, this may be a good time
+to do so with:
+
+ git branch <new-branch-name> 17acb876
+
+HEAD is now at 33b3c405 fix(ErdosProblems): correct audited candidate statements
+✔ [8933/8938] Built HilbertDrafts.Hilbert16 (6.1s)
+✔ [8934/8938] Built HilbertDrafts.Hilbert12 (9.1s)
+✔ [8935/8938] Built FormalConjectures.HistoricalOpen.RankOneAbelianStark (5.2s)
+✔ [8936/8938] Built HilbertDrafts.Hilbert13 (11s)
+✔ [8937/8938] Built HilbertDrafts.Hilbert6 (19s)
+✔ [8938/8938] Built FormalConjectures.HistoricalOpen.Hilbert13 (5.3s)
+Build completed successfully (8938 jobs).

@@ -1,0 +1,31 @@
+{
+  "comparison": "Revision 9 to revision 10",
+  "method": "Mask nested Lean comments and strings, omit blank lines and trailing whitespace; compare all four module bodies. Manual diff also confirms only comments changed.",
+  "files": [
+    {
+      "file": "draft/HilbertDrafts/Hilbert12.lean",
+      "v9_sha256": "980a8be19742f4004787b682a24405286b29510193bd80260f8b9f5be07ef1bf",
+      "v10_sha256": "2a8006ae7579e5269cca0a88a3d8f1e5dc6898ec04c7d8228cb591e76fe8b19c",
+      "code_identical_after_masking_comments_and_strings": true
+    },
+    {
+      "file": "draft/HilbertDrafts/Hilbert13.lean",
+      "v9_sha256": "b2bb347080d5c4b1b04ef343f0945c841c7a85f37d2fbc5b6faed73c6e04f3f0",
+      "v10_sha256": "b2bb347080d5c4b1b04ef343f0945c841c7a85f37d2fbc5b6faed73c6e04f3f0",
+      "code_identical_after_masking_comments_and_strings": true
+    },
+    {
+      "file": "draft/HilbertDrafts/Hilbert16.lean",
+      "v9_sha256": "5b3b06df1a6f48841cc8fb2affa992e05aae10704fa44ce41a501d4acb2ba7c5",
+      "v10_sha256": "2a0330f6e2424f6a3bb069ac4fe3ce01df5101252f9694597872d489451c0b18",
+      "code_identical_after_masking_comments_and_strings": true
+    },
+    {
+      "file": "draft/HilbertDrafts/Hilbert6.lean",
+      "v9_sha256": "10b16f2dd0b3d2a52c4221db3f7084bf3bd6362e3b9d4ca3e723584b5b3572d2",
+      "v10_sha256": "b15cea7afccf3daefe69de272cae19970929ede0f93a6934e4326a7de21a25fd",
+      "code_identical_after_masking_comments_and_strings": true
+    }
+  ],
+  "passed": true
+}

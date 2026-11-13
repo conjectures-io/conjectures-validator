@@ -10,6 +10,7 @@ import pytest
 from verifier.errors import VerifierError
 from verifier.repository import tasks_repository_root
 from verifier.task_pool import (
+    DEFAULT_TIER_SIZE,
     HISTORICAL_OPEN_SOURCE_FAMILY,
     HISTORICAL_OPEN_TARGETS,
     _valid_source_identity,
@@ -33,7 +34,7 @@ def test_historical_admission_requires_exact_declaration():
     name = 'HajosCycleDecomposition'
     path = f'FormalConjectures/HistoricalOpen/{name}.lean'
     theorem = f'FullOldProblemsCatalog.{name}.conjecture'
-    assert len(HISTORICAL_OPEN_TARGETS) == 16
+    assert len(HISTORICAL_OPEN_TARGETS) == 18
     assert _valid_source_identity(family, name, path, theorem)
     assert not _valid_source_identity(family, name, path, theorem + '.weaker')
     assert not _valid_source_identity(family, name, path, theorem.replace(name, 'Other'))
@@ -45,7 +46,7 @@ def test_historical_selection_retains_existing_targets(audit_copy):
     audit = load_selection_audit(audit_copy)
     new = {e.theorem for e in audit.entries if e.source_family == HISTORICAL_OPEN_SOURCE_FAMILY}
     assert new == HISTORICAL_OPEN_TARGETS
-    assert len(audit.entries) == 290
+    assert len(audit.entries) == DEFAULT_TIER_SIZE
 
 
 @pytest.mark.needs_checkouts

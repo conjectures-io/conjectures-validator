@@ -33,7 +33,9 @@ from conjectures_subnet.db.models import (
     TreasuryPayoutState,
     VerificationState,
 )
-from conjectures_subnet.transfers import ObservedBlock, ObservedPayout
+from conjectures_subnet.axiom import Axiom, AxiomClientNoop
+from conjectures_subnet.axiom.labels import EVENT_TYPES
+from conjectures_subnet.transfers import ChainUnavailable, ObservedBlock, ObservedPayout
 from payout_notifier.discord import (
     DEFAULT_NETUID,
     DEFAULT_ORIGIN_HOTKEY,
@@ -41,7 +43,7 @@ from payout_notifier.discord import (
     LEGACY_ORIGIN_HOTKEY,
 )
 from payout_watcher.settings import PayoutWatcherSettings, SettingsError
-from payout_watcher.watcher import MAX_BACKOFF_SECONDS, PayoutWatcher
+from payout_watcher.watcher import ARCHIVE_LAG_BLOCKS, MAX_BACKOFF_SECONDS, PayoutWatcher
 from conjectures_subnet.db import payouts as store
 from conjectures_subnet.db.payouts import _same_payout
 from submission_api.routers._account import latest_reward
@@ -967,3 +969,188 @@ def test_the_taostats_key_is_optional_for_the_watcher():
         {"DATABASE_URL": "postgresql+psycopg://unused", "TAOSTATS_API_KEY": " key "}
     )
     assert keyed.taostats_api_key == "key"
+
+
+# --- alert noise: one report per transfer, bonuses apart, archive lag is not a failure ----------
+#
+# On 2026-11-13 three $250 historical-bonus transfers paged "Money needs an operator" nine times:
+# each was reported as `payout_unmatched` on every best-chain pass and again when finalized, and a
+# bonus transfer is "unmatched" by design. Over the 30 days before, about a thousand passes failed
+# as `unexpected_error` because the archive had not yet served the block at the head.
+
+
+class Recorder(Axiom):
+    """Every event the watcher emits, in order."""
+
+    def __init__(self) -> None:
+        super().__init__(AxiomClientNoop())
+        self.events: list[dict] = []
+
+    def emit(self, *, severity, source, event_type, **fields) -> None:
+        self.events.append(
+            {"severity": str(severity), "source": source, "event_type": event_type, **fields}
+        )
+
+    def of(self, event_type: str) -> list[dict]:
+        return [item for item in self.events if item["event_type"] == event_type]
+
+
+@pytest.fixture
+def recorder(monkeypatch) -> Recorder:
+    collected = Recorder()
+    monkeypatch.setattr("payout_watcher.watcher.get_axiom", lambda: collected)
+    return collected
+
+
+class LaggingArchive(FakePayoutSource):
+    """A source whose archive has not reached the blocks in `missing` yet."""
+
+    def __init__(self, *, missing=(), **kwargs):
+        super().__init__(**kwargs)
+        self.missing = set(missing)
+
+    async def payouts_in(self, *, block: int):
+        if block in self.missing:
+            raise ChainUnavailable(f"chain read failed on archive: no block at height {block}")
+        return await super().payouts_in(block=block)
+
+
+def _with_database(scenario, *, seed: bool = True):
+    """Run `scenario(sync_sessions, async_sessions, reward_id)` on a fresh schema."""
+    dsn = postgres_dsn()
+    assert dsn is not None
+    sync_engine = create_db_engine(dsn)
+    async_engine = create_async_db_engine(dsn)
+    try:
+        Base.metadata.drop_all(sync_engine)
+        Base.metadata.create_all(sync_engine)
+        sync_sessions = session_factory(sync_engine)
+        reward_id = seed_pending(sync_sessions)[1] if seed else None
+        asyncio.run(scenario(sync_sessions, async_session_factory(async_engine), reward_id))
+    finally:
+        asyncio.run(async_engine.dispose())
+        sync_engine.dispose()
+
+
+def _stranger(**changes) -> ObservedPayout:
+    """A treasury transfer matching no obligation: an amount nobody is owed."""
+    return replace(
+        observed_payout(), amount_rao=5_000_000_000, extrinsic_index=1, event_index=2, **changes
+    )
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
+def test_an_unmatched_transfer_is_reported_once_when_finalized_not_on_every_pass(recorder):
+    async def scenario(sync_sessions, sessions, _):
+        source = FakePayoutSource(finalized=101, best=102, payouts={102: (_stranger(),)})
+        watcher = PayoutWatcher(settings=settings(postgres_dsn()), sessions=sessions, source=source)
+
+        # Unfinalized: seen on every pass, reported on none.
+        for _ in range(3):
+            scanned = await watcher.scan_once()
+            assert scanned is not None and scanned.unmatched == 1
+        assert recorder.of("payout_unmatched") == []
+
+        source.finalized = 102
+        assert await watcher.scan_once() is not None
+        [event] = recorder.of("payout_unmatched")
+        assert event["finalized"] is True
+        assert event["extrinsic_reference"] == "102-1-2"
+        assert event["severity"] == "warning"
+
+        # Settled by an operator, then replayed by a rewound cursor: nothing new to say.
+        async with sessions() as session:
+            payout_id = (await store.unclaimed_payouts(session))[0].id
+        async with async_session_scope(sessions) as session:
+            await store.disregard_payout(session, payout_id=payout_id, note="rebalance")
+        async with async_session_scope(sessions) as session:
+            (await store.cursor(session)).last_scanned_block = 101
+        assert await watcher.scan_once() is not None
+        assert len(recorder.of("payout_unmatched")) == 1
+
+    _with_database(scenario)
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
+def test_a_transfer_paying_a_prepared_bonus_is_not_reported_as_unmatched(recorder, monkeypatch):
+    async def reserved(session, payout):
+        return payout.amount_rao == 5_000_000_000
+
+    monkeypatch.setattr(store, "reserved_bonus", reserved)
+
+    async def scenario(sync_sessions, sessions, _):
+        source = FakePayoutSource(finalized=102, best=102, payouts={102: (_stranger(),)})
+        watcher = PayoutWatcher(settings=settings(postgres_dsn()), sessions=sessions, source=source)
+        scanned = await watcher.scan_once()
+        assert scanned is not None and scanned.bonus == 1 and scanned.unmatched == 0
+        assert recorder.of("payout_unmatched") == []
+        [event] = recorder.of("payout_bonus_awaiting_confirmation")
+        assert event["extrinsic_reference"] == "102-1-2"
+        assert event["amount_rao"] == 5_000_000_000
+        # Still the operator's to confirm: recorded and left unclaimed, never given to a proof.
+        assert _ledger(sync_sessions) == [("102-1-2", TreasuryPayoutState.UNCLAIMED, None)]
+
+    _with_database(scenario)
+
+
+def test_the_new_event_type_is_declared():
+    assert "payout_bonus_awaiting_confirmation" in EVENT_TYPES
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
+def test_an_archive_behind_the_best_head_stops_the_tail_without_failing_or_reorging(recorder):
+    async def scenario(sync_sessions, sessions, reward_id):
+        source = LaggingArchive(finalized=101, best=102, payouts={102: (observed_payout(),)})
+        watcher = PayoutWatcher(settings=settings(postgres_dsn()), sessions=sessions, source=source)
+        first = await watcher.scan_once()
+        assert first is not None and first.submitted == 1
+
+        # The best head moved on, and the archive has not served block 102 this time round.
+        source.best = 103
+        source.missing = {102}
+        second = await watcher.scan_once()
+        assert second is not None
+        assert second.archive_lag_block == 102
+        assert second.reorged == 0
+        assert recorder.of("payout_reorged") == []
+        async with sessions() as session:
+            reward = await session.get(RewardEvent, reward_id)
+            assert reward is not None and reward.status == PayoutState.SUBMITTED
+
+        # Caught up: the tail is read in full again and the payout is still there.
+        source.missing = set()
+        third = await watcher.scan_once()
+        assert third is not None and third.archive_lag_block is None and third.reorged == 0
+
+    _with_database(scenario)
+
+
+@pytest.mark.skipif(postgres_dsn() is None, reason=DATABASE_SKIP_REASON)
+def test_archive_lag_at_the_finalized_head_ends_the_pass_but_a_gap_further_back_fails(recorder):
+    async def scenario(sync_sessions, sessions, _):
+        source = LaggingArchive(finalized=101, best=101)
+        watcher = PayoutWatcher(settings=settings(postgres_dsn()), sessions=sessions, source=source)
+        assert await watcher.scan_once() is not None
+
+        # Head 110; the archive serves up to 107.  Block 108 is within ARCHIVE_LAG_BLOCKS of
+        # the head: the pass ends there, the cursor keeps everything before it.
+        source.finalized = source.best = 110
+        source.missing = {108, 109, 110}
+        assert 110 - 108 < ARCHIVE_LAG_BLOCKS
+        scanned = await watcher.scan_once()
+        assert scanned is not None
+        assert scanned.archive_lag_block == 108
+        assert scanned.finalized_through == 107
+        async with sessions() as session:
+            assert (await store.cursor(session)).last_scanned_block == 107
+
+        # A block the archive cannot serve well behind the head is an outage, not lag.
+        source.finalized = source.best = 120
+        source.missing = {108}
+        assert 120 - 108 >= ARCHIVE_LAG_BLOCKS
+        with pytest.raises(ChainUnavailable):
+            await watcher.scan_once()
+        async with sessions() as session:
+            assert (await store.cursor(session)).last_scanned_block == 107
+
+    _with_database(scenario)

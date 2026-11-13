@@ -1,0 +1,48 @@
+{
+  "schema_version": 2,
+  "problem_id": "fc-33b3c405-rankoneabelianstark-conjecture-6d19b5fcc037bb1b4cf04254cf342945-problem",
+  "task_id": "fc-v2-rankoneabelianstark-conjecture-e57aa205443a74e3ba95bf5d-counterexample",
+  "repository_commit": "33b3c405cc7f6499595ce65c50e86be40354d372",
+  "source_theorem": "HilbertCatalog.RankOneAbelianStark.conjecture",
+  "task_mode": "counterexample",
+  "task_bundle_sha256": "sha256:f2006eb1082db5d59a5d66ee8363fd2537d07fa82ad3149b2b38286fbee33a52",
+  "submission_sha256": "sha256:f0bb46834ae2af32478efbb0bfec6e89b5317671fa8920b3e6f6495a6a71496a",
+  "accepted": false,
+  "stage": "STATIC_POLICY_CHECK",
+  "reason_code": "SUBMISSION_POLICY_VIOLATION",
+  "checks": {
+    "manifest_valid": true,
+    "task_commitment_valid": true,
+    "production_task": true,
+    "production_sandbox": false,
+    "source_type_hash_valid": false,
+    "trusted_hashes_valid": true,
+    "submission_policy_valid": false,
+    "challenge_built": false,
+    "solution_built": false,
+    "same_statement": false,
+    "axioms_permitted": false,
+    "lean_kernel_passed": false,
+    "nanoda_enabled": false,
+    "nanoda_passed": false
+  },
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "duration_ms": 333,
+  "comparator_exit_code": null,
+  "stdout_tail": "",
+  "stderr_tail": "sorry is prohibited at 1:88",
+  "workspace_retained": false,
+  "sandbox_mode": "not-started",
+  "task_timeout_seconds": 14400,
+  "effective_timeout_seconds": 14400,
+  "case": "HilbertCatalog-RankOneAbelianStark-conjecture-counterexample-sorry",
+  "passed": true,
+  "seconds": 0.333
+}

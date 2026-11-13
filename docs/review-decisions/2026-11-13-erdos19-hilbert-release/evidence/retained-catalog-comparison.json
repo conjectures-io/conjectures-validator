@@ -1,0 +1,9 @@
+{
+  "retained_declarations": 6062,
+  "missing": [],
+  "changed_type_hashes": [],
+  "additions": [
+    "HilbertCatalog.Hilbert13.conjecture",
+    "HilbertCatalog.RankOneAbelianStark.conjecture"
+  ]
+}

@@ -123,7 +123,7 @@ Grouped by the area that raises them. `labels.py` is the source of truth.
   `verification_operator_failure`
 - **Deposits** — `cursor_opened`, `blocks_scanned`, `transfer_credited`, `transfer_unattributed`,
   `transfer_ignored`, `transfer_conflict`
-- **Payouts** — `payout_confirmed`, `payout_reorged`, `payout_unmatched`
+- **Payouts** — `payout_confirmed`, `payout_reorged`, `payout_unmatched` (finalized transfers only, once each), `payout_bonus_awaiting_confirmation` (a finalized transfer that pays a prepared historical bonus; confirm it against the bonus ledger)
 - **Emissions** — `epoch_observed`, `weights_set`, `weights_failed`
 - **Contributions** — `contributions_refreshed`, `contributions_refresh_failed`,
   `contributions_rate_limited`

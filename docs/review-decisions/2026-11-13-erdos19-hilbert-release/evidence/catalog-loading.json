@@ -1,0 +1,37 @@
+{
+  "passed": true,
+  "live_targets": 327,
+  "new_hilbert_entries": [
+    {
+      "theorem": "HilbertCatalog.Hilbert13.conjecture",
+      "slug": "hilbertcatalog-hilbert13-conjecture",
+      "name": {
+        "display_title": "Hilbert 13",
+        "collection": "historicalopen",
+        "collection_label": "Historical Open",
+        "reference": "Hilbert 13",
+        "qualifier": null
+      },
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    },
+    {
+      "theorem": "HilbertCatalog.RankOneAbelianStark.conjecture",
+      "slug": "hilbertcatalog-rankoneabelianstark-conjecture",
+      "name": {
+        "display_title": "Rank One Abelian Stark",
+        "collection": "historicalopen",
+        "collection_label": "Historical Open",
+        "reference": "Rank One Abelian Stark",
+        "qualifier": null
+      },
+      "modes": [
+        "formalized",
+        "counterexample"
+      ]
+    }
+  ],
+  "erdos173_retired_slug": "erdos173-erdos-173"
+}

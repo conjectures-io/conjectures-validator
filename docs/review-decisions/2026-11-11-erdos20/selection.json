@@ -1,0 +1,422 @@
+[
+  {
+    "decision": "eligible",
+    "number": 151,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "∀ (n : ℕ) (G : SimpleGraph (Fin n)), Erdos151.cliqueTransversalNumber G ≤ n - Erdos151.H n",
+    "production_type_sha256": "sha256:8fe6fe1f34c475941fec16b696012279f56c5dbff94a1c1349a21048a017e61a",
+    "references": [
+      "https://www.erdosproblems.com/151",
+      "https://www.erdosproblems.com/forum/thread/151",
+      "https://www.erdosproblems.com/forum/thread/151/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/151.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "The recorded claim proves only n <= 39; the target quantifies over all finite graphs.",
+    "source_path": "FormalConjectures/ErdosProblems/151.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos151.erdos_151",
+    "type_pretty": "∀ (n : ℕ) (G : SimpleGraph (Fin n)), Erdos151.cliqueTransversalNumber G ≤ n - Erdos151.H n",
+    "upstream_type_sha256": "8fe6fe1f34c475941fec16b696012279f56c5dbff94a1c1349a21048a017e61a"
+  },
+  {
+    "decision": "eligible",
+    "number": 159,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "∃ c,\n  ∃ (_ : 0 < c),\n    ∃ C,\n      ∀ (n : ℕ),\n        1 ≤ n → ↑((SimpleGraph.cycleGraph 4).graphRamsey (SimpleGraph.completeGraph (Fin n))) ≤ C * ↑n ^ (2 - c)",
+    "production_type_sha256": "sha256:60360e852c591068857b32f45153f70b35b17971268b92cc2b0bed5fbda12ac1",
+    "references": [
+      "https://www.erdosproblems.com/159",
+      "https://www.erdosproblems.com/forum/thread/159",
+      "https://www.erdosproblems.com/forum/thread/159/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/159.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "No full-resolution claim identified in the refreshed bounded sources.",
+    "source_path": "FormalConjectures/ErdosProblems/159.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos159.erdos_159",
+    "type_pretty": "∃ c,\n  ∃ (_ : 0 < c),\n    ∃ C,\n      ∀ (n : ℕ),\n        1 ≤ n → ↑((SimpleGraph.cycleGraph 4).graphRamsey (SimpleGraph.completeGraph (Fin n))) ≤ C * ↑n ^ (2 - c)",
+    "upstream_type_sha256": "60360e852c591068857b32f45153f70b35b17971268b92cc2b0bed5fbda12ac1"
+  },
+  {
+    "decision": "eligible",
+    "number": 173,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "∀ (c : EuclideanSpace ℝ (Fin 2) → Fin 2) (T₁ T₂ : Affine.Triangle ℝ (EuclideanSpace ℝ (Fin 2))),\n  ¬Erdos173.HasMonochromaticCopy c T₁ → ¬Erdos173.HasMonochromaticCopy c T₂ → ∃ σ, Congruent (T₁.points ∘ ⇑σ) T₂.points",
+    "production_type_sha256": "sha256:75ddc5b9c6f7dc7f6ac56f6ac092bf51ef3a9f29c787bd166e4133467c8e3777",
+    "references": [
+      "https://www.erdosproblems.com/173",
+      "https://www.erdosproblems.com/forum/thread/173",
+      "https://www.erdosproblems.com/forum/thread/173/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/173.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "No full-resolution claim identified in the refreshed bounded sources.",
+    "source_path": "FormalConjectures/ErdosProblems/173.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos173.erdos_173",
+    "type_pretty": "∀ (c : EuclideanSpace ℝ (Fin 2) → Fin 2) (T₁ T₂ : Affine.Triangle ℝ (EuclideanSpace ℝ (Fin 2))),\n  ¬Erdos173.HasMonochromaticCopy c T₁ → ¬Erdos173.HasMonochromaticCopy c T₂ → ∃ σ, Congruent (T₁.points ∘ ⇑σ) T₂.points",
+    "upstream_type_sha256": "75ddc5b9c6f7dc7f6ac56f6ac092bf51ef3a9f29c787bd166e4133467c8e3777"
+  },
+  {
+    "decision": "eligible",
+    "number": 295,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "Filter.Tendsto (fun N => ↑(Erdos295.k N) - (Real.exp 1 - 1) * ↑N) Filter.atTop Filter.atTop",
+    "production_type_sha256": "sha256:d8d4e129cb6cece2173d61a65add51de71fa0fc8eacde24a65303bbc565d4dc1",
+    "references": [
+      "https://www.erdosproblems.com/295",
+      "https://www.erdosproblems.com/forum/thread/295",
+      "https://www.erdosproblems.com/forum/thread/295/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/295.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "The recorded claim assumes denominator restrictions; the target is unrestricted.",
+    "source_path": "FormalConjectures/ErdosProblems/295.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos295.erdos_295",
+    "type_pretty": "Filter.Tendsto (fun N => ↑(Erdos295.k N) - (Real.exp 1 - 1) * ↑N) Filter.atTop Filter.atTop",
+    "upstream_type_sha256": "d8d4e129cb6cece2173d61a65add51de71fa0fc8eacde24a65303bbc565d4dc1"
+  },
+  {
+    "decision": "eligible",
+    "number": 311,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "∃ c ∈ Set.Ioo 0 1, Filter.Tendsto (fun N => -Real.log (Erdos311.delta N) / ↑N) Filter.atTop (nhds c)",
+    "production_type_sha256": "sha256:abe6fdd0e3a7c30017ef0d318fa03fc47d6292023b2f55706483812dd7555e81",
+    "references": [
+      "https://www.erdosproblems.com/311",
+      "https://www.erdosproblems.com/forum/thread/311",
+      "https://www.erdosproblems.com/forum/thread/311/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/311.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "Discussion contains bounds, heuristics, and a reformulation, not the requested exponential asymptotic.",
+    "source_path": "FormalConjectures/ErdosProblems/311.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos311.erdos_311",
+    "type_pretty": "∃ c ∈ Set.Ioo 0 1, Filter.Tendsto (fun N => -Real.log (Erdos311.delta N) / ↑N) Filter.atTop (nhds c)",
+    "upstream_type_sha256": "abe6fdd0e3a7c30017ef0d318fa03fc47d6292023b2f55706483812dd7555e81"
+  },
+  {
+    "decision": "eligible",
+    "number": 322,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "∀ (k : ℕ), 3 ≤ k → ∃ c > 0, {n | ↑n ^ c < ↑(Erdos322.representationCount k n)}.Infinite",
+    "production_type_sha256": "sha256:56cc42f7c8336a2c7026adc3213cbe5ae061869c2e96473e799cb9270e990fef",
+    "references": [
+      "https://www.erdosproblems.com/322",
+      "https://www.erdosproblems.com/forum/thread/322",
+      "https://www.erdosproblems.com/forum/thread/322/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/322.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "No full-resolution claim identified in the refreshed bounded sources.",
+    "source_path": "FormalConjectures/ErdosProblems/322.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos322.erdos_322",
+    "type_pretty": "∀ (k : ℕ), 3 ≤ k → ∃ c > 0, {n | ↑n ^ c < ↑(Erdos322.representationCount k n)}.Infinite",
+    "upstream_type_sha256": "56cc42f7c8336a2c7026adc3213cbe5ae061869c2e96473e799cb9270e990fef"
+  },
+  {
+    "decision": "eligible",
+    "number": 345,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "{k |\n    0 < k ∧\n      ∃ a b,\n        IsLeast (IsAddComplete.thresholds (Erdos345.kthPowers k)) a ∧\n          IsLeast (IsAddComplete.thresholds (Erdos345.kthPowers (k + 1))) b ∧ b < a}.Infinite",
+    "production_type_sha256": "sha256:0f1f06543ce32c9d4ef75a9e9beda83a5b7bf9af61cb2cb88e495252edf74a7d",
+    "references": [
+      "https://www.erdosproblems.com/345",
+      "https://www.erdosproblems.com/forum/thread/345",
+      "https://www.erdosproblems.com/forum/thread/345/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/345.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "Discussion contains upper and lower bounds on completeness thresholds, not infinitely many descents.",
+    "source_path": "FormalConjectures/ErdosProblems/345.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos345.erdos_345",
+    "type_pretty": "{k |\n    0 < k ∧\n      ∃ a b,\n        IsLeast (IsAddComplete.thresholds (Erdos345.kthPowers k)) a ∧\n          IsLeast (IsAddComplete.thresholds (Erdos345.kthPowers (k + 1))) b ∧ b < a}.Infinite",
+    "upstream_type_sha256": "0f1f06543ce32c9d4ef75a9e9beda83a5b7bf9af61cb2cb88e495252edf74a7d"
+  },
+  {
+    "decision": "eligible",
+    "number": 388,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "{(m₁, k₁, m₂, k₂) |\n    3 < k₁ ∧ 3 < k₂ ∧ m₁ + k₁ ≤ m₂ ∧ ∏ i ∈ Finset.Icc 1 k₁, (m₁ + i) = ∏ j ∈ Finset.Icc 1 k₂, (m₂ + j)}.Finite",
+    "production_type_sha256": "sha256:05bbb36e72b535fdf8bd5220b1c06b3b7edcb2823d5e61fdbdf0025ff6b3b39a",
+    "references": [
+      "https://www.erdosproblems.com/388",
+      "https://www.erdosproblems.com/forum/thread/388",
+      "https://www.erdosproblems.com/forum/thread/388/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/388.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "Discussion concerns finiteness for each fixed pair of block lengths; this target asks global finiteness across all lengths.",
+    "source_path": "FormalConjectures/ErdosProblems/388.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos388.erdos_388",
+    "type_pretty": "{(m₁, k₁, m₂, k₂) |\n    3 < k₁ ∧ 3 < k₂ ∧ m₁ + k₁ ≤ m₂ ∧ ∏ i ∈ Finset.Icc 1 k₁, (m₁ + i) = ∏ j ∈ Finset.Icc 1 k₂, (m₂ + j)}.Finite",
+    "upstream_type_sha256": "05bbb36e72b535fdf8bd5220b1c06b3b7edcb2823d5e61fdbdf0025ff6b3b39a"
+  },
+  {
+    "decision": "eligible",
+    "number": 389,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "∀ n ≥ 1, ∃ k ≥ 1, ∏ i ∈ Finset.range k, (n + i) ∣ ∏ i ∈ Finset.range k, (n + k + i)",
+    "production_type_sha256": "sha256:78b18b4d5320ca25a82c1c986a77eea8ef5236d3a7dd8c87781767d8d86548ad",
+    "references": [
+      "https://www.erdosproblems.com/389",
+      "https://www.erdosproblems.com/forum/thread/389",
+      "https://www.erdosproblems.com/forum/thread/389/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/389.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "Computed witnesses settle finitely many starting values, not the universal assertion.",
+    "source_path": "FormalConjectures/ErdosProblems/389.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos389.erdos_389",
+    "type_pretty": "∀ n ≥ 1, ∃ k ≥ 1, ∏ i ∈ Finset.range k, (n + i) ∣ ∏ i ∈ Finset.range k, (n + k + i)",
+    "upstream_type_sha256": "78b18b4d5320ca25a82c1c986a77eea8ef5236d3a7dd8c87781767d8d86548ad"
+  },
+  {
+    "decision": "eligible",
+    "number": 393,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "Filter.Tendsto Erdos393.f Filter.atTop Filter.atTop",
+    "production_type_sha256": "sha256:3d9205a8df3dd343b5022ee9201b88577e9d5df7d970aa9ac4ce73f6c41a925b",
+    "references": [
+      "https://www.erdosproblems.com/393",
+      "https://www.erdosproblems.com/forum/thread/393",
+      "https://www.erdosproblems.com/forum/thread/393/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/393.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "The Luca theorem and PR 7762 require abc. The selected target is unconditional.",
+    "source_path": "FormalConjectures/ErdosProblems/393.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos393.erdos_393",
+    "type_pretty": "Filter.Tendsto Erdos393.f Filter.atTop Filter.atTop",
+    "upstream_type_sha256": "3d9205a8df3dd343b5022ee9201b88577e9d5df7d970aa9ac4ce73f6c41a925b"
+  },
+  {
+    "decision": "eligible",
+    "number": 422,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "∀ (f : ℕ+ → ℕ+), Erdos422.IsHofstadterQ f → {n | ∀ (x : ℕ+), f x ≠ n}.Infinite",
+    "production_type_sha256": "sha256:b9a8f308580e89d8fe02ffb3cc3ed52487d46cd258b95fd3b43588489913c2bf",
+    "references": [
+      "https://www.erdosproblems.com/422",
+      "https://www.erdosproblems.com/forum/thread/422",
+      "https://www.erdosproblems.com/forum/thread/422/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/422.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "Finite computations do not settle the infinite complement question. The target uses the pinned Hofstadter-Q recurrence predicate.",
+    "source_path": "FormalConjectures/ErdosProblems/422.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos422.erdos_422",
+    "type_pretty": "∀ (f : ℕ+ → ℕ+), Erdos422.IsHofstadterQ f → {n | ∀ (x : ℕ+), f x ≠ n}.Infinite",
+    "upstream_type_sha256": "b9a8f308580e89d8fe02ffb3cc3ed52487d46cd258b95fd3b43588489913c2bf"
+  },
+  {
+    "decision": "eligible",
+    "number": 423,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "∀ (a : ℕ → ℕ), Erdos423.IsHofstadterSeq a → (fun n => ↑(a n) - ↑n) =o[Filter.atTop] fun n => ↑n",
+    "production_type_sha256": "sha256:e99ba372a74d97fd65d3302b3cbe3ff679b643749adb0a3b51bf533db63f7323",
+    "references": [
+      "https://www.erdosproblems.com/423",
+      "https://www.erdosproblems.com/forum/thread/423",
+      "https://www.erdosproblems.com/forum/thread/423/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/423.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "PRs 7622 and 7668 concern solved qualitative variants. This target asks a(n)=n+o(n). WOWII 423 is a different problem.",
+    "source_path": "FormalConjectures/ErdosProblems/423.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos423.erdos_423",
+    "type_pretty": "∀ (a : ℕ → ℕ), Erdos423.IsHofstadterSeq a → (fun n => ↑(a n) - ↑n) =o[Filter.atTop] fun n => ↑n",
+    "upstream_type_sha256": "e99ba372a74d97fd65d3302b3cbe3ff679b643749adb0a3b51bf533db63f7323"
+  },
+  {
+    "decision": "eligible",
+    "number": 430,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "∀ᶠ (n : ℕ) in Filter.atTop, ¬∀ m ∈ Erdos430.terms n, Nat.Prime m",
+    "production_type_sha256": "sha256:aa47510c3b5f15838d5f75e24e85bcb268e6374fc2f2bde1c546ad2ad5e4f799",
+    "references": [
+      "https://www.erdosproblems.com/430",
+      "https://www.erdosproblems.com/forum/thread/430",
+      "https://www.erdosproblems.com/forum/thread/430/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/430.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "No full-resolution claim identified in the refreshed bounded sources.",
+    "source_path": "FormalConjectures/ErdosProblems/430.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos430.erdos_430",
+    "type_pretty": "∀ᶠ (n : ℕ) in Filter.atTop, ¬∀ m ∈ Erdos430.terms n, Nat.Prime m",
+    "upstream_type_sha256": "aa47510c3b5f15838d5f75e24e85bcb268e6374fc2f2bde1c546ad2ad5e4f799"
+  },
+  {
+    "decision": "eligible",
+    "number": 461,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "∃ c, 0 < c ∧ ∀ (n t : ℕ), c * ↑t ≤ ↑(Erdos461.f n t)",
+    "production_type_sha256": "sha256:0b960bbb0b57641a804c11e503a46d3c84e2e270f56b55c155db1ddc0c3415ba",
+    "references": [
+      "https://www.erdosproblems.com/461",
+      "https://www.erdosproblems.com/forum/thread/461",
+      "https://www.erdosproblems.com/forum/thread/461/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/461.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "Discussion disproves proposed stronger constants and gives restricted-height bounds; it does not settle the existence of any uniform positive constant.",
+    "source_path": "FormalConjectures/ErdosProblems/461.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos461.erdos_461",
+    "type_pretty": "∃ c, 0 < c ∧ ∀ (n t : ℕ), c * ↑t ≤ ↑(Erdos461.f n t)",
+    "upstream_type_sha256": "0b960bbb0b57641a804c11e503a46d3c84e2e270f56b55c155db1ddc0c3415ba"
+  },
+  {
+    "decision": "eligible",
+    "number": 462,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "∃ C c,\n  0 < C ∧ 0 < c ∧ ∀ᶠ (x : ℕ) in Filter.atTop, c ≤ ∑ n ∈ Finset.Icc x ⌊↑x + C * √↑x * Real.log ↑x ^ 2⌋₊, ↑n.minFac / ↑n",
+    "production_type_sha256": "sha256:192631b03cd4b86cc2bf7f320ccb697179d6ca2373fec3f03925cfe68fdcf2e1",
+    "references": [
+      "https://www.erdosproblems.com/462",
+      "https://www.erdosproblems.com/forum/thread/462",
+      "https://www.erdosproblems.com/forum/thread/462/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/462.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "The pinned target includes primes in the interval sum, matching the displayed website formulation. The forum records ambiguity in the historical source; the composite-only variant is outside this target.",
+    "source_path": "FormalConjectures/ErdosProblems/462.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos462.erdos_462",
+    "type_pretty": "∃ C c,\n  0 < C ∧ 0 < c ∧ ∀ᶠ (x : ℕ) in Filter.atTop, c ≤ ∑ n ∈ Finset.Icc x ⌊↑x + C * √↑x * Real.log ↑x ^ 2⌋₊, ↑n.minFac / ↑n",
+    "upstream_type_sha256": "192631b03cd4b86cc2bf7f320ccb697179d6ca2373fec3f03925cfe68fdcf2e1"
+  },
+  {
+    "decision": "eligible",
+    "number": 467,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "∀ᶠ (x : ℕ) in Filter.atTop, ∃ residue A B, Erdos467.PrimePartitionUpTo x A B ∧ Erdos467.CongruenceCover x residue A B",
+    "production_type_sha256": "sha256:9a5afb980d7966d9f601f59490df31bb4cc72ab09df07889e575011016cfe1c4",
+    "references": [
+      "https://www.erdosproblems.com/467",
+      "https://www.erdosproblems.com/forum/thread/467",
+      "https://www.erdosproblems.com/forum/thread/467/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/467.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "The pinned target follows the website explicit existential choice of residue classes and a partition. The historical source omits quantifiers; this is the displayed interpretation.",
+    "source_path": "FormalConjectures/ErdosProblems/467.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos467.erdos_467",
+    "type_pretty": "∀ᶠ (x : ℕ) in Filter.atTop, ∃ residue A B, Erdos467.PrimePartitionUpTo x A B ∧ Erdos467.CongruenceCover x residue A B",
+    "upstream_type_sha256": "9a5afb980d7966d9f601f59490df31bb4cc72ab09df07889e575011016cfe1c4"
+  },
+  {
+    "decision": "eligible",
+    "number": 472,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "∃ m q, Erdos472.UlamPrimeExtension m q",
+    "production_type_sha256": "sha256:017e7aec7d11484ca73173cea388b2dbb2f8604642b29c14d940fa7bc8bee896",
+    "references": [
+      "https://www.erdosproblems.com/472",
+      "https://www.erdosproblems.com/forum/thread/472",
+      "https://www.erdosproblems.com/forum/thread/472/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/472.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "No full-resolution claim identified in the refreshed bounded sources.",
+    "source_path": "FormalConjectures/ErdosProblems/472.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos472.erdos_472",
+    "type_pretty": "∃ m q, Erdos472.UlamPrimeExtension m q",
+    "upstream_type_sha256": "017e7aec7d11484ca73173cea388b2dbb2f8604642b29c14d940fa7bc8bee896"
+  },
+  {
+    "decision": "eligible",
+    "number": 478,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "Filter.Tendsto (fun p => ↑(Finset.image (fun k => k.factorial % p) (Finset.Ico 1 p)).card / ↑p)\n  (Filter.atTop ⊓ Filter.principal {p | Nat.Prime p}) (nhds (1 - 1 / Real.exp 1))",
+    "production_type_sha256": "sha256:33f7d8edb009f6455adccc836caf71c98814c5f34b9fb1fb6353e82cffb2dfd2",
+    "references": [
+      "https://www.erdosproblems.com/478",
+      "https://www.erdosproblems.com/forum/thread/478",
+      "https://www.erdosproblems.com/forum/thread/478/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/478.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "The recorded p^(8/15) lower-bound claim does not establish the requested linear asymptotic.",
+    "source_path": "FormalConjectures/ErdosProblems/478.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos478.erdos_478",
+    "type_pretty": "Filter.Tendsto (fun p => ↑(Finset.image (fun k => k.factorial % p) (Finset.Ico 1 p)).card / ↑p)\n  (Filter.atTop ⊓ Filter.principal {p | Nat.Prime p}) (nhds (1 - 1 / Real.exp 1))",
+    "upstream_type_sha256": "33f7d8edb009f6455adccc836caf71c98814c5f34b9fb1fb6353e82cffb2dfd2"
+  },
+  {
+    "decision": "eligible",
+    "number": 483,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "∃ C, 0 < C ∧ ∀ (k : ℕ), 0 < k → ∃ N, ↑N < C ^ k ∧ Erdos483.Forces k N",
+    "production_type_sha256": "sha256:eaadb479fa1d84f73f93699c85e8b4353a0fddb0d8dfa9a33d358215e2a79912",
+    "references": [
+      "https://www.erdosproblems.com/483",
+      "https://www.erdosproblems.com/forum/thread/483",
+      "https://www.erdosproblems.com/forum/thread/483/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/483.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "No full-resolution claim identified in the refreshed bounded sources.",
+    "source_path": "FormalConjectures/ErdosProblems/483.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos483.erdos_483",
+    "type_pretty": "∃ C, 0 < C ∧ ∀ (k : ℕ), 0 < k → ∃ N, ↑N < C ^ k ∧ Erdos483.Forces k N",
+    "upstream_type_sha256": "eaadb479fa1d84f73f93699c85e8b4353a0fddb0d8dfa9a33d358215e2a79912"
+  },
+  {
+    "decision": "eligible",
+    "number": 545,
+    "original_blockers": [],
+    "parent_problem_status": "open",
+    "production_type_pretty": "∀ᶠ (m : ℕ) in Filter.atTop,\n  ∀ (n t : ℕ),\n    t < n →\n      m = n.choose 2 + t →\n        ∀ (V : Type) [inst : Fintype V] (G : SimpleGraph V) [inst_1 : DecidableRel G.Adj],\n          (∀ (v : V), 0 < G.degree v) →\n            G.edgeSet.ncard = m → G.diagonalGraphRamsey ≤ (Erdos545.knPlusTEdges n t).diagonalGraphRamsey",
+    "production_type_sha256": "sha256:f4668f45e27b8fc8ca56dd5cf7a8c05a66a5a00f9420f7a3d2f66d27e5d0f04f",
+    "references": [
+      "https://www.erdosproblems.com/545",
+      "https://www.erdosproblems.com/forum/thread/545",
+      "https://www.erdosproblems.com/forum/thread/545/proof-claims",
+      "https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/545.lean"
+    ],
+    "review_note": "Refreshed primary problem page, discussion, proof-claim page and current upstream open annotation on 2026-11-11. Inherits the October 28 compiled statement review, with an exact unchanged production statement hash.",
+    "scope_note": "The target quantifies over sufficiently large edge counts, so the known small-edge counterexamples do not refute it.",
+    "source_path": "FormalConjectures/ErdosProblems/545.lean",
+    "target_source_status": "open",
+    "theorem": "Erdos545.erdos_545",
+    "type_pretty": "∀ᶠ (m : ℕ) in Filter.atTop,\n  ∀ (n t : ℕ),\n    t < n →\n      m = n.choose 2 + t →\n        ∀ (V : Type) [inst : Fintype V] (G : SimpleGraph V) [inst_1 : DecidableRel G.Adj],\n          (∀ (v : V), 0 < G.degree v) →\n            G.edgeSet.ncard = m → G.diagonalGraphRamsey ≤ (Erdos545.knPlusTEdges n t).diagonalGraphRamsey",
+    "upstream_type_sha256": "f4668f45e27b8fc8ca56dd5cf7a8c05a66a5a00f9420f7a3d2f66d27e5d0f04f"
+  }
+]

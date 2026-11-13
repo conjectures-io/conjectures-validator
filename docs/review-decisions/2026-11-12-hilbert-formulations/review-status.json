@@ -1,0 +1,86 @@
+{
+  "reviewer": "claude-fable-5-2",
+  "session_id": "e1fd4852-8273-4cc4-8f86-6138e2684ea5",
+  "status": "final_confirmation_received",
+  "rounds": [
+    {
+      "round": 1,
+      "input_revision": 7,
+      "response_model_verified": true,
+      "review_file": "reviews/fable-round-01.txt",
+      "sha256": "beed5536d5f7fe856cab4eefda0e9dc03d9d27c5b4c3952c27404178132d212e"
+    },
+    {
+      "round": 2,
+      "input_revision": 8,
+      "response_model_verified": true,
+      "review_file": "reviews/fable-round-02.txt",
+      "sha256": "b4da66f17024dff011486193834395e835790f6f5c51096f3eb88c756d40d3ee"
+    },
+    {
+      "round": 3,
+      "input_revision": 9,
+      "response_model_verified": true,
+      "review_file": "reviews/fable-round-03.txt",
+      "sha256": "e0d75b0766402be9b417f4f138900b34d520886299b513ddddc0d1a225c06145",
+      "verdict": "All precise specifications accepted, conditional on W1/W3/W4/W5 wording and metadata edits; no mathematical defects found."
+    },
+    {
+      "round": 4,
+      "input_revision": 10,
+      "input_manifest_sha256": "dcd111a4f3914d0f9053fd7b7d3786d9156c4151d1a047542a437b60f992a814",
+      "response_model_verified": true,
+      "review_file": "reviews/fable-round-04.txt",
+      "sha256": "f31fd6406842b60d6156c1eb0f976c328b7d48e10c2959e787f958b62dcd8bf2",
+      "verdict": "ACCEPT for Hilbert 6, 12, algebraic 13 and 16 as formulations under the declared interpretations; all blocking conditions closed; no mathematical defect found; literal whole-problem completeness remains false for 6 and 12."
+    }
+  ],
+  "accepted": [
+    "Hilbert 6 selected physical-model formulation",
+    "Hilbert 12 arithmetic output, benchmarks, free recipe contract and separate Stark route",
+    "Algebraic Hilbert 13, RD(7) = 3",
+    "Hilbert 16 classification output and uniform bound under declared topology conventions"
+  ],
+  "full_packet_accepted": true,
+  "reviewer_retractions": [
+    "No impossibility theorem excludes every Recipe predicate; the round-1 claim was withdrawn.",
+    "Classification output types are valid; their nonemptiness is not advertised as the open content.",
+    "Independence of the probability axioms is optional, not an acceptance blocker.",
+    "Round-3 phrases 'no further formalization work can remove' and 'cannot become yes' are withdrawn; no impossibility of sharper future interpretations or admissibility rules is asserted."
+  ],
+  "author_agrees": [
+    "Identity encoding demonstrates a limitation of the unrestricted interface.",
+    "Source fidelity and whole-problem interpretation are separate from compilation.",
+    "All precise specifications are valid under the declared interpretations.",
+    "Source-clause completeness under declared choices is distinct from literal unrestricted completeness.",
+    "No impossibility theorem rules out future sharper formalizations of the general programme or analytic explicitness."
+  ],
+  "round_3_conditions": {
+    "W1": "Applied: EffectiveHilbert16 optional strengthening docstring",
+    "W2": "Applied: output-type interpretation introduction",
+    "W3": "Applied: Hilbert 12 primary targets in coverage",
+    "W4": "Applied: optional rational-point profile does not claim a proved CM bridge",
+    "W5": "Applied: Hilbert6Logic optional appendix, removed from primary target",
+    "W6": "Applied: original-source Hilbert 12 header and recipe docstring"
+  },
+  "literal_whole_problem_complete": false,
+  "full_packet_accepted_meaning": "all precise specifications accepted under declared interpretations",
+  "remaining_blocking_findings": [],
+  "reviewer_verification_limits": "Fable did not run Lean; it relied on the supplied normal/clean build evidence and revision-10-diff.json for code identity. It checked the class-field, CM and quartic statements against standard theorems but did not open the Milne, Silverman or Kharlamov–Itenberg sources; the author checked those texts.",
+  "joint_agreement": "The author and Fable agree with the final verdict and its stated scope limits. Neither asserts an impossibility theorem about sharper future formalizations.",
+  "reviewed_lean_source_sha256": {
+    "Audit.lean": "c9e61b5f5a5a30d4c0a40f29ec56fa213fee3d0e2030a2d2eca089af80a3e812",
+    "HilbertDrafts/Hilbert12.lean": "2a8006ae7579e5269cca0a88a3d8f1e5dc6898ec04c7d8228cb591e76fe8b19c",
+    "HilbertDrafts/Hilbert13.lean": "b2bb347080d5c4b1b04ef343f0945c841c7a85f37d2fbc5b6faed73c6e04f3f0",
+    "HilbertDrafts/Hilbert16.lean": "2a0330f6e2424f6a3bb069ac4fe3ce01df5101252f9694597872d489451c0b18",
+    "HilbertDrafts/Hilbert6.lean": "b15cea7afccf3daefe69de272cae19970929ede0f93a6934e4326a7de21a25fd",
+    "HilbertDrafts.lean": "10c63c0be3fd142546eb88728f9da0377847e413fa4cc0154eff21794bb4ec19",
+    "lakefile.toml": "f474fc1a4dbb28b34067ef7d58f73c0a0024181f371351760eb5939fda3929d8",
+    "lake-manifest.json": "5aaa1939ab0d54d47438f94a7585c0e89b3f07ce5be26164b27899d386c69cda",
+    "lean-toolchain": "8dc8d6f560141069d9073e370611716ef77ada0da8ffa37e2149f44b2e63ac7a"
+  },
+  "nonblocking_notes": [
+    "An older Hilbert6 comment still says Wikipedia-guided additions; primary source authority is documented separately.",
+    "The build audit retains the older Hilbert12For schema alongside the newer FieldHilbert12For specification."
+  ]
+}

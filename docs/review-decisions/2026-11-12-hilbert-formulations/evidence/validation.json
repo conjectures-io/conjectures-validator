@@ -1,0 +1,86 @@
+{
+  "lean": "4.35.0-rc2",
+  "mathlib": "065356127b1dc0016f66b7283ce0ce2c4055aa55",
+  "image_id": "sha256:4da29ed9e4448435a979baeda82e934b091abde3754bd9976d8b1df93708fa90",
+  "warnings_as_errors": true,
+  "audited_declarations": 295,
+  "closed_targets": [
+    "HilbertDrafts.Hilbert6Rigid.ClassicalLimitsProgram",
+    "HilbertDrafts.Hilbert6Rigid.ContinuumRigidLimit",
+    "HilbertDrafts.Hilbert6Rigid.ElasticityToStiff",
+    "HilbertDrafts.Hilbert6Rigid.PolynomialMaterialWitness",
+    "HilbertDrafts.Hilbert6Fluid.ClassicalGasProgram",
+    "HilbertDrafts.Hilbert6Kinetic.NewtonBoltzmannLimit",
+    "HilbertDrafts.Hilbert12Universal.RationalBenchmark",
+    "HilbertDrafts.Hilbert12CM.ImaginaryQuadraticBenchmark",
+    "HilbertDrafts.Hilbert12Universal.RationalAllArguments",
+    "HilbertDrafts.Hilbert12ClassField.ClassFieldClassification",
+    "HilbertDrafts.Hilbert12ClassField.ConductorDiscriminant",
+    "HilbertDrafts.Hilbert12ClassField.CyclotomicReciprocity",
+    "HilbertDrafts.Hilbert12Stark.RankOneAbelianStark",
+    "HilbertDrafts.Hilbert13.AlgebraicHilbert13",
+    "HilbertDrafts.Hilbert16.UniformBound",
+    "HilbertDrafts.Hilbert16Classification.HarnackSharpBound",
+    "HilbertDrafts.Hilbert16Classification.QuarticSurfaceMaximum",
+    "HilbertDrafts.Hilbert16Classification.EffectiveHilbert16"
+  ],
+  "recipe_dependent_schema": "HilbertDrafts.Hilbert12Universal.Hilbert12For",
+  "compilation": [
+    {
+      "module": "HilbertDrafts/Hilbert12.lean",
+      "exit_code": 0,
+      "source_sha256": "2a8006ae7579e5269cca0a88a3d8f1e5dc6898ec04c7d8228cb591e76fe8b19c"
+    },
+    {
+      "module": "HilbertDrafts/Hilbert13.lean",
+      "exit_code": 0,
+      "source_sha256": "b2bb347080d5c4b1b04ef343f0945c841c7a85f37d2fbc5b6faed73c6e04f3f0"
+    },
+    {
+      "module": "HilbertDrafts/Hilbert16.lean",
+      "exit_code": 0,
+      "source_sha256": "2a0330f6e2424f6a3bb069ac4fe3ce01df5101252f9694597872d489451c0b18"
+    },
+    {
+      "module": "HilbertDrafts/Hilbert6.lean",
+      "exit_code": 0,
+      "source_sha256": "b15cea7afccf3daefe69de272cae19970929ede0f93a6934e4326a7de21a25fd"
+    },
+    {
+      "module": "HilbertDrafts.lean",
+      "exit_code": 0,
+      "source_sha256": "10c63c0be3fd142546eb88728f9da0377847e413fa4cc0154eff21794bb4ec19"
+    },
+    {
+      "module": "Audit.lean",
+      "exit_code": 0,
+      "source_sha256": "c9e61b5f5a5a30d4c0a40f29ec56fa213fee3d0e2030a2d2eca089af80a3e812"
+    }
+  ],
+  "observed_axioms": [
+    "Classical.choice",
+    "Quot.sound",
+    "propext"
+  ],
+  "axiom_audit_passed": true,
+  "passed": true,
+  "passed_meaning": "Compilation and axiom audit only; not mathematical fidelity or full-request completion.",
+  "full_request_complete": false,
+  "scope_coverage": {
+    "source": "coverage.json",
+    "source_sha256": "59707e4ce4c63d618dd4f3060239969b711cbde719664339fcb4125926c21356",
+    "missing_full_scope": [
+      "6",
+      "12"
+    ],
+    "review": "Fable round 3 accepts all precise specifications under declared interpretations; wording conditions applied in revision 10, final snapshot confirmation pending."
+  },
+  "primary_source_review": {
+    "source": "primary-source-coverage.json",
+    "source_sha256": "c3d858f5c61d46e8530c6a44055cbc8a8be840a8f986f7f65deaaa29077429a0",
+    "declaration_references_valid": true,
+    "unaccepted_clauses": [],
+    "full_source_scope_accepted": false
+  },
+  "scope": "Statement drafts and proved sanity lemmas; no proof of an open Hilbert target."
+}
