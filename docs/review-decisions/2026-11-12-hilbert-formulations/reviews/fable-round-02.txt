@@ -1,0 +1,156 @@
+# Round 2: CM benchmark, agreed strategy, and the five disputed points
+
+**Short answers.** H12-04 is resolved as a formulation, with three small non-blocking corrections. I retract the universal impossibility wording in H12-01 and replace it with three precise statements, one newly proved in full below. I agree with you on H16-01, H16-02 and H6-05, each with conditions. Your planned strategy is sound, with one caveat on the elasticity bridge that you should not miss.
+
+I could not run Lean. I read the new `Hilbert12CM` namespace (lines 446–548 of the v8 file) and the Mathlib `Weierstrass.lean` and `Ramification.lean` in the checkout you named. I did not open the Silverman PDF, so the C.11.5/C.11.6 numbering is unverified by me; the mathematics matches the statement of that theorem as I remember it (K^ab = K(j(E), h(E_tors)) for E with CM by the full ring of integers).
+
+## H12-04: the new `Hilbert12CM` benchmark
+
+**Verdict: resolved as a statement of the known theorem.** What I checked:
+
+- **Mathlib conventions.** `g₂ = 60·G 4`, `g₃ = 140·G 6`, and `℘` is the standard lattice sum, with `℘'² = 4℘³ − g₂℘ − g₃` proved. So `discriminant = g₂³ − 27g₃²` and `jInvariant = 1728·g₂³/Δ` are the classical normalisations.
+- **Weber branches.** `g₂g₃℘/Δ`, `g₂²℘²/Δ` and `g₃℘³/Δ` all have weight zero and differ from Silverman's h only by nonzero rational constants, which do not affect generated fields. The case split is right: g₃ = 0 exactly when j = 1728 (K = ℚ(i)), and g₂ = 0 exactly when j = 0 (K = ℚ(√−3)). The two cannot coincide because Δ ≠ 0.
+- **Lattice.** `FullIntegerLattice` forces the lattice to be ι(𝓞_K), so the curve has CM by the maximal order. This avoids the non-maximal-order question I raised. All quantities depend only on `L.lattice`, so quantifying over every `PeriodPair` with that lattice is harmless.
+- **Totalisation.** Lattice points are excluded from the argument set, Δ ≠ 0 is a conclusion, and algebraicity is a conclusion. I see no way for junk values to enter.
+- **Content.** Abelianness of every value plus containment of every finite abelian extension is exactly the theorem. The corrected form (j plus Weber values at torsion, not singular moduli alone) is what Schappacher's correction requires.
+- **`ImaginaryQuadratic`** (degree 2, no real embedding) is correct.
+
+Corrections, none blocking:
+
+- **H12-04a (Low).** The CM benchmark uses the older `FixedValueCoverage`, while the rational benchmark uses `GenerationContract`. Prove one bridge lemma so the two benchmarks are visibly the same kind of statement. The equivalence holds when all evaluations are algebraic: finite stages are composita of abelian elements, and a finite extension inside a generated field lies in a finitely generated stage.
+- **H12-04b (Low, but useful for point 5).** Add the lemma that, when the lattice is ι(𝓞_K), `NonzeroTorsion L z` holds exactly when z = ι(x) for some x in K outside 𝓞_K. This shows the benchmark's arguments are literally all K-rational points of the domain ℂ∖L.
+- **H12-04c (Low).** The docstring should say which historical claim is being corrected, and that the explicit Galois action (main theorem of CM) is not included.
+
+Separately, the `ramificationIdx'` definition you pointed to is the supremum of n with p·𝓞_L ≤ Pⁿ, which is the standard ramification index. That closes my round-1 caveat on `AdmissiblePlaces`.
+
+## Your planned strategy
+
+I agree with every item. Comments only where there is something to watch.
+
+**Elasticity bridge as a theorem obligation.** This is the right shape, and it is a provable statement, not an open one. Four points:
+
+1. **Stored energy must penalise orientation reversal.** W(F) = |FᵀF − I|² vanishes on all of O(3), so it does not dominate dist²(F, SO(3)). A valid smooth example is W(F) = |FᵀF − I|² + (det F − 1)², which vanishes only on SO(3) and dominates c·dist² by a compactness argument. State the lower bound as a hypothesis on W and record this W as the non-vacuity witness.
+2. **Constant.** With W ≥ c·dist² and conserved energy E_N(0) ≤ C₀, the `StiffContinuum` constant is max(2, 1/c)·C₀. Energy and momentum conservation need y to be C² up to the boundary and W to be C², so that the stress is C¹ and the integration by parts is legitimate.
+3. **Rotating rigid motions are not solutions of the elastic equation.** For y = c + tV + R(t)x the stress is zero but the acceleration is not, because of centripetal terms. Only non-rotating motions are exact solutions. So the composite claim "elastic solutions converge to Euler rigid motion" is conditional on existence of C² elastic solutions on [0,T] uniformly in N, which nobody has supplied. Label the composite as conditional. The trivial witness y = x + tV shows the hypothesis class is non-empty but nothing more.
+4. **Domain mismatch.** `StiffContinuum` asks for `ContDiff` on all of ℝ × Space, while the PDE lives on the box. The bridge statement must say the PDE holds in the interior and the traction condition on the faces, for a globally C² extension.
+
+**Other items.** Kinetic concentration, variant labels, probability witnesses, the exp(2πiz) renormalisation, arithmetic contracts, and splitting off computability are all as I would do them. I will review each when it exists.
+
+## Point 1 (H12-01): retraction and replacement
+
+**I retract the claims that the limitation is "proved" and that no predicate on `Recipe` can work.** As worded it was not even well-posed: some predicate always works, for example "R equals this particular recipe". Your plan (a checked identity-oracle regression, a free-recipe contract, no impossibility theorem) is correct.
+
+What I can state precisely:
+
+- **T1 (elementary, complete).** `∃ R, Hilbert12For R` holds for the current types, via f(z) = z and an enumeration of ι(K^ab).
+- **T2 (elementary, complete on paper).** Requiring all argument coordinates to lie in ι(K) does not help. Use a countable family of analytic branches of root functions of monic polynomials, evaluated at coefficient vectors of minimal polynomials of abelian elements.
+- **T3 (now a full paper proof, not formalised).** There is one transcendental entire function f such that for every number field F ⊂ ℂ:
+  - for every x with ℚ(x) = F, f(x) lies in F^ab;
+  - F^ab is generated over F by those values.
+
+**Proof of T3.**
+1. Enumerate the algebraic numbers x₁, x₂, …. Each lies in exactly one class P_F = {x : ℚ(x) = F}, and each P_F is countably infinite.
+2. For each F choose a surjection a from P_F onto F^ab.
+3. For x in P_F let T_x be the set of a(x) + r + s·i with r, s rational and s outside the finite set where a(x) + s·i fails to generate F(a(x), i) over F (primitive element theorem). Then T_x is dense in ℂ, lies in F^ab, and every y in T_x satisfies a(x) ∈ F(y).
+4. Put f(z) = Σₙ cₙ·∏_{k<n}(z − x_k). Then f(xₙ) = S_{n−1}(xₙ) + cₙ·∏_{k<n}(xₙ − x_k), because later terms vanish at xₙ.
+5. Choose cₙ ≠ 0 inductively with |cₙ| ≤ 1/(n!·∏_{k<n}(n + |x_k|)) so that f(xₙ) ∈ T_{xₙ}. This is possible because the product is non-zero and T_{xₙ} is dense.
+6. The bound makes f entire. Infinitely many non-zero Newton coefficients make it non-polynomial, since a polynomial's divided differences eventually vanish.
+
+**Scope of T1–T3.** They trivialise three specific extensional criteria: the current contract, K-rational arguments, and "all primitive K-points, no selection, one K-independent entire function". They prove nothing about other predicates. My remaining view, that explicitness is a property of how a function is given, is a judgment, not a theorem, and should be recorded as such if at all.
+
+**Corrected acceptance criterion for H12-01:** T1 proved in Lean; documentation says no admissibility criterion is derivable from the source and lists T2 and T3 as paper-level remarks with their exact scope; no closed existential is called "Hilbert 12".
+
+## Point 2 (H16-01): classification as an output type
+
+**I agree.** My round-1 table rated the specification mathematically valid; the objection was to presenting `Nonempty (…)` as the content. A structure whose inhabitant carries the actual catalogue, realisability, exhaustion and irredundancy is a legitimate formalisation of "classify". It does not require solving any degree.
+
+Conditions:
+
+1. The target is the structure as a type. `EffectiveHilbert16 : Prop`, being a conjunction of `Nonempty`s, is demoted or renamed, and `coverage.json` must not list it as the open problem.
+2. `HILBERT16_SPECIFICATION.md` states plainly that existence of an inhabitant is known in principle for smooth plane curves and is not the open content.
+3. Recommended, not required: a lemma that any two inhabitants have catalogues of equal length per degree, matched by ambient isotopy. That is what justifies saying the type pins down "the" classification.
+4. Recommended: the Harnack and quartic-surface statements as closed benchmarks.
+
+H16-03 (the singular mode for surfaces drags in knot-type classification) is independent of this and still stands.
+
+## Point 3 (H16-02): arrangement output without computability
+
+**Agreed, including on my equivalence claim.** The direction from classification to `UniformBound` is proved in the packet. The converse needs the Schoenflies theorem and the classification of nested ovals up to ambient isotopy, which nobody has formalised. Keep it as a documented expectation.
+
+A pure output structure for arrangements plus an optional refinement with programs is faithful to "maximum number and position", provided these conventions are explicit:
+
+- "Position" means the ambient isotopy class of the whole unoriented family: in ℝ² for the affine task, in ℝP² for the projective one.
+- Flow direction, stability, multiplicity and position relative to singular points are not recorded. This is a real choice; Hilbert's word could be read more richly.
+- The affine class is degree at most d; the projective class is homogeneous degree exactly d. The two are not equivalent, and both are kept.
+- One-sided projective cycles and an invariant line at infinity count as cycles in the projective task.
+
+## Point 4 (H6-05): which requirements come from the source
+
+**Independence is not a source requirement, and I withdraw it as a blocker.** It enters #6 only through "in the same manner" as geometry and "a small number of axioms". That is too weak to make it an acceptance condition.
+
+What the text does ask for explicitly:
+
+| Source phrase | Requirement | Suggested discharge |
+|---|---|---|
+| "compatible with the previous ones", tested "in each instance" | Compatibility of each adjoined axiom set | A model witness for each extension the packet actually makes: probability axioms; force-free mechanics (`freeMotion` exists); the hyperelastic model (the translation solution) |
+| "equivalence of different systems of axioms" | At least one checked equivalence | `newtonian_iff_momentum` already does this |
+| "new axioms to arrive gradually at the more special theories" | Layering | The general-to-special structure of the mechanics and continuum definitions, documented |
+| "complete survey of all conclusions" | Programme text | Not a proposition; record as such |
+
+**Corrected acceptance criterion for H6-05:** the three witnesses above exist; `Hilbert6Logic` is labelled optional and no longer cited as a gap; independence is listed as optional strengthening.
+
+## Point 5: minimal recipe contract
+
+You are right that I should separate what the source gives from what the benchmarks happen to share. One correction to your premise first: with the lattice normalised to ι(𝓞_K), as your CM code does, the Weber function's torsion arguments are exactly ι(K) minus the lattice (H12-04b). So "arguments in K" holds literally for your CM code, with no period encoding. Periods only enter if you insist on one K-independent two-variable function, which the source does not ask for.
+
+**Tier 0: source-derived, general.** These are the only conditions I can trace to Hilbert's wording:
+- the functions are analytic, possibly in several variables;
+- they are attached to the field alone ("for any algebraic number field");
+- their values at the stated arguments generate exactly the abelian extensions, with subfields.
+
+Note that the source does not require one family for all K. Exponential and elliptic functions are different functions. The present `Recipe.family`, fixed across K, is a design choice stronger than the text.
+
+**Formal hygiene, not source.** Naturality under compatible isomorphisms is best obtained by typing: let the recipe take the subfield F = ι(K) of ℂ as its only input, so that isomorphic presentations get the same data by construction.
+
+**Tier 1: common to both benchmarks, not necessary in general.** All F-rational points of the domain map into F^ab, and those values generate F^ab. This is Hilbert's "all rational numerical values in succession" for ℚ, and a consequence of the CM theorem for imaginary quadratic fields. I do not claim it is necessary for a general solution; Shimura–Taniyama-style constructions evaluate at CM points and moduli, not at K-rational coordinates. Offer it as a named profile that the two benchmarks are stated to satisfy, not as a requirement on future recipes.
+
+**Tier 2: benchmark-specific.** Artin-equivariance is not in Hilbert's text. It comes from the modern theorems. State it per benchmark with an explicit action: σ_a(e^{2πiz}) = e^{2πiaz} for ℚ, and the main theorem of CM for the quadratic case (I have not checked a precise form of the latter suitable for your normalisation). Do not put an existential "there is some action" clause in the general contract; without a specified action it has almost no content.
+
+A minimal sketch of the Tier 0 and Tier 1 contract (not compiled, names are suggestions):
+
+```lean
+/-- All points of an open domain whose coordinates lie in the subfield. -/
+def RationalPoints (F : Subfield ℂ) {a : ℕ} (D : Set (Fin a → ℂ)) : Set (Fin a → ℂ) :=
+  {x | x ∈ D ∧ ∀ j, x j ∈ F}
+
+/-- A recipe sees only the embedded field. Naturality holds by typing. -/
+structure FieldRecipe where
+  family : Subfield ℂ → AnalyticFamily
+
+/-- Tier 1 profile: every rational point gives an abelian value, and the values generate. -/
+def RationalPointContract (K : Type) [Field K] (ι : Ambient K →+* ℂ)
+    (Fam : AnalyticFamily) (F : Subfield ℂ) : Prop :=
+  (∀ i, ∀ x ∈ RationalPoints F (Fam.domain i),
+      ∃ α : Ambient K, IsAbelianElement K α ∧ ι α = Fam.function i x) ∧
+  ∀ E : IntermediateField K (Ambient K), IsFiniteAbelian K E →
+    E ≤ IntermediateField.adjoin K
+      {α | ∃ i, ∃ x ∈ RationalPoints F (Fam.domain i), ι α = Fam.function i x}
+```
+
+Here F is the range of ι restricted to K. The rational benchmark is the family {z ↦ exp(2πiz)} on ℂ. The CM benchmark is an arity-zero constant j(ι𝓞_K) together with the Weber function on the complement of ι(𝓞_K).
+
+By T2 and T3 this contract is still non-explicitly satisfiable. The documentation must say it is a list of necessary conditions for the two benchmarks, not a sufficiency criterion.
+
+## Corrected acceptance criteria
+
+| ID | Round-1 position | Now |
+|---|---|---|
+| H12-01 | "Proved limitation" | Retracted. Require T1 in Lean, a free-recipe contract, and scoped remarks for T2 and T3 |
+| H12-02 | Add K-rationality, no-selection, reciprocity to the contract | Tiered: Tier 0 required; Tier 1 as an optional named profile; reciprocity per benchmark only |
+| H12-04 | Missing | Resolved as a statement; H12-04a, b, c are low-priority |
+| H6-01 | Add the hyperelastic bridge | Strategy accepted; needs an orientation-penalising W, an explicit constant, and the conditional label |
+| H6-05 | Consistency and independence | Consistency witnesses and one equivalence only; independence optional |
+| H16-01 | Curve half does not encode the open content | Structure accepted as an output task; `Nonempty` not advertised as open |
+| H16-02 | Make `UniformBound` primary | Pure arrangement output kept as a separate task; converse to `UniformBound` documented as unproved; conventions listed |
+
+Unchanged and still open from round 1: H6-02, H6-03, H6-04, H6-06, H12-03, H12-05, H16-03. I am not accepting any planned fix until I see it in a snapshot.

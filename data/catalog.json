@@ -145835,6 +145835,84 @@
     },
     {
       "ams_subjects": [
+        12
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Generic complex septimic resolvent degree equals three. The precise formulation and its four-round independent review are published with the validator release. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.Hilbert13",
+      "pointer_target": null,
+      "references": [
+        "[Source 1](https://www.math.uchicago.edu/~farb/papers/RD.pdf)",
+        "[Source 2](https://doi.org/10.4171/DM/984)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/Hilbert13.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "HilbertCatalog.Hilbert13.conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:9faaa7f0696d85d66bbc193995591a45b188fb9e4bac2f6bc77491476281c392",
+      "type_pretty": "HilbertDrafts.Hilbert13.AlgebraicHilbert13"
+    },
+    {
+      "ams_subjects": [
+        11
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "The rank-one abelian Stark conjecture for number fields, with normalized places, partial zeta derivatives and the abelian root-extension condition. This is the specified Stark route associated with Hilbert 12. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.RankOneAbelianStark",
+      "pointer_target": null,
+      "references": [
+        "[Source 1](https://math.berkeley.edu/~hhao/notes/Rank-one%20abelian%20Stark%20conjecture.pdf)",
+        "[Source 2](https://www.cambridge.org/core/services/aop-cambridge-core/content/view/853876BFEE7F6C3686DB9381CB3BF08F/S0010437X03100371a.pdf/local_stark_conjecture_at_a_real_place.pdf)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/RankOneAbelianStark.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "HilbertCatalog.RankOneAbelianStark.conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:49880c93c1484f8a5ef01c14a13f2044bcb7d522d063220054e2bf32cb8ed4ef",
+      "type_pretty": "HilbertDrafts.Hilbert12Stark.RankOneAbelianStark"
+    },
+    {
+      "ams_subjects": [
         54
       ],
       "answer_occurrences": [],
@@ -239334,10 +239412,10 @@
       "type_pretty": "3 ∉ additionChainSteps 7"
     }
   ],
-  "extraction_duration_ms": 51772,
+  "extraction_duration_ms": 51367,
   "generated_by": "lean/CatalogExtractor.lean",
   "lean_toolchain": "leanprover/lean4:v4.35.0-rc2",
   "mathlib_commit": "065356127b1dc0016f66b7283ce0ce2c4055aa55",
-  "repository_commit": "17acb8768de75e168a43c7c828e933071aee63cf",
+  "repository_commit": "33b3c405cc7f6499595ce65c50e86be40354d372",
   "schema_version": 1
 }

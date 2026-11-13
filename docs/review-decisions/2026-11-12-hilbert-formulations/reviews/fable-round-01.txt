@@ -1,0 +1,301 @@
+# Independent review: Hilbert 6, 12, algebraic 13, 16 (packet input-v7, commit c73a04e)
+
+**Verdicts: #13 ACCEPT; #6, #12 and #16 REVISE.** None is rejected, and none of the open conjectures is proved or claimed proved. Three of my conclusions differ from the author's own gap analysis:
+
+- **#6:** `ContinuumRigidLimit` is not an open conjecture; it follows from geometric rigidity plus compactness, and its "continuum axioms" contain no continuum mechanics.
+- **#12:** the "missing admissibility criterion" cannot be supplied by any predicate on the current `Recipe` type; it should be recorded as a proved limitation, not a closable gap.
+- **#16:** the curve half of `EffectiveHilbert16` is true in principle by decidability of the reals, so it does not encode Hilbert's question; the limit-cycle half is stronger than the source.
+
+## What I read and what I could not check
+
+- **Read in full:** `FABLE_REVIEW.md`, `PRIMARY_SOURCE_REVIEW.md`, `primary-source-coverage.json`, `coverage.json`, `FULL_SCOPE.md`, `HILBERT16_SPECIFICATION.md`, all four `Hilbert*.lean` files, `clean-build.json`, `environment.txt`.
+- **Not run:** I have no shell, so I did not rerun Lean. Compilation and the axiom audit are taken from the evidence files.
+- **Mathlib names:** I checked `NumberField.…adicAbv` (norm of the prime to the negative valuation), `Units.torsionOrder` and the existence of `Ideal.ramificationIdx'` in a local Mathlib checkout. That checkout is not guaranteed to be revision `0653561`, and I did not open the definition of `ramificationIdx'`.
+- **Hilbert's text:** key phrases confirmed against the Clark transcription. The AMS reprint PDF was not opened; longer paraphrases below are from memory of the Newson translation.
+- **Deng–Hani–Ma:** theorem statements read from the arXiv HTML through a summarising fetch covering roughly the first 100k characters of each paper.
+- **Farb–Wolfson:** Definition 2.3, Problem 1.5 and Lemma 2.11 read through an ar5iv summary.
+- **From memory, not re-verified:** Tate's formulation of Stark's conjecture; the real-algebraic-geometry results of Gudkov, Kharlamov and Orevkov; mapping class groups of RP² and RP³; Stäckel's theorem beyond secondary statements.
+- **2026 limit-cycle manuscript:** my search found no such claim, so I express no opinion on it.
+
+Severity scale: **High** blocks acceptance, **Medium** must be fixed or explicitly labelled, **Low** is optional.
+
+---
+
+## Hilbert 6 (`Hilbert6.lean`)
+
+### Checked and found correct
+
+- **Collisions** (`scatterLeft/Right`, `BinaryCollision`, `CollisionPath`, lines 87–118): incoming sign, contact normal, right-continuous velocities and single-pair events are right. `Nonoverlap` on all of [0,T] forces a collision at every incoming contact, so paths are unique off a null set.
+- **Collision kernel** (lines 131–146): ((v−w)·n)₊ over the full sphere with the sin θ Jacobian and N·ε² = 1 matches Deng–Hani–Ma eq. (1.13) with no stray constant.
+- **Boltzmann solution class** (`StrongBoltzmannSolution`, lines 164–173): the Gaussian L^∞ bound is the hypothesis of DHM (1.16), and C¹ compactly supported data satisfy (1.17). Uniqueness holds in this class by the standard weighted Gronwall argument, so the universal quantifier over `f` in line 214 is safe.
+- **Normalisation:** partition-function positivity is asserted only eventually in N, which is correct.
+- **Fluid scalings:** Maxwellian, energy, Euler pressure and energy flux are correct. The fluctuation u·v + θ(|v|²−5)/2 and the sign ρ = −θ are correct. Observation at t/κ with division by κ matches DHM Theorem 2. The iterated limit (N first, then κ) is explicitly permitted there. ν and χ are fixed before the solutions.
+- **Rigid body conventions:** `spin ω · x = ω × x`; the principal moments are right up to the factor mass/3; `eulerAngular` equals J⁻¹(Jω × ω) componentwise; R′ = R·spin(ω) is the body-frame convention and agrees with `InitialPreparation`.
+
+### Issues
+
+**H6-01 (High; confirmed by argument). `ContinuumRigidLimit` (lines 693–744) is a provable theorem whose hypotheses contain no continuum dynamics.**
+
+Proof sketch:
+1. By the Friesecke–James–Müller rigidity estimate and Poincaré, the stiffness bound puts y_N(t) within O(1/N) in L² of a rigid map c_N(t) + R_N(t)x.
+2. The kinetic bound makes t ↦ y_N(t) uniformly Lipschitz into L², so Arzelà–Ascoli gives subsequential limits y = c(t) + R(t)x in C([0,T]; L²), with velocities converging weakly-*.
+3. The conserved momenta pass to the limit (strong times weak). Since the box is centred, this gives c′ = V₀ and R·J·ω = ℓ, a constant, almost everywhere.
+4. Hence ω = J⁻¹Rᵀℓ is continuous and R is C¹. Differentiating R·J·ω = ℓ gives exactly the torque-free Euler equations.
+5. Strong initial convergence gives ℓ = R₀Jω₀, and ODE uniqueness gives convergence of the whole sequence, uniformly in t.
+
+Consequences:
+- The statement is mathematically valid and non-vacuous (exact rigid motions satisfy the hypotheses).
+- It is not an open conjecture and should not be treated as one.
+- The Euler equations are equivalent to the assumed conservation of angular momentum. Hilbert asks to derive rigid-body laws "by a limiting process" from axioms of a continuously filled material; here the only dynamical input is the conclusion in disguise.
+
+Correction:
+- Add a concrete local model: frame-indifferent hyperelastic stored energy W ≥ c·dist²(F, SO(3)), the equation ÿ = (N+1)²·div DW(∇y), and a traction-free boundary.
+- State as a lemma obligation that its C² solutions satisfy `StiffContinuum`. This is where frame indifference yields angular-momentum conservation.
+- Re-label `ContinuumRigidLimit` as a theorem to prove, conditional on existence of smooth solutions on [0,T].
+- Optional: replace the box by a general bounded Lipschitz body with its inertia tensor.
+
+**H6-02 (Medium; unresolved). The Euler branch of `FluidLimitProgram` (lines 545–547) uses data not covered by the cited theorem.**
+- It starts from the exact local Maxwellian `localMaxwell U 0`. DHM Theorem 3 uses Hilbert-expansion data (their eq. (1.43), Σ δʲFⱼ plus a remainder).
+- An exact Maxwellian mismatches that expansion at order κ, so the claim needs an initial-layer theorem (Lachowicz-type) on the torus for hard spheres. I believe the statement is true but it is not the cited result.
+- Correction: either quantify over the prepared data class, or label this branch a strictly stronger conjecture.
+
+**H6-03 (Medium; confirmed). Canonical ensemble throughout (lines 178–190, 411–426).**
+- DHM prove grand-canonical statements. The canonical case is only asserted without proof in Remark 1.5(4) of the first paper; I found no canonical remark in the fluid paper.
+- So `NewtonBoltzmannLimit` and `FluidLimitProgram` are variants of published claims, not transcriptions. The comment at line 207 ("not a claim of a new unsolved theorem") overstates this. Record the status as "asserted, unproved variant".
+
+**H6-04 (Low–Medium; confirmed). Decorative existence clauses (lines 544, 549–550).**
+- The constant state satisfies `SmoothEuler`; the zero solution satisfies `SmoothNSF` for every ν, χ.
+- The universal clauses still range over nontrivial solutions, so nothing is false, but the clauses do not guard against vacuity as claimed.
+- Correction: replace them with local existence for arbitrary smooth periodic data, or with a proved nontrivial example.
+
+**H6-05 (Medium; design). `Hilbert6Logic` (lines 575–641) is disconnected and is the wrong tool.**
+- The theorems are Mathlib repackagings and no target uses them.
+- σ-additivity and ODE systems are not natural first-order theories, so the "missing translation bridge" is a self-imposed gap. The source only asks that new axioms be "compatible with the previous ones" and that equivalence of axiom systems be studied.
+- Correction, per selected axiom system:
+  - compatibility as a model witness, e.g. `Nonempty (ProbabilityAxioms Bool)` and the existing `freeMotion`;
+  - independence as a model violating each axiom separately;
+  - equivalence as a solution-preserving bijection, which `newtonian_iff_momentum` already is.
+- Keep the first-order namespace only as an optional appendix.
+
+**H6-06 (Medium). "Method of mean values" is under-represented.**
+- `MeanValueLaw` (lines 281–292) is the i.i.d. strong law, which is a thin proxy for mean values "in the kinetic theory of gases".
+- The real content is concentration of empirical averages. `ParticleFluidLimit` has that clause (lines 530–532); `KineticConvergence` (lines 194–203) has expectations only.
+- Correction: add the in-probability clause to `KineticConvergence`. It follows from DHM (1.18) with s = 2.
+
+**H6-07 (Low).** `FreeFlight`, `BoltzmannGrad`, `ObservableLimit` and `staticConfiguration_freeFlight` (lines 26–75) are unused by any target. Remove them or mark them as legacy.
+
+**H6-08 (Low).** `ContDiff` is demanded on all of ℝ × Space while the equations hold only on [0,T] (lines 459–461, 483–485, 696). This is harmless but should be documented.
+
+### Is the missing whole-programme coverage unavoidable?
+
+Partly. I disagree with both gaps the author lists:
+- "Integration with the axiom-system framework" is unnecessary (H6-05).
+- An "exhaustive scope criterion for the physical sciences" is not a mathematical proposition. The source itself bounds it by naming probability and mechanics "in the first rank".
+
+A clause-complete specification is achievable with explicit choices. The source clauses and what each needs:
+
+| Source clause | Present | Needed |
+|---|---|---|
+| Probability axioms | Kolmogorov structure | Consistency and independence lemmas |
+| Mean values in kinetic theory | Strong law; fluid concentration | H6-06 |
+| Foundations of mechanics | Newton/momentum equivalence | — |
+| Atomistic to continuum | Kinetic and fluid limits | H6-02, H6-03 |
+| Continuum to rigid | Global balance statement | H6-01 |
+| Equivalence, compatibility | Disconnected logic layer | H6-05 |
+
+After those fixes the packet can truthfully say "complete relative to the enumerated clauses of the 1900 text under declared choices". It should never claim more, and "all logically possible theories" should be recorded as programme text, not a gap to close.
+
+---
+
+## Hilbert 12 (`Hilbert12.lean`)
+
+### Checked and found correct
+
+- **`RankOneAbelianStark` (lines 100–189)** matches Tate's formulation of St(K/k, S):
+  - place normalisation (squared absolute value at complex places);
+  - S contains all infinite places and all ramified primes, with |S| ≥ 2;
+  - splitting expressed as trivial decomposition group, at finite and infinite places;
+  - arithmetic Frobenius;
+  - partial zeta over ideals coprime to S, with continuation pinned by `partialZeta_unique`;
+  - both U^(v) cases;
+  - the identity ζ′_S(0,σ) = −(1/e)·log|σ(u)|_w;
+  - abelianness of K(u^{1/e})/k.
+- `IsArtinMap` leaves values on S-primes free, which is harmless because `zetaTerm` ignores them.
+- `relativeDiscriminant` (lines 398–400) is the correct ideal generated by discriminants of integral n-tuples; no relative integral basis is assumed.
+- `RationalBenchmark` is exactly Kronecker–Weber with subfields.
+
+### Issues
+
+**H12-01 (High; confirmed, with one part a proof sketch). There is no closed general statement, and none can be obtained by adding a predicate to the current types.**
+
+- **Identity oracle.** `∃ R, Hilbert12For R` is provable now. Take the single entire function f(z) = z and, for each (K, ι), let the arguments enumerate ι of the countable field K^ab. All three clauses of `GenerationContract` hold. This is stronger than the packet's `constantOracle` regression, which targets the superseded `LooseAnalyticPresentation`.
+- **Natural repairs fail.**
+  - Requiring arguments in ι(K) admits branches of the generic-root algebraic functions evaluated at coefficient vectors of abelian polynomials.
+  - Requiring computable or arithmetically definable arguments admits the same, because class fields are computable (Cohen's algorithms).
+- **Stäckel obstruction (sketch, not formalised).** Even the strict condition "every algebraic point x of the domain maps into ℚ(x)^ab, and these values generate" is satisfiable by a transcendental entire function. Stäckel's 1895 interpolation construction allows a different dense target set at each of countably many points, and ℚ(x)^ab is dense in ℂ.
+- **Conclusion.** What Hilbert means by functions "which play the part" of the exponential is a property of how the function is given, not of the function as a set of values. The author's gap "adequate closed admissibility criterion" should be replaced by this explanation.
+
+A full, faithful specification is achievable without solving the problem, as a package rather than one existential:
+
+1. **Arithmetic clause, closed and known.** State the classification of finite abelian extensions by congruence subgroups of ray class groups (Artin reciprocity plus the existence theorem) and the conductor–discriminant formula. This is what answers "number and existence" with given degree, group and discriminant.
+2. **Benchmarks, closed and known.** ℚ (present, see H12-03) and imaginary quadratic (H12-04), each with its explicit reciprocity action. For ℚ: σ_a(e^{2πi/n}) = e^{2πi·a/n}, with Frobenius at p ∤ n mapping to σ_p.
+3. **The contract `Hilbert12For R`, with R free.** Add necessary, checkable obligations that the two benchmarks satisfy:
+   - arguments have coordinates in ι(K);
+   - parameters are invariant under isomorphism of (K, ι);
+   - "all values in succession": every family member is abelian-valued on the whole stated argument set, not on a selected subset;
+   - an explicit Galois action on arguments compatible with the Artin map.
+   Document these as necessary, not sufficient.
+4. **The trivialisation results as regression theorems,** so nobody later existentially closes the contract.
+5. **Named candidate conjectures as separate closed propositions.** Stark is present and correctly labelled as a route.
+
+**H12-02 (High). `Recipe.parameters` (lines 253–256) is unconstrained.** It may depend arbitrarily on K and ι and return arbitrary complex arguments. Even as a review instrument the contract then tests nothing about the recipe. Fix by item 3 above.
+
+**H12-03 (Medium; confirmed). The rational benchmark hides its defining feature (lines 350–362).** It uses exp(z) at 2πi/(n+1). Hilbert's form is the function e^{iπz} at "all rational numerical values in succession". Rational arguments with no selection are what make it non-oracular. Renormalise to z ↦ exp(2πi·z) with arguments 1/(n+1) ∈ ℚ, and prove that every rational argument gives an abelian value.
+
+**H12-04 (Medium). The imaginary quadratic benchmark is missing; I agree with the author.** Proposed corrected statement (the theorem is classical; e.g. Cox, Theorem 11.39 — the function-family packaging below is mine and is not checked against a source):
+- K imaginary quadratic, τ in the upper half-plane with ℤ + ℤτ = 𝓞_K under ι.
+- K^ab is generated by j(τ) and the Weber values h(z; τ) for z ∈ (ℚ + ℚτ) outside the lattice.
+- Use the three weight-zero functions g₂g₃℘/Δ, g₂²℘²/Δ and g₃℘³/Δ, so that j = 1728 and j = 0 need no case split.
+- Do not transcribe Hilbert's modular-only wording, which Schappacher documents as erroneous.
+- Restrict to the maximal order unless the non-maximal-order statement is separately verified.
+
+**H12-05 (Medium). `ArithmeticCatalogue` (lines 412–441) carries no arithmetic content.**
+- `Nonempty (ArithmeticCatalogue K n G D)` is Hermite–Minkowski finiteness.
+- No closed proposition uses it.
+- Replace it or supplement it with item 1 above.
+
+**H12-06 (Low).** Lines 11–82 are legacy; replace them with the identity-oracle theorem. Optional Stark sanity lemmas: independence of `AbelianRootExtension` from the choice of root, and the K = L case.
+
+---
+
+## Algebraic Hilbert 13 (`Hilbert13.lean`)
+
+`ParameterStep` (lines 35–42) is Farb–Wolfson Definition 2.3 verbatim:
+- an intermediate field E₀ ⊆ E with transcendence degree at most d over ℂ;
+- a finite extension E₁/E₀;
+- the whole tensor product E ⊗_{E₀} E₁ isomorphic to F as an E-algebra.
+
+Further checks:
+- Requiring only an abstract isomorphism loses nothing, because any abstract finite extension embeds in the fixed closure.
+- The tower may overshoot the root field, as the definition allows.
+- The root-cover target is the right one: Lemma 2.11 gives the same value for the Galois closure.
+- Degenerate cases behave: d = 0 forces trivial steps, and d = 7 is solvable in one step.
+- `AlgebraicHilbert13` is RD(7) = 3, as in Farb–Wolfson Problem 1.5.
+
+Notes, none blocking:
+- **H13-01 (Low).** Add a positive regression: one `ParameterStep 1` adjoining a square root of a coefficient. This guards against the tensor-product instances being accidentally unsatisfiable, which I could not machine-check.
+- **H13-02 (Low).** Document that `ClassicalUpperBound` is a known theorem (RD(n) ≤ n−4), that only `AlgebraicLowerBound` is open, and that Hilbert's 1900 text states the continuous-function version, which was settled by Kolmogorov–Arnold.
+
+---
+
+## Hilbert 16 (`Hilbert16.lean`)
+
+### Checked and found correct
+
+- `IsPeriodicOrbit`, `IsLimitCycle` and `UniformBound` (lines 27–52) are the standard finiteness formulation.
+- The projective lift γ′ = a·V(γ) + b·γ (lines 272–280) is Hilbert's homogeneous equation det[V, γ, γ′] = 0.
+  - ODE uniqueness keeps orbits away from singular points.
+  - Radial motion is not counted.
+  - Complete lifts always exist.
+- Degree conventions: Hilbert's homogeneous degree n contains affine degree n (take Z = 0) and sits inside affine degree n+1. Keeping both classifications is right.
+- Rational polyhedral representatives exist in dimension ≤ 3. My reasoning: triangulability, plus every homeomorphism of RP² being isotopic to the identity, and of RP³ to the identity or a rational reflection.
+
+### Issues
+
+**H16-01 (High; fidelity). The algebraic half of `EffectiveHilbert16` (lines 182–199, 301–302) is satisfiable without answering Hilbert's question.**
+- For smooth plane curves, the catalogue function is computable by brute force:
+  1. cylindrical algebraic decomposition of the discriminant complement in coefficient space;
+  2. the topology of one sample curve per cell;
+  3. combinatorial comparison of oval arrangements.
+- So `Nonempty (AlgebraicClassification 2 true)` is true in principle today, while the degree-8 classification remains open.
+- I expect the same for surfaces, subject to decidability of ambient isotopy in RP³, which I did not verify.
+- "∃ program computing the answer" therefore cannot stand in for "determine the answer".
+- Correction: keep the structure as an output format, and move content into concrete closed statements:
+  - the Harnack bound;
+  - the Gudkov classification of sextics;
+  - the maximum of 10 components for quartic surfaces (Kharlamov), which answers Hilbert's explicit question;
+  - the undecided degree-8 M-schemes as explicitly listed open propositions.
+
+**H16-02 (Medium). The limit-cycle half is stronger than the source.**
+- Without the computability fields, `AffineCycleClassification` is equivalent to `UniformBound`: a bounded count attains its maximum, and finitely many arrangements of at most H(d) ovals always exist.
+- The only addition is computability of d ↦ H(d) and of the catalogue. Hilbert does not ask for that, and it could fail independently.
+- Correction: make `UniformBound` (plus sharpness) the primary target, and label the effective version an optional strengthening.
+
+**H16-03 (Medium). The unrestricted mode for n = 3 is far outside the source.**
+- Zero loci such as p² + q² are space curves and graphs, so the classification includes knot and spatial-graph isotopy.
+- Hilbert speaks of the "sheets" of a surface.
+- Drop `smooth = false`, or restrict it to real loci that are surfaces.
+
+**H16-04 (Low).** If Hilbert's sextic assertion is ever transcribed, use Gudkov's corrected list; Hilbert's wording omits the 5-inside/5-outside scheme.
+
+**H16-05 (Low).** Document that the projective version counts one-sided cycles and an invariant line at infinity as cycles.
+
+---
+
+## Verdict tables
+
+Statement validity is assessed separately from proof. All four open conjectures (hard-sphere limits in these exact variants, Stark, RD(7) > 2, limit-cycle finiteness) remain unproved here.
+
+**Hilbert 6**
+
+| Criterion | Assessment |
+|---|---|
+| (A) Validity of supplied specification | Well-formed and non-vacuous. `MeanValueLaw` proved; `ContinuumRigidLimit` provable (H6-01); the gas and fluid limits are variants of DHM claims (H6-02, H6-03). |
+| (B) Fidelity to source | Partial. Collision, kernel and scaling conventions are faithful; the continuum axioms and the logic layer are not. |
+| (C) Coverage of entire problem | Not met. Clause-complete coverage under declared choices is achievable; exhaustive physics is not a proposition. |
+| (D) Verdict | **REVISE.** Accept after H6-01, H6-05, H6-06 are fixed and H6-02, H6-03 are fixed or labelled. |
+
+**Hilbert 12**
+
+| Criterion | Assessment |
+|---|---|
+| (A) Validity | Stark and `RationalBenchmark` valid. `Hilbert12For` is a valid schema only; its existential closure is trivially true (H12-01). |
+| (B) Fidelity | Stark faithful to Tate. The universal contract is too permissive (H12-02); the rational benchmark is mis-normalised (H12-03). |
+| (C) Coverage | Not met. Arithmetic clause and imaginary quadratic benchmark missing; the general clause must be reframed. |
+| (D) Verdict | **REVISE.** Accept after H12-01 to H12-05, with the admissibility "gap" replaced by proved trivialisation theorems. |
+
+**Algebraic Hilbert 13**
+
+| Criterion | Assessment |
+|---|---|
+| (A) Validity | Valid; matches Farb–Wolfson Definition 2.3. |
+| (B) Fidelity | Faithful to Problem 1.5, RD(7) = 3. |
+| (C) Coverage | Complete for the algebraic version the user chose. |
+| (D) Verdict | **ACCEPT.** H13-01 recommended, not required. The upper bound is known; the lower bound is open. |
+
+**Hilbert 16**
+
+| Criterion | Assessment |
+|---|---|
+| (A) Validity | Well-formed. Curve half true in principle; cycle half implies the open `UniformBound`. |
+| (B) Fidelity | Changes the problem: Part 1 trivialised (H16-01), Part 2 over-strengthened (H16-02), singular surfaces out of scope (H16-03). |
+| (C) Coverage | All topics appear, but not as Hilbert's questions. |
+| (D) Verdict | **REVISE.** `UniformBound` alone is acceptable as the Part 2 core. Accept the whole after H16-01 to H16-03. |
+
+---
+
+## Smallest next patch
+
+1. **#12:** prove `∃ R, Hilbert12For R` via the identity recipe and delete lines 11–82. Rewrite the gap text in `coverage.json` and `FULL_SCOPE.md` accordingly.
+2. **#12:** renormalise the exponential benchmark to rational arguments and add the all-rationals-abelian clause and the explicit Galois action.
+3. **#12:** add the imaginary quadratic benchmark statement and a closed class-field classification with the conductor–discriminant formula. Add the argument-rationality and no-selection fields to the contract.
+4. **#6:** add the hyperelastic model and the lemma obligation that it satisfies `StiffContinuum`. Re-label `ContinuumRigidLimit` as a theorem target.
+5. **#6:** add the in-probability clause to `KineticConvergence`. Label the canonical-ensemble and exact-Maxwellian deviations in the docstrings and the coverage file.
+6. **#6:** replace the claimed first-order "bridge" gap with model-existence and independence lemmas for `ProbabilityAxioms`.
+7. **#16:** make `UniformBound` the primary Part 2 target and mark computability as optional. Remove `smooth = false` for n = 3. Add Harnack and the quartic-surface maximum as closed statements. State in `HILBERT16_SPECIFICATION.md` that the curve catalogue is computable in principle.
+8. **#13:** add the square-root step regression lemma.
+
+What stays underdetermined after this patch is narrow:
+- In #12, "explicit" is not a property of functions and cannot be formalised as one.
+- In #6, the phrase about all physical sciences is a programme.
+- In #16, "determine" for each fixed degree can only be captured by stating the actual answers degree by degree.
+
+Sources:
+- [Hilbert, Mathematical Problems (Clark transcription)](https://mathcs.clarku.edu/~djoyce/hilbert/problems.html)
+- [Deng–Hani–Ma, Long time derivation of the Boltzmann equation from hard sphere dynamics](https://arxiv.org/abs/2408.07818)
+- [Deng–Hani–Ma, Hilbert's sixth problem: derivation of fluid equations via Boltzmann's kinetic theory](https://arxiv.org/abs/2503.01800)
+- [Farb–Wolfson, Resolvent degree, Hilbert's 13th Problem and geometry](https://ar5iv.labs.arxiv.org/html/1803.04063)
+- [Friesecke–James–Müller, geometric rigidity theorem](https://dept.aem.umn.edu/~james/research/Publications_Files/PDF/73.pdf) (link from the packet; cited from memory, not opened)
+- [Schappacher, On the History of Hilbert's Twelfth Problem](https://smf.emath.fr/publications/history-hilberts-twelfth-problem) (link from the packet; cited via the packet's summary, not opened)
+- Secondary statements of Stäckel's theorem: [arXiv 2607.23966](https://arxiv.org/pdf/2607.23966), [arXiv 1004.1668](https://arxiv.org/pdf/1004.1668)
+- Limit-cycle status search: [Kaloshin, Around Hilbert–Arnold Problem](https://arxiv.org/pdf/math/0111053), [A note on Hilbert 16th Problem](https://arxiv.org/pdf/2407.13465), [arXiv 2608.00812](https://arxiv.org/pdf/2608.00812)

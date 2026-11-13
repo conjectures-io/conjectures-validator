@@ -1,0 +1,305 @@
+⚠ [9255/10629] Replayed FormalConjectures.OEIS.«317940»
+warning: FormalConjectures/OEIS/317940.lean:116:12: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/317940.lean:116:31: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/317940.lean:120:12: `dif_neg` has been deprecated: Use `dite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  d̵i̵f̵_̵n̵e̵g̵d̲i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/317940.lean:121:12: `dif_neg` has been deprecated: Use `dite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  d̵i̵f̵_̵n̵e̵g̵d̲i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/317940.lean:142:4: `dif_neg` has been deprecated: Use `dite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  d̵i̵f̵_̵n̵e̵g̵d̲i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/317940.lean:142:24: `dif_pos` has been deprecated: Use `dite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  d̵i̵f̵_̵p̵o̵s̵d̲i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+warning: FormalConjectures/OEIS/317940.lean:142:44: `dif_neg` has been deprecated: Use `dite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  d̵i̵f̵_̵n̵e̵g̵d̲i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/317940.lean:145:17: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+⚠ [9261/10629] Replayed FormalConjectures.OEIS.«62567»
+warning: FormalConjectures/OEIS/62567.lean:63:6: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/62567.lean:65:6: `dif_pos` has been deprecated: Use `dite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  d̵i̵f̵_̵p̵o̵s̵d̲i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+⚠ [9266/10629] Replayed FormalConjectures.OEIS.«159829»
+warning: FormalConjectures/OEIS/159829.lean:44:9: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+warning: FormalConjectures/OEIS/159829.lean:59:9: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+warning: FormalConjectures/OEIS/159829.lean:67:9: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+warning: FormalConjectures/OEIS/159829.lean:82:9: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+⚠ [9267/10629] Replayed FormalConjectures.OEIS.«153330»
+warning: FormalConjectures/OEIS/153330.lean:70:22: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/153330.lean:70:41: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+warning: FormalConjectures/OEIS/153330.lean:73:22: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/153330.lean:73:41: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+warning: FormalConjectures/OEIS/153330.lean:74:9: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/153330.lean:89:22: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/153330.lean:89:41: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+warning: FormalConjectures/OEIS/153330.lean:92:22: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/153330.lean:92:41: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+warning: FormalConjectures/OEIS/153330.lean:93:9: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/153330.lean:108:22: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/153330.lean:108:41: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+warning: FormalConjectures/OEIS/153330.lean:111:22: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/153330.lean:111:41: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+warning: FormalConjectures/OEIS/153330.lean:112:9: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/153330.lean:127:22: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/153330.lean:127:41: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+warning: FormalConjectures/OEIS/153330.lean:130:22: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/153330.lean:130:41: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+warning: FormalConjectures/OEIS/153330.lean:131:9: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+⚠ [9289/10629] Replayed FormalConjectures.OEIS.«92243»
+warning: FormalConjectures/OEIS/92243.lean:56:6: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/92243.lean:71:6: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+⚠ [9368/10629] Replayed FormalConjectures.Paper.Kurepa
+warning: FormalConjectures/Paper/Kurepa.lean:78:8: `List.prod_eq_pow_card` has been deprecated: Use `List.prod_eq_pow_length` instead
+
+Hint: Replace the deprecated name:
+  List.prod_eq_pow_c̵a̵r̵d̵l̲e̲n̲g̲t̲h̲
+⚠ [9372/10629] Replayed FormalConjectures.Paper.DeGiorgi
+warning: FormalConjectures/Paper/DeGiorgi.lean:109:8: `AffineSubspace.coe_affineSpan_singleton` has been deprecated: Use `AffineSubspace.affineSpan_singleton` instead
+
+Note: The updated constant has a different type:
+  ∀ (k : Type u_1) (V : Type u_2) {P : Type u_3} [inst : Ring k] [inst_1 : AddCommGroup V] [inst_2 : Module k V]
+    [S : AddTorsor V P] (x : P), affineSpan k {x} = {x}
+instead of
+  ∀ (k : Type u_1) (V : Type u_2) {P : Type u_3} [inst : Ring k] [inst_1 : AddCommGroup V] [inst_2 : Module k V]
+    [S : AddTorsor V P] (p : P), ↑(affineSpan k {p}) = {p}
+warning: FormalConjectures/Paper/DeGiorgi.lean:119:10: This simp argument is unused:
+  direction_affineSpan
+
+Hint: Omit it from the simp argument list.
+  [apply] simp
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+⚠ [9382/10629] Replayed FormalConjectures.Mathoverflow.«75792»
+warning: FormalConjectures/Mathoverflow/75792.lean:160:6: `dif_neg` has been deprecated: Use `dite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  d̵i̵f̵_̵n̵e̵g̵d̲i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+⚠ [9385/10629] Replayed FormalConjectures.OpenQuantumProblems.«35»
+warning: FormalConjectures/OpenQuantumProblems/35.lean:520:29: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+warning: FormalConjectures/OpenQuantumProblems/35.lean:520:44: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+warning: FormalConjectures/OpenQuantumProblems/35.lean:524:29: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OpenQuantumProblems/35.lean:524:40: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+⚠ [9389/10629] Replayed FormalConjectures.WrittenOnTheWallII.Test
+warning: FormalConjectures/WrittenOnTheWallII/Test.lean:112:14: `SimpleGraph.girth_le_length` has been deprecated: Use `SimpleGraph.Walk.IsCycle.girth_le_length` instead
+
+Note: The updated constant is in a different namespace. Dot notation may need to be changed (e.g., from `x.girth_le_length` to `Walk.IsCycle.girth_le_length x`).
+
+Hint: Replace the deprecated name:
+  W̲a̲l̲k̲.̲I̲s̲C̲y̲c̲l̲e̲.̲girth_le_length
+warning: FormalConjectures/WrittenOnTheWallII/Test.lean:216:14: `SimpleGraph.girth_le_length` has been deprecated: Use `SimpleGraph.Walk.IsCycle.girth_le_length` instead
+
+Note: The updated constant is in a different namespace. Dot notation may need to be changed (e.g., from `x.girth_le_length` to `Walk.IsCycle.girth_le_length x`).
+
+Hint: Replace the deprecated name:
+  W̲a̲l̲k̲.̲I̲s̲C̲y̲c̲l̲e̲.̲girth_le_length
+⚠ [9510/10629] Replayed FormalConjectures.ErdosProblems.«1054»
+warning: FormalConjectures/ErdosProblems/1054.lean:61:9: `dif_neg` has been deprecated: Use `dite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  d̵i̵f̵_̵n̵e̵g̵d̲i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/ErdosProblems/1054.lean:80:9: `dif_neg` has been deprecated: Use `dite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  d̵i̵f̵_̵n̵e̵g̵d̲i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+⚠ [9611/10629] Replayed FormalConjectures.ErdosProblems.«346»
+warning: FormalConjectures/ErdosProblems/346.lean:69:8: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+warning: FormalConjectures/ErdosProblems/346.lean:69:22: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/ErdosProblems/346.lean:73:8: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/ErdosProblems/346.lean:73:22: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+⚠ [10004/10629] Replayed FormalConjectures.OEIS.«105720»
+warning: FormalConjectures/OEIS/105720.lean:74:9: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+warning: FormalConjectures/OEIS/105720.lean:79:9: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/105720.lean:85:9: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/105720.lean:91:9: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/105720.lean:97:9: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+⚠ [10021/10629] Replayed FormalConjectures.OEIS.«100800»
+warning: FormalConjectures/OEIS/100800.lean:63:9: `dif_pos` has been deprecated: Use `dite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  d̵i̵f̵_̵p̵o̵s̵d̲i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+⚠ [10054/10629] Replayed FormalConjectures.OEIS.«103662»
+warning: FormalConjectures/OEIS/103662.lean:75:37: Tactic `constructor` applied constructor `le.refl`, but `le.step` also matches the goal.
+
+Hint: Use `constructor!` to apply the first matching constructor without this warning:
+  [apply] constructor!
+⚠ [10105/10629] Replayed FormalConjectures.OEIS.«34693»
+warning: FormalConjectures/OEIS/34693.lean:75:8: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+⚠ [10120/10629] Replayed FormalConjectures.OEIS.«108129»
+warning: FormalConjectures/OEIS/108129.lean:48:9: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+warning: FormalConjectures/OEIS/108129.lean:48:45: `dif_pos` has been deprecated: Use `dite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  d̵i̵f̵_̵p̵o̵s̵d̲i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+Build completed successfully (10629 jobs).
+{
+  "adapter_required": 497,
+  "automatically_taskable": 5557,
+  "by_category": {
+    "API": 389,
+    "research open": 1717,
+    "research solved": 1957,
+    "test": 1798,
+    "textbook": 203
+  },
+  "by_classification": {
+    "BOOL_ANSWER": 0,
+    "DEFINITION_HOLE": 0,
+    "DIRECT_PROP": 5533,
+    "FINITE_ANSWER": 0,
+    "GENERAL_VALUE_ANSWER": 199,
+    "INT_ANSWER": 0,
+    "MULTIPLE_ANSWER_HOLES": 0,
+    "NAT_ANSWER": 24,
+    "POINTER_DECLARATION": 0,
+    "PROP_ANSWER_WRAPPER": 298,
+    "UNSUPPORTED": 10
+  },
+  "catalog": "/admission/hilbert-catalog.json",
+  "repository_commit": "33b3c405cc7f6499595ce65c50e86be40354d372",
+  "total_declarations": 6064,
+  "unsupported": 10
+}

@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "deployment_allowed": false,
+  "counts": {
+    "planned_versions": 654,
+    "reused": 650,
+    "built": 4,
+    "superseded": 0,
+    "retired": 0,
+    "held": 0,
+    "retained_admissions": 0
+  },
+  "seconds": 115.7789124045521
+}

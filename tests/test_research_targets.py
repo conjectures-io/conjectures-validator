@@ -87,7 +87,8 @@ def test_this_candidate_activates_only_the_reviewed_ready_subset():
     # Retiring Erdos 456(iii) leaves 257 targets in the original 258-target base.
     # Wilf e4 (source22) is held and convex planar Pólya (source27) is retired.
     # November 4 added twenty Erdős targets; the owner subsequently withdrew 21 and 111.
-    assert DEFAULT_TIER_SIZE == 257 + len(activated) - 2 + len(HISTORICAL_OPEN_TARGETS) + 18
+    # The November 13 release adds nineteen further Erdős targets.
+    assert DEFAULT_TIER_SIZE == 257 + len(activated) - 2 + len(HISTORICAL_OPEN_TARGETS) + 18 + 19
     assert task_pool.staged_research_target(THEOREM, MATH30)
     assert not task_pool.staged_research_target(ACTIVE, MATH30)
     # The gate concerns this family only; an Erdős source is unaffected by it.

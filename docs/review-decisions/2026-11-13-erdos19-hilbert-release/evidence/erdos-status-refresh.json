@@ -1,0 +1,185 @@
+{
+  "scope": "Catalog-status refresh of the previously completed bounded literature review. Underlying catalog assessments may predate retrieval.",
+  "rows": [
+    {
+      "number": 151,
+      "url": "https://erdosproblems.ai/problems/151",
+      "retrieved_at_utc": "2026-11-13T18:01:45.890720+00:00",
+      "status": "open",
+      "sha256": "68c20686d6fc01f0043c9e4def667de19c6faa7ffb86558381bd7617ba4b928b",
+      "raw_file": "erdos-151-refresh.html.gz",
+      "previous_status": "open"
+    },
+    {
+      "number": 159,
+      "url": "https://erdosproblems.ai/problems/159",
+      "retrieved_at_utc": "2026-11-13T18:01:45.893768+00:00",
+      "status": "open",
+      "sha256": "8dbb9827c0f4a3a365c43d2e7f0964a7ce1e604fbcddda1278a67fa5dab420e1",
+      "raw_file": "erdos-159-refresh.html.gz",
+      "previous_status": "open"
+    },
+    {
+      "number": 173,
+      "url": "https://erdosproblems.ai/problems/173",
+      "retrieved_at_utc": "2026-11-13T18:01:45.884773+00:00",
+      "status": "solved",
+      "sha256": "9ceeb31b347178e742c8d0091ed491a3156c8cfd04d3d4018040b5e880bc6fd3",
+      "raw_file": "erdos-173-refresh.html.gz",
+      "previous_status": "solved"
+    },
+    {
+      "number": 295,
+      "url": "https://erdosproblems.ai/problems/295",
+      "retrieved_at_utc": "2026-11-13T18:01:45.885032+00:00",
+      "status": "open",
+      "sha256": "c73ff2fe5dc7858a6093eb331b13ab004cccd59b8f425a0a511e339f453d76ac",
+      "raw_file": "erdos-295-refresh.html.gz",
+      "previous_status": "open"
+    },
+    {
+      "number": 311,
+      "url": "https://erdosproblems.ai/problems/311",
+      "retrieved_at_utc": "2026-11-13T18:01:45.890964+00:00",
+      "status": "open",
+      "sha256": "01a7391d78759a0c057b26ae127c784a45bfe411bd3d8ef24cedfb595bfef571",
+      "raw_file": "erdos-311-refresh.html.gz",
+      "previous_status": "open"
+    },
+    {
+      "number": 322,
+      "url": "https://erdosproblems.ai/problems/322",
+      "retrieved_at_utc": "2026-11-13T18:01:46.434954+00:00",
+      "status": "open",
+      "sha256": "fc60e0bea7495dbc4f6be61a86852e9e76723b4a9460fe0533f5539641d66544",
+      "raw_file": "erdos-322-refresh.html.gz",
+      "previous_status": "open"
+    },
+    {
+      "number": 345,
+      "url": "https://erdosproblems.ai/problems/345",
+      "retrieved_at_utc": "2026-11-13T18:01:46.444686+00:00",
+      "status": "open",
+      "sha256": "26e19f7d85abe1bb16c2e718981b638cb179f8c10aa7891c5aa2a5940eda66c5",
+      "raw_file": "erdos-345-refresh.html.gz",
+      "previous_status": "open"
+    },
+    {
+      "number": 388,
+      "url": "https://erdosproblems.ai/problems/388",
+      "retrieved_at_utc": "2026-11-13T18:01:46.437526+00:00",
+      "status": "open",
+      "sha256": "4300eee5e7968d4c60c82c538b3da0e0ffb58cc2c3167293d42a2af494ae34fd",
+      "raw_file": "erdos-388-refresh.html.gz",
+      "previous_status": "open"
+    },
+    {
+      "number": 389,
+      "url": "https://erdosproblems.ai/problems/389",
+      "retrieved_at_utc": "2026-11-13T18:01:46.438235+00:00",
+      "status": "open",
+      "sha256": "f5ef761d5052396b577fb52a63e9cfa6060c51933357e9018be13c8e96acc612",
+      "raw_file": "erdos-389-refresh.html.gz",
+      "previous_status": "open"
+    },
+    {
+      "number": 393,
+      "url": "https://erdosproblems.ai/problems/393",
+      "retrieved_at_utc": "2026-11-13T18:01:46.438383+00:00",
+      "status": "open",
+      "sha256": "9984d7179120b81a53c13c3b135fda3a6db31132ed6bcd451ccef6b0e526984d",
+      "raw_file": "erdos-393-refresh.html.gz",
+      "previous_status": "open"
+    },
+    {
+      "number": 422,
+      "url": "https://erdosproblems.ai/problems/422",
+      "retrieved_at_utc": "2026-11-13T18:01:46.873994+00:00",
+      "status": "open",
+      "sha256": "566cfd0353151bf8f6160c249e58a1bf87d710fb482546278464ae900a1c2686",
+      "raw_file": "erdos-422-refresh.html.gz",
+      "previous_status": "open"
+    },
+    {
+      "number": 423,
+      "url": "https://erdosproblems.ai/problems/423",
+      "retrieved_at_utc": "2026-11-13T18:01:46.877287+00:00",
+      "status": "open",
+      "sha256": "b8a5d9eac988f8981ee40c8edab27d7d079a2578a5c25895bcee12eeca4c938d",
+      "raw_file": "erdos-423-refresh.html.gz",
+      "previous_status": "open"
+    },
+    {
+      "number": 430,
+      "url": "https://erdosproblems.ai/problems/430",
+      "retrieved_at_utc": "2026-11-13T18:01:46.884914+00:00",
+      "status": "open",
+      "sha256": "30c2a76a3d85326dc045cdf87ea69beddd448bf1290002b9b206f6aac81e93d5",
+      "raw_file": "erdos-430-refresh.html.gz",
+      "previous_status": "open"
+    },
+    {
+      "number": 461,
+      "url": "https://erdosproblems.ai/problems/461",
+      "retrieved_at_utc": "2026-11-13T18:01:46.877090+00:00",
+      "status": "open",
+      "sha256": "f60874d441043dff5dfb9b482e27df992e375021b616466be16d5fa5a9b0c869",
+      "raw_file": "erdos-461-refresh.html.gz",
+      "previous_status": "open"
+    },
+    {
+      "number": 462,
+      "url": "https://erdosproblems.ai/problems/462",
+      "retrieved_at_utc": "2026-11-13T18:01:46.882144+00:00",
+      "status": "open",
+      "sha256": "83eb1d20d466c7d3eef38309081cd1807375e5ec8dd139d227d865549d4abea2",
+      "raw_file": "erdos-462-refresh.html.gz",
+      "previous_status": "open"
+    },
+    {
+      "number": 467,
+      "url": "https://erdosproblems.ai/problems/467",
+      "retrieved_at_utc": "2026-11-13T18:01:47.449705+00:00",
+      "status": "open",
+      "sha256": "34ae45f54036d4c99756576830686de330ef2b8f966365d94e7f8cbcb9b2bd7f",
+      "raw_file": "erdos-467-refresh.html.gz",
+      "previous_status": "open"
+    },
+    {
+      "number": 472,
+      "url": "https://erdosproblems.ai/problems/472",
+      "retrieved_at_utc": "2026-11-13T18:01:47.455385+00:00",
+      "status": "open",
+      "sha256": "5ea89ad75e1bf6930f4ac1182bbf39245eef0620e346676dd2bce17c13d496ee",
+      "raw_file": "erdos-472-refresh.html.gz",
+      "previous_status": "open"
+    },
+    {
+      "number": 478,
+      "url": "https://erdosproblems.ai/problems/478",
+      "retrieved_at_utc": "2026-11-13T18:01:47.456959+00:00",
+      "status": "open",
+      "sha256": "effd3994633a1e4b73e0090c04618fe0b51d6234c4ed6c6837e2b4ce7a745fdc",
+      "raw_file": "erdos-478-refresh.html.gz",
+      "previous_status": "open"
+    },
+    {
+      "number": 483,
+      "url": "https://erdosproblems.ai/problems/483",
+      "retrieved_at_utc": "2026-11-13T18:01:47.465771+00:00",
+      "status": "open",
+      "sha256": "76fee0f6dddaf9f0c03afcd2bd1a80bc84062c7af2d1df36553e9f33cfd62029",
+      "raw_file": "erdos-483-refresh.html.gz",
+      "previous_status": "open"
+    },
+    {
+      "number": 545,
+      "url": "https://erdosproblems.ai/problems/545",
+      "retrieved_at_utc": "2026-11-13T18:01:47.460405+00:00",
+      "status": "open",
+      "sha256": "b6d233549381e5a768110f15aeb454784dbe3d15eb5822c63c03c8ab1d408d66",
+      "raw_file": "erdos-545-refresh.html.gz",
+      "previous_status": "open"
+    }
+  ]
+}

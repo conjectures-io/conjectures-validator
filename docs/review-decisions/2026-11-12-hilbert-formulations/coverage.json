@@ -1,0 +1,164 @@
+{
+  "request": "Entirety of Hilbert 6, Hilbert 12, the algebraic version of Hilbert 13, and Hilbert 16",
+  "full_request_complete": false,
+  "full_scope_review": "Fable round 3 accepts all precise specifications under declared interpretations; its wording conditions are applied in revision 10. See review-status.json for the final snapshot verdict.",
+  "problems": [
+    {
+      "id": "6",
+      "full_scope_statement_present": false,
+      "existing_component": "HilbertDrafts.Hilbert6Rigid.ClassicalLimitsProgram, with Hilbert6Probability and Hilbert6Mechanics",
+      "gaps": [
+        "Literal unrestricted physics programme is not represented by a single closed proposition; selected models and interpretation are explicit."
+      ],
+      "reason": "Probability and mechanics are selected source interpretations. Formal model witnesses and solution equivalence address compatibility; no first-order translation or exhaustive physics ontology is required.",
+      "implemented_components": [
+        "Kolmogorov probability axioms and unique measure interpretation",
+        "proved strong law of mean values",
+        "Newton and momentum mechanics with proved equivalence",
+        "Euclidean hard-sphere kinetic limit",
+        "periodic particle-to-Euler and particle-to-NSF candidate, including convergence in probability",
+        "optional appendix: first-order consequence, equivalence and compatibility with proved criteria",
+        "explicit continuum-to-rigid-body proposal with anisotropic Euler rotation dynamics",
+        "local frame-indifferent hyperelastic PDE, traction-free faces, uniform initial energy, and local-to-global balance obligation",
+        "stationary elastic model and probability model witnesses",
+        "kinetic concentration and arbitrary-data local fluid existence obligations"
+      ],
+      "clause_complete_under_declared_interpretation": true,
+      "semantic_review": "Fable round 3 accepts under the declared interpretation; wording conditions applied in revision 10. See review-status.json for final confirmation."
+    },
+    {
+      "id": "12",
+      "full_scope_statement_present": false,
+      "existing_component": "HilbertDrafts.Hilbert12ClassField.ArithmeticOutput; Hilbert12Universal.FieldHilbert12For R and RationalAllArguments; Hilbert12CM.ImaginaryQuadraticBenchmark; Hilbert12Stark.RankOneAbelianStark",
+      "gaps": [
+        "Explicitness of a future general construction remains a mathematical review requirement, not certified by the free recipe type."
+      ],
+      "reason": "Source-derived generation obligations, arithmetic output and classical benchmarks are specified. General functions are a research submission; the free contract is not existentially closed or claimed sufficient to certify explicitness.",
+      "implemented_components": [
+        "universal generation contract for every number field and every finite abelian extension",
+        "analytic evaluations and finite abelian stages",
+        "proved equality of the generated field with the maximal abelian extension",
+        "explicit exponential rational benchmark with proved primitive-root property",
+        "retained exact rank-one abelian Stark statement",
+        "relative discriminant, prescribed degree/group/discriminant data, exact finite catalogue output contract with proved count/existence and uniqueness checks",
+        "corrected imaginary-quadratic benchmark with explicit j and Weber evaluations at nonidentity torsion, requiring algebraicity and full abelian coverage",
+        "ray-class Artin reciprocity, existence, correspondence, least conductors and conductor-discriminant formula",
+        "arithmetic catalogue output type tied to reciprocity and discriminants",
+        "normalized exponential with rational arguments, all-rational coverage statement and explicit cyclotomic action",
+        "field-attached analytic recipe contract and optional all-rational-point profile",
+        "proved identity reencoding preserves the unrestricted contract"
+      ],
+      "clause_complete_under_declared_interpretation": true,
+      "semantic_review": "Fable round 3 accepts under the declared interpretation; wording conditions applied in revision 10. See review-status.json for final confirmation."
+    },
+    {
+      "id": "13_algebraic",
+      "full_scope_statement_present": true,
+      "target": "HilbertDrafts.Hilbert13.AlgebraicHilbert13",
+      "semantic_review": "Fable round 3 accepts under the declared interpretation; wording conditions applied in revision 10. See review-status.json for final confirmation.",
+      "scope": "Modern complex resolvent-degree formulation RD(7)=3, as explicitly requested by the user choosing the algebraic version",
+      "gaps": [],
+      "not_claimed": "Neither the conjecture nor equivalence of every historical interpretation is proved.",
+      "clause_complete_under_declared_interpretation": true
+    },
+    {
+      "id": "16",
+      "full_scope_statement_present": true,
+      "existing_component": "HilbertDrafts.Hilbert16.UniformBound",
+      "gaps": [],
+      "reason": "The target is a fully specified output type. Existence of a smooth-plane-curve catalogue is known in principle and is not labelled the open classification content.",
+      "target": "HilbertDrafts.Hilbert16Classification.ClassificationOutput",
+      "scope": "Output type for nonsingular projective curves and surfaces, sharp maxima and whole-family ambient isotopy arrangements, plus affine and projective cycles. Computability is optional.",
+      "semantic_review": "Fable round 3 accepts under the declared interpretation; wording conditions applied in revision 10. See review-status.json for final confirmation.",
+      "primary_closed_target": "HilbertDrafts.Hilbert16.UniformBound",
+      "clause_complete_under_declared_interpretation": true
+    }
+  ],
+  "sources": [
+    {
+      "url": "https://mathcs.clarku.edu/~djoyce/hilbert/problems.html",
+      "sections": [
+        "6",
+        "12",
+        "13",
+        "16"
+      ]
+    },
+    {
+      "url": "https://www.math.uchicago.edu/~farb/papers/RD.pdf",
+      "sections": [
+        "1.2, Problem 1.5",
+        "Definition 2.3"
+      ]
+    },
+    {
+      "url": "https://www.i2m.univ-amu.fr/perso/frederic.mangolte/VAR-ENGLISH-2019-12-11.pdf",
+      "sections": [
+        "3.5, pp. 180-182"
+      ]
+    },
+    {
+      "url": "https://en.wikipedia.org/w/index.php?title=Hilbert%27s_sixth_problem&oldid=1374839407",
+      "sections": [
+        "opening and description",
+        "history/status or modern developments"
+      ],
+      "role": "user-requested scope guide"
+    },
+    {
+      "url": "https://en.wikipedia.org/w/index.php?title=Hilbert%27s_twelfth_problem&oldid=1382222556",
+      "sections": [
+        "opening and description",
+        "history/status or modern developments"
+      ],
+      "role": "user-requested scope guide"
+    },
+    {
+      "url": "https://people.seas.harvard.edu/~salil/cs121/fall12/handouts/Hilbert.pdf",
+      "sections": [
+        "6, printed pp. 418-419",
+        "12, printed pp. 422-423"
+      ],
+      "role": "primary scope authority"
+    },
+    {
+      "url": "https://smf.emath.fr/publications/history-hilberts-twelfth-problem",
+      "sections": [
+        "publisher abstract and sample pp. 243-247"
+      ],
+      "role": "specialist check of historical interpretation"
+    },
+    {
+      "url": "https://www.tau.ac.il/~corry/publications/articles/pdf/LC-Hilbert6.pdf",
+      "sections": [
+        "introduction"
+      ],
+      "role": "specialist account of the axiomatization program"
+    },
+    {
+      "url": "https://www.math.ens.psl.eu/~obenoist/refs/Silverman.pdf",
+      "sections": [
+        "C.11.5(b) and C.11.6, printed pp. 428-429"
+      ],
+      "role": "corrected imaginary-quadratic special-value benchmark"
+    },
+    {
+      "url": "https://www.jmilne.org/math/CourseNotes/CFT.pdf",
+      "sections": [
+        "V.2 ray class groups",
+        "V.3.5-3.6 reciprocity and existence",
+        "V.3.27–3.28 conductor-discriminant formula"
+      ],
+      "role": "arithmetic specifications"
+    },
+    {
+      "url": "https://www.math.ucdavis.edu/~deloera/MISC/LA-BIBLIO/trunk/Itenberg/Itenberg2.pdf",
+      "sections": [
+        "Introduction, first page"
+      ],
+      "role": "quartic maximum ten; Kharlamov and Itenberg"
+    }
+  ],
+  "completion_rule": "All requested components must have faithful specifications and a documented scope justification. Compilation counts, conjunctions of arbitrary predicates, finite-list existence alone, and unsupported equivalence claims cannot certify entirety.",
+  "scope_guide": "Hilbert original problem statements, as requested 2026-11-13; see PRIMARY_SOURCE_REVIEW.md and primary-source-coverage.json. Wikipedia mapping retained as prior context."
+}

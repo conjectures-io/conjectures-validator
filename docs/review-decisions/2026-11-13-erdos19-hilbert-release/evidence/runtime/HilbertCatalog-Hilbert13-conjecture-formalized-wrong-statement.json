@@ -1,0 +1,48 @@
+{
+  "schema_version": 2,
+  "problem_id": "fc-33b3c405-hilbert13-conjecture-9e3829f3d3c79fcf017089457385979c-problem",
+  "task_id": "fc-v2-hilbert13-conjecture-b4b3594dafe87bfea53a06db-formalized",
+  "repository_commit": "33b3c405cc7f6499595ce65c50e86be40354d372",
+  "source_theorem": "HilbertCatalog.Hilbert13.conjecture",
+  "task_mode": "formalized",
+  "task_bundle_sha256": "sha256:6bf189dd62e06afe88250e2e189089a0f8c05cbb16820603133bcd0b9709d58f",
+  "submission_sha256": "sha256:ad777397fec00027e82304d9b5261e1d75154822b50b4581b5c9e6e0c64f8cf7",
+  "accepted": false,
+  "stage": "RUN_COMPARATOR",
+  "reason_code": "STATEMENT_MISMATCH",
+  "checks": {
+    "manifest_valid": true,
+    "task_commitment_valid": true,
+    "production_task": true,
+    "production_sandbox": true,
+    "source_type_hash_valid": true,
+    "trusted_hashes_valid": true,
+    "submission_policy_valid": true,
+    "challenge_built": true,
+    "solution_built": true,
+    "same_statement": false,
+    "axioms_permitted": false,
+    "lean_kernel_passed": false,
+    "nanoda_enabled": false,
+    "nanoda_passed": false
+  },
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "duration_ms": 89942,
+  "comparator_exit_code": 1,
+  "stdout_tail": "Building Challenge\n\u26a0 [8940/8941] Replayed Challenge\nwarning: Challenge.lean:7:8: declaration uses `sorry`\nBuild completed successfully (8941 jobs).\nExporting #[Quot, Quot.mk, Quot.lift, Quot.ind, Bounty.target, propext, Quot.sound, Classical.choice, Nat.add, Nat.sub, Nat.mul, Nat.pow, Nat.gcd, Nat.div, Nat.mod, Nat.beq, Nat.ble, Nat.land, Nat.lor, Nat.xor, Nat.shiftLeft, Nat.shiftRight, String.ofList, Char.ofNat, List, eagerReduce, Nat, String, String.mk, Char, optParam, autoParam, semiOutParam, outParam] from Challenge\nBuilding Solution\n\u2714 [8940/8941] Built Solution (6.0s)\nBuild completed successfully (8941 jobs).\nExporting #[Quot, Quot.mk, Quot.lift, Quot.ind, Bounty.target, propext, Quot.sound, Classical.choice, Nat.add, Nat.sub, Nat.mul, Nat.pow, Nat.gcd, Nat.div, Nat.mod, Nat.beq, Nat.ble, Nat.land, Nat.lor, Nat.xor, Nat.shiftLeft, Nat.shiftRight, String.ofList, Char.ofNat, List, eagerReduce, Nat, String, String.mk, Char, optParam, autoParam, semiOutParam, outParam] from Solution\n",
+  "stderr_tail": "uncaught exception: Challenge and solution theorem statement do not match: 'Bounty.target'\n",
+  "workspace_retained": false,
+  "sandbox_mode": "landrun+seccomp",
+  "task_timeout_seconds": 14400,
+  "effective_timeout_seconds": 14400,
+  "case": "HilbertCatalog-Hilbert13-conjecture-formalized-wrong-statement",
+  "passed": true,
+  "seconds": 89.954
+}

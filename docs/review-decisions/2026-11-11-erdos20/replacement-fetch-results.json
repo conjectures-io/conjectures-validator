@@ -1,0 +1,92 @@
+[
+  {
+    "number": 509,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/509",
+    "fetched_at": "2026-11-11T20:09:38.106258+00:00",
+    "status": 200,
+    "file": "evidence/509-primary.html.gz",
+    "uncompressed_sha256": "6e440a04b3279936734a91529b53d8be0e37591c50b8a654d462a4f12c041d25",
+    "sha256": "712dd3ef2596e76cf91cfe4e37321b43107d79a4465baba062eb5a78acf296e6"
+  },
+  {
+    "number": 509,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/509",
+    "fetched_at": "2026-11-11T20:09:38.107734+00:00",
+    "status": 200,
+    "file": "evidence/509-forum.html.gz",
+    "uncompressed_sha256": "5cd72cae9203f79ecf107aa25defc58cf8d27a6b12be4ce64cb2bb242abb3d73",
+    "sha256": "a6dd3d46f53760bec8a20f13b66f0c880e57317e00b1993ff19bda8e409924b1"
+  },
+  {
+    "number": 509,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/509/proof-claims",
+    "fetched_at": "2026-11-11T20:09:38.108660+00:00",
+    "status": 200,
+    "file": "evidence/509-claims.html.gz",
+    "uncompressed_sha256": "a7cecc49da3713ab11f81184477d4bc91d551f4bc9d4ef2611799bb7d5c4fd3c",
+    "sha256": "e6120acac3f09bba28d73e17739f2e07b924316726471d3b8558aec355ea7959"
+  },
+  {
+    "number": 545,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/545",
+    "fetched_at": "2026-11-11T20:09:38.109455+00:00",
+    "status": 200,
+    "file": "evidence/545-primary.html.gz",
+    "uncompressed_sha256": "f874a1d41ef5d88c2c60eee7b14f89c2f4813c54d18c661d912f769a1e5e454b",
+    "sha256": "06129801c464e500d5b8429540ed23cdb4c441ac97d26a433a1ef250dc378e40"
+  },
+  {
+    "number": 545,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/545",
+    "fetched_at": "2026-11-11T20:09:38.110020+00:00",
+    "status": 200,
+    "file": "evidence/545-forum.html.gz",
+    "uncompressed_sha256": "93da3e1eaf0716aef1351d7dc07198bb225c91c942d626dbbc244dbb7194c00f",
+    "sha256": "dbad6b5526bfb8a0b54cf877771669d6eae3c0d75ef7ad192b65f259e6e470ff"
+  },
+  {
+    "number": 545,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/545/proof-claims",
+    "fetched_at": "2026-11-11T20:09:38.110686+00:00",
+    "status": 200,
+    "file": "evidence/545-claims.html.gz",
+    "uncompressed_sha256": "80e606add863055a52f8f200bcc17f6c6bf99376af73d2f5890cf7377e47510a",
+    "sha256": "4fb949d3bec0b0d57f542a89003b5e593ae3459e74994a7b76a5969eaa2f1782"
+  },
+  {
+    "number": 554,
+    "kind": "primary",
+    "url": "https://www.erdosproblems.com/latex/554",
+    "fetched_at": "2026-11-11T20:09:38.446443+00:00",
+    "status": 200,
+    "file": "evidence/554-primary.html.gz",
+    "uncompressed_sha256": "11ac5159efcac2a394c1f332585c19f9f90b8563dfc4e3c6c89028b56e34b9ec",
+    "sha256": "b46acd0ae29ee1696b1f7d043fab3daa939c54522e537b02d419d880618c6cf5"
+  },
+  {
+    "number": 554,
+    "kind": "forum",
+    "url": "https://www.erdosproblems.com/forum/thread/554",
+    "fetched_at": "2026-11-11T20:09:38.488940+00:00",
+    "status": 200,
+    "file": "evidence/554-forum.html.gz",
+    "uncompressed_sha256": "ecd466de5ad35543703a5dd619db7242b5cff208c2a1e7d21f59351e9e4e8092",
+    "sha256": "3f8d5015ba21b22e9e272d1ab4cdb5ab0fa4209e5c4ee2f54c90bf7ad3990111"
+  },
+  {
+    "number": 554,
+    "kind": "claims",
+    "url": "https://www.erdosproblems.com/forum/thread/554/proof-claims",
+    "fetched_at": "2026-11-11T20:09:38.583573+00:00",
+    "status": 200,
+    "file": "evidence/554-claims.html.gz",
+    "uncompressed_sha256": "a2f58d52962be483c002a0b56faff495eefd31e1ce8ebb41977719adfc5bc139",
+    "sha256": "dcc9aa321b92f1fa7ccd144e6c0c289d9cec7571344707b7976ed949b4ccdede"
+  }
+]
