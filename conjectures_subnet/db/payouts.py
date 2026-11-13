@@ -515,6 +515,32 @@ async def record_payout(
     return existing.scalar_one()
 
 
+async def reserved_bonus(
+    session: AsyncSession, payout: ObservedPayout | TreasuryPayout
+) -> bool:
+    """Whether this transfer is the one a prepared historical (chat-log) bonus is waiting for.
+
+    Such a transfer settles no proof reward by design: an operator confirms it against the bonus
+    ledger (`POST /v1/admin/trajectory-payments/{id}/confirm`).  Asked through V048's boolean
+    projection, so the watcher never reads private claims.  Only Subnet 66 pays these.
+    """
+    if payout.origin_netuid != 66:
+        return False
+    return bool(
+        await session.scalar(
+            select(
+                func.trajectory_bonus_transfer_reserved(
+                    payout.origin_coldkey,
+                    payout.origin_hotkey,
+                    payout.destination_coldkey,
+                    payout.amount_rao,
+                    payout.block_timestamp,
+                )
+            )
+        )
+    )
+
+
 async def claim_payout(
     session: AsyncSession, payout_id: int
 ) -> PayoutUpdate | None:
@@ -534,9 +560,7 @@ async def claim_payout(
         raise RecordNotFound(f"no treasury payout {payout_id}")
     if payout.status is not TreasuryPayoutState.UNCLAIMED:
         return None
-    if payout.origin_netuid == 66 and await session.scalar(select(func.trajectory_bonus_transfer_reserved(
-            payout.origin_coldkey, payout.origin_hotkey, payout.destination_coldkey,
-            payout.amount_rao, payout.block_timestamp))):
+    if await reserved_bonus(session, payout):
         return None  # Operator confirms the separate bonus ledger; never consume a proof reward.
     event = await _by_reference(session, payout)
     if event is not None:
@@ -597,9 +621,7 @@ async def bind_payout(
         raise PayoutConflict(
             f"treasury payout {payout_id} is {payout.status}, not UNCLAIMED"
         )
-    if payout.origin_netuid == 66 and await session.scalar(select(func.trajectory_bonus_transfer_reserved(
-            payout.origin_coldkey, payout.origin_hotkey, payout.destination_coldkey,
-            payout.amount_rao, payout.block_timestamp))):
+    if await reserved_bonus(session, payout):
         raise PayoutConflict("this transfer matches a reserved historical bonus; reconcile that ledger first")
     event = await session.get(RewardEvent, reward_event_id, with_for_update=True)
     if event is None:

@@ -41,7 +41,9 @@ It refuses changed destinations, changed or revoked approvals, and payments no l
 send only after the ordinary treasury authorization; this API never signs or submits funds.
 
 After the existing payout watcher records the finalized transfer, POST
-`/admin/trajectory-payments/{payment_id}/confirm` with `{"treasury_payout_id": 123}`. The exact
+`/admin/trajectory-payments/{payment_id}/confirm` with `{"treasury_payout_id": 123}`. The watcher reports such a transfer
+as `payout_bonus_awaiting_confirmation`, not `payout_unmatched`, so it does not page as unexplained money;
+`scripts/reconcile_treasury_payouts.py list` shows its `treasury_payout_id`. The exact
 treasury keys, recipient, Subnet 66, integer Alpha amount and chronology must match. The same
 chain observation cannot pay a proof reward or a second bonus. Confirmation is idempotent and
 records chain reference, block and operator; it still records money actually sent if approval
