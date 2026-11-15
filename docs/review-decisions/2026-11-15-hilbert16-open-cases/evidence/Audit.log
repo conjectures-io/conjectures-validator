@@ -1,0 +1,50 @@
+'HilbertDrafts.Hilbert16Open.CycleBound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16Open.QuadraticFourCycles' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16Open.SurfaceComponentBound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16Open.QuinticSurfaceComponents' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16Open.uniformBound_iff_exists_cycleBound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'HilbertDrafts.Hilbert16Open.cycleBound_mono_right' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16Open.cycleBound_mono_left' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16Open.quadraticFourCycles_finite' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16Open.quadraticFourCycles_of_classification' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'HilbertDrafts.Hilbert16Open.quarticSurfaceMaximum_bound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16Open.surfaceComponentBound_mono' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16Open.quinticSurfaceComponents_of_classification' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'HilbertDrafts.Hilbert16OpenChecks.fermatQuintic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16OpenChecks.pderiv_fermatQuintic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16OpenChecks.fermatQuintic_admissible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16OpenChecks.cubicField' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16OpenChecks.unitCircle' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16OpenChecks.cubicField_eval' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16OpenChecks.cubicField_degreeAtMost' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16OpenChecks.exists_angle' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16OpenChecks.unitCircle_isPeriodicOrbit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'HilbertDrafts.Hilbert16OpenChecks.periodic_logistic_eq_one' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16OpenChecks.rotation_solution' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16OpenChecks.periodicOrbit_eq_unitCircle' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'HilbertDrafts.Hilbert16OpenChecks.unitCircle_isLimitCycle' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert16OpenChecks.not_cycleBound_three_zero' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ReviewA.exactComponents_iff_equiv' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ReviewA.quinticSurfaceComponents_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ReviewA.periodicOrbit_isCompact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ReviewA.isLimitCycle_iff_tube' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ReviewA.center' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ReviewA.circ' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ReviewA.circle_periodicOrbit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ReviewA.center_circle_not_limitCycle' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ReviewA.fermat' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ReviewA.fermat_admissible' depends on axioms: [propext, Classical.choice, Quot.sound]
+def HilbertDrafts.Hilbert16Open.QuadraticFourCycles : Prop :=
+HilbertDrafts.Hilbert16Open.CycleBound 2 4
+def HilbertDrafts.Hilbert16Open.QuinticSurfaceComponents : Prop :=
+HilbertDrafts.Hilbert16Open.SurfaceComponentBound 5 23

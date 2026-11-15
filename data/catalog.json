@@ -145874,6 +145874,86 @@
     },
     {
       "ams_subjects": [
+        34
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Every real planar polynomial vector field of degree at most two has at most four limit cycles, counted in the whole affine plane without multiplicity. This is the upper bound in the conjecture H(2) = 4, one degree of the maximum-number question in the second part of Hilbert 16. It says nothing about positions or higher degrees. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.Hilbert16QuadraticLimitCycles",
+      "pointer_target": null,
+      "references": [
+        "[Hilbert, Mathematical Problems, problem 16](https://mathcs.clarku.edu/~djoyce/hilbert/problems.html#prob16)",
+        "[Ilyashenko, Centennial history of Hilbert’s 16th problem](https://www.ams.org/journals/bull/2002-39-03/S0273-0979-02-00946-1/)",
+        "[Gasull and Santana on the Hilbert numbers](https://arxiv.org/abs/2407.13465)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/Hilbert16QuadraticLimitCycles.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "HilbertCatalog.Hilbert16QuadraticLimitCycles.conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:8739dd833b3b8824c462b19f164250f18d5cb1ed7949604319da73c94f6b5523",
+      "type_pretty": "HilbertDrafts.Hilbert16Open.QuadraticFourCycles"
+    },
+    {
+      "ams_subjects": [
+        14
+      ],
+      "answer_occurrences": [],
+      "category": "research open",
+      "classification": "DIRECT_PROP",
+      "contains_answer_annotation": false,
+      "contains_sorry_in_type": false,
+      "contains_sorry_in_value": false,
+      "declaration_kind": "theorem",
+      "depends_on_sorry": true,
+      "docstring": "Every real quintic surface in real projective three-space with nonsingular complexification has at most twenty-three connected components. The maximum is known to be twenty-three, twenty-four or twenty-five, so the statement may be true or false. It concerns only the number of sheets in degree five, the first degree left open by the question in the first part of Hilbert 16. ",
+      "finite_constructors": [],
+      "formal_proof_kind": null,
+      "formal_proof_link": null,
+      "has_parameters": false,
+      "is_prop": true,
+      "module": "FormalConjectures.HistoricalOpen.Hilbert16QuinticSurfaces",
+      "pointer_target": null,
+      "references": [
+        "[Hilbert, Mathematical Problems, problem 16](https://mathcs.clarku.edu/~djoyce/hilbert/problems.html#prob16)",
+        "[Orevkov, Real quintic surface with 23 components](https://www.math.univ-toulouse.fr/~orevkov/q23.pdf)",
+        "[Kharlamov, Overview of topological properties of real algebraic surfaces](https://arxiv.org/abs/math/0502127)"
+      ],
+      "source_path": "FormalConjectures/HistoricalOpen/Hilbert16QuinticSurfaces.lean",
+      "supported_modes": [
+        "formalized",
+        "counterexample"
+      ],
+      "theorem": "HilbertCatalog.Hilbert16QuinticSurfaces.conjecture",
+      "transitive_axioms": [
+        "propext",
+        "sorryAx",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "type_hash": "sha256:6e4c06e1cf999c5dc013101e750352b9bc52f5eab6f810014b1f85b12aeaedc1",
+      "type_pretty": "HilbertDrafts.Hilbert16Open.QuinticSurfaceComponents"
+    },
+    {
+      "ams_subjects": [
         11
       ],
       "answer_occurrences": [],
@@ -239412,10 +239492,10 @@
       "type_pretty": "3 ∉ additionChainSteps 7"
     }
   ],
-  "extraction_duration_ms": 51367,
+  "extraction_duration_ms": 54282,
   "generated_by": "lean/CatalogExtractor.lean",
   "lean_toolchain": "leanprover/lean4:v4.35.0-rc2",
   "mathlib_commit": "065356127b1dc0016f66b7283ce0ce2c4055aa55",
-  "repository_commit": "33b3c405cc7f6499595ce65c50e86be40354d372",
+  "repository_commit": "bc92995b0ab14ac035d3cd535cbca4a598097a8e",
   "schema_version": 1
 }

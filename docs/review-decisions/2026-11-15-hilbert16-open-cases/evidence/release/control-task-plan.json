@@ -1,0 +1,19 @@
+{
+  "repository_commit": "bc92995b0ab14ac035d3cd535cbca4a598097a8e",
+  "tasks": [
+    {
+      "task_id": "fc-v2-hilbert16quinticsurfaces-conjecture-8562df08b30ebb25e0a504de-formalized",
+      "theorem": "HilbertCatalog.Hilbert16QuinticSurfaces.conjecture",
+      "mode": "formalized",
+      "location": "versions/fc-v2-hilbert16quinticsurfaces-conjecture-8562df08b30ebb25e0a504de-formalized",
+      "build_provenance_sha256": "sha256:6e2cfa8ae8f48cb6fd2c671ce5f32ca7266ba100134015c377acdfd79131b799"
+    },
+    {
+      "task_id": "fc-v2-hilbert16quinticsurfaces-conjecture-473c475779865dd0078725bc-counterexample",
+      "theorem": "HilbertCatalog.Hilbert16QuinticSurfaces.conjecture",
+      "mode": "counterexample",
+      "location": "versions/fc-v2-hilbert16quinticsurfaces-conjecture-473c475779865dd0078725bc-counterexample",
+      "build_provenance_sha256": "sha256:6e2cfa8ae8f48cb6fd2c671ce5f32ca7266ba100134015c377acdfd79131b799"
+    }
+  ]
+}

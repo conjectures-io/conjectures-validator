@@ -417,12 +417,14 @@ python -m verifier catalog build \
 python -m verifier catalog stats --catalog data/catalog.json
 ```
 
-The checked-in catalog covers 6,064 declarations in the full Formal Conjectures source snapshot.
-The November 13 release prepares 327 reward targets and 654 bundles, including nineteen
-additional Erdős problems, algebraic Hilbert 13 and the rank-one abelian Stark conjecture
-associated with Hilbert 12. The reviewed formulations for Hilbert 6, 12, algebraic 13 and 16
-are published with their scope and claim-status records. Release validation and deployment
-coordinates are recorded in the [combined release report](docs/review-decisions/2026-11-13-erdos19-hilbert-release/README.md).
+The checked-in catalog covers 6,066 declarations in the full Formal Conjectures source snapshot.
+The November 15 release prepares 328 reward targets and 656 bundles. It adds one open case of
+Hilbert 16, the bound of 23 connected components for real quintic surfaces. The quadratic
+limit-cycle case is published in the source and held while a claim of that exact result is
+unreviewed. The reviewed formulations for Hilbert 6, 12, algebraic 13 and 16 remain published
+with their scope and claim-status records. See the
+[Hilbert 16 open-case review](docs/review-decisions/2026-11-15-hilbert16-open-cases/README.md)
+and the [November 13 release report](docs/review-decisions/2026-11-13-erdos19-hilbert-release/README.md).
 
 Generate one target or a category batch:
 

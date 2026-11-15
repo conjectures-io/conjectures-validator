@@ -1,0 +1,20 @@
+{
+  "tasks_pr": "https://github.com/conjectures-io/conjectures-tasks/pull/28",
+  "tasks_commit": "6f125a946aa8f0ac79d3807fdb494d9e25ab1da0",
+  "source_base_commit": "7d1a8c9912747679d0093f6d1216420c33ee5ffa",
+  "source_commit": "bc92995b0ab14ac035d3cd535cbca4a598097a8e",
+  "source_patch_sha256": "f6c7ec34b58bbfd057026828d66d23013342c2fd21c4e0a29ae6ee9400cebf4b",
+  "active_reward_targets": 328,
+  "active_bundles": 656,
+  "new_targets": [
+    "HilbertCatalog.Hilbert16QuinticSurfaces.conjecture"
+  ],
+  "held_declarations": [
+    "HilbertCatalog.Hilbert16QuadraticLimitCycles.conjecture"
+  ],
+  "new_task_ids": [
+    "fc-v2-hilbert16quinticsurfaces-conjecture-8562df08b30ebb25e0a504de-formalized",
+    "fc-v2-hilbert16quinticsurfaces-conjecture-473c475779865dd0078725bc-counterexample"
+  ],
+  "deployment_status": "prepared"
+}

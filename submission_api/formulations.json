@@ -14,7 +14,8 @@
       "scope": [
         "The package includes probability consistency, Newtonian mechanics, kinetic-to-fluid limits and elasticity-to-rigid-body limits for explicitly chosen models.",
         "The gas formulations include ensemble and initial-data variants. Their relation to the cited physical models remains part of the stated scope.",
-        "Hilbert’s unrestricted physical-sciences programme extends beyond this selected collection. Fable 5.2 accepted the precise specifications under their declared interpretations after four review rounds."
+        "Hilbert’s unrestricted physical-sciences programme extends beyond this selected collection. Fable 5.2 accepted the precise specifications under their declared interpretations after four review rounds.",
+        "A reward-readiness review on November 15, 2026 found no closed open statement within this programme that is eligible for a reward. The selected models follow results with published proof claims."
       ],
       "proof_status": "The specification and its supporting lemmas compile. The classical-limit obligations remain statements to establish, including known-theorem obligations under the declared hypotheses.",
       "sources": [
@@ -30,6 +31,10 @@
         {
           "label": "Primary-source coverage and model assumptions",
           "url": "https://github.com/conjectures-io/conjectures-tasks/tree/ab3ecc93d19428ced0f14cdc467a6a075e3dd852/staged/hilbert-formulations-20261113/PRIMARY_SOURCE_REVIEW.md"
+        },
+        {
+          "label": "Reward-readiness review of November 15, 2026",
+          "url": "https://github.com/conjectures-io/conjectures-validator/blob/main/docs/review-decisions/2026-11-15-hilbert16-open-cases/README.md"
         }
       ],
       "related_targets": [],
@@ -51,7 +56,8 @@
         "Arithmetic output includes ray class groups, Frobenius reciprocity, conductors, discriminants and exact catalogues with prescribed degree, group and relative discriminant.",
         "The benchmarks use the exponential over the rationals and actual Weierstrass, j and Weber values for imaginary quadratic fields.",
         "A proposed general analytic recipe must meet the generation contract. Its mathematical explicitness needs an additional criterion beyond this contract.",
-        "The separately available rank-one abelian Stark target is a specified route associated with Hilbert 12."
+        "The separately available rank-one abelian Stark target is a specified route associated with Hilbert 12.",
+        "A reward-readiness review on November 15, 2026 examined three explicitness criteria. None gives a faithful general statement that resists trivial satisfaction, so the reward remains on the Stark target."
       ],
       "proof_status": "Fable 5.2 accepted the stated interpretation. The general explicitness requirement remains an open formulation issue, and the displayed arithmetic output is an obligation to supply.",
       "sources": [
@@ -74,6 +80,10 @@
         {
           "label": "Primary-source review and explicitness analysis",
           "url": "https://github.com/conjectures-io/conjectures-tasks/tree/ab3ecc93d19428ced0f14cdc467a6a075e3dd852/staged/hilbert-formulations-20261113/PRIMARY_SOURCE_REVIEW.md"
+        },
+        {
+          "label": "Reward-readiness review of November 15, 2026",
+          "url": "https://github.com/conjectures-io/conjectures-validator/blob/main/docs/review-decisions/2026-11-15-hilbert16-open-cases/README.md"
         }
       ],
       "related_targets": [
@@ -130,13 +140,15 @@
         34,
         37
       ],
-      "summary": "Classification of real algebraic curves and surfaces, and the number and arrangement of planar limit cycles. A general uniform-bound proof has been claimed and awaits independent verification.",
+      "summary": "Classification of real algebraic curves and surfaces, and the number and arrangement of planar limit cycles. The quintic-surface case is an active reward target. A general uniform-bound proof has been claimed and awaits independent verification.",
       "display_status": "proof_claimed",
       "scope": [
         "The reviewed output specifies catalogues, realizability, exhaustion, irredundancy and sharp maxima for nonsingular curves and surfaces, together with affine and projective cycle arrangements.",
         "The uniform-bound proposition quantifies over all real planar polynomial vector fields and requires a finite bound depending only on degree.",
         "OpenAI’s September 24, 2026 manuscript claims this uniform-bound assertion. Exact maxima and complete arrangement classifications remain outside its stated result.",
-        "The published Lean companion treats quintic Liénard systems with an exact maximum of two cycles. The general uniform bound has no listed Lean proof in that release."
+        "The published Lean companion treats quintic Liénard systems with an exact maximum of two cycles. The general uniform bound has no listed Lean proof in that release.",
+        "One open case carries a reward: every nonsingular real quintic surface has at most 23 connected components. The maximum is known only to be 23, 24 or 25, so the statement may be true or false.",
+        "The quadratic case, at most four limit cycles in degree two, is stated and reviewed. It is held from the reward pool while an unrefereed claim of that exact result remains unreviewed."
       ],
       "proof_status": "Reviewed on November 13, 2026. The manuscript claims the uniform bound, and Chen, Xiao and Zhang’s October 23 preprint explicitly calls for independent verification. This review found no published full verification or specific refutation of the general argument.",
       "sources": [
@@ -153,6 +165,27 @@
           "lean": "structure ClassificationOutput where\n  curves : AlgebraicClassification 2 true\n  surfaces : AlgebraicClassification 3 true\n  affineCycles : AffineCycleClassification\n  projectiveCycles : ProjectiveCycleClassification",
           "source_url": "https://github.com/conjectures-io/conjectures-tasks/blob/ab3ecc93d19428ced0f14cdc467a6a075e3dd852/staged/hilbert-formulations-20261113/draft/HilbertDrafts/Hilbert16.lean",
           "source_sha256": "2a0330f6e2424f6a3bb069ac4fe3ce01df5101252f9694597872d489451c0b18"
+        },
+        {
+          "declaration": "HilbertDrafts.Hilbert16Open.SurfaceComponentBound",
+          "description": "A bound on the number of connected components of every nonsingular real projective surface of a given degree.",
+          "lean": "def SurfaceComponentBound (d N : ℕ) : Prop :=\n  ∀ p : MvPolynomial (Fin 4) ℝ, Admissible 3 d true p →\n    ∃ m ≤ N, ExactComponents (zeroLocus 3 p) m",
+          "source_url": "https://github.com/conjectures-io/conjectures-tasks/blob/6f125a946aa8f0ac79d3807fdb494d9e25ab1da0/staged/hilbert16-open-cases-20261115/draft/HilbertDrafts/Hilbert16Open.lean",
+          "source_sha256": "dc50b94094faa993a0ac4eb9936cfd25dfdff1931410752f52484ebf6aed6f44"
+        },
+        {
+          "declaration": "HilbertDrafts.Hilbert16Open.QuinticSurfaceComponents",
+          "description": "The active reward target: the bound 23 in degree five.",
+          "lean": "def QuinticSurfaceComponents : Prop := SurfaceComponentBound 5 23",
+          "source_url": "https://github.com/conjectures-io/conjectures-tasks/blob/6f125a946aa8f0ac79d3807fdb494d9e25ab1da0/staged/hilbert16-open-cases-20261115/draft/HilbertDrafts/Hilbert16Open.lean",
+          "source_sha256": "dc50b94094faa993a0ac4eb9936cfd25dfdff1931410752f52484ebf6aed6f44"
+        },
+        {
+          "declaration": "HilbertDrafts.Hilbert16Open.QuadraticFourCycles",
+          "description": "The held quadratic case: at most four limit cycles in degree two.",
+          "lean": "def QuadraticFourCycles : Prop := CycleBound 2 4",
+          "source_url": "https://github.com/conjectures-io/conjectures-tasks/blob/6f125a946aa8f0ac79d3807fdb494d9e25ab1da0/staged/hilbert16-open-cases-20261115/draft/HilbertDrafts/Hilbert16Open.lean",
+          "source_sha256": "dc50b94094faa993a0ac4eb9936cfd25dfdff1931410752f52484ebf6aed6f44"
         }
       ],
       "references": [
@@ -171,9 +204,26 @@
         {
           "label": "Qin and Sun on complementary lower bounds",
           "url": "https://arxiv.org/abs/2610.12218"
+        },
+        {
+          "label": "Open-case statements, reviews and literature record",
+          "url": "https://github.com/conjectures-io/conjectures-tasks/tree/6f125a946aa8f0ac79d3807fdb494d9e25ab1da0/staged/hilbert16-open-cases-20261115"
+        },
+        {
+          "label": "Orevkov's real quintic surface with 23 components",
+          "url": "https://www.math.univ-toulouse.fr/~orevkov/q23.pdf"
+        },
+        {
+          "label": "Unrefereed claim of H(2) = 4 that holds the quadratic case",
+          "url": "https://arxiv.org/abs/2103.07193v4"
         }
       ],
-      "related_targets": [],
+      "related_targets": [
+        {
+          "label": "Hilbert 16: components of real quintic surfaces",
+          "url": "/problems/hilbertcatalog-hilbert16quinticsurfaces-conjecture"
+        }
+      ],
       "active_target_slug": null,
       "reviewed_at": "2026-11-13",
       "review_url": "https://github.com/conjectures-io/conjectures-validator/blob/main/docs/review-decisions/2026-11-13-hilbert-publication/REVIEW.md",
