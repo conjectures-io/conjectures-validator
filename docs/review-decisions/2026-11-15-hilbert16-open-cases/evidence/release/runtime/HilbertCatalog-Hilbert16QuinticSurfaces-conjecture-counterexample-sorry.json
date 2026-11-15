@@ -1,0 +1,48 @@
+{
+  "schema_version": 2,
+  "problem_id": "fc-bc92995b-hilbert16quinticsurfaces-conjecture-8bc41d202f575afb696729ed565d3202-problem",
+  "task_id": "fc-v2-hilbert16quinticsurfaces-conjecture-473c475779865dd0078725bc-counterexample",
+  "repository_commit": "bc92995b0ab14ac035d3cd535cbca4a598097a8e",
+  "source_theorem": "HilbertCatalog.Hilbert16QuinticSurfaces.conjecture",
+  "task_mode": "counterexample",
+  "task_bundle_sha256": "sha256:f4c4f54e01dffab46014dae3899180879c1c2b117e6f12176fcea40e5f043ba2",
+  "submission_sha256": "sha256:0e1cb86009018a839495f7552c61019e7554115f0de62f66f15e0cc76ad98cb3",
+  "accepted": false,
+  "stage": "STATIC_POLICY_CHECK",
+  "reason_code": "SUBMISSION_POLICY_VIOLATION",
+  "checks": {
+    "manifest_valid": true,
+    "task_commitment_valid": true,
+    "production_task": true,
+    "production_sandbox": false,
+    "source_type_hash_valid": false,
+    "trusted_hashes_valid": true,
+    "submission_policy_valid": false,
+    "challenge_built": false,
+    "solution_built": false,
+    "same_statement": false,
+    "axioms_permitted": false,
+    "lean_kernel_passed": false,
+    "nanoda_enabled": false,
+    "nanoda_passed": false
+  },
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "duration_ms": 333,
+  "comparator_exit_code": null,
+  "stdout_tail": "",
+  "stderr_tail": "sorry is prohibited at 1:93",
+  "workspace_retained": false,
+  "sandbox_mode": "not-started",
+  "task_timeout_seconds": 14400,
+  "effective_timeout_seconds": 14400,
+  "case": "HilbertCatalog-Hilbert16QuinticSurfaces-conjecture-counterexample-sorry",
+  "passed": true,
+  "seconds": 0.334
+}

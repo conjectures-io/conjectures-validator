@@ -1,0 +1,12 @@
+{
+  "retained_declarations": 6064,
+  "retained_type_hash_changes": 0,
+  "retained_rows_changed": 0,
+  "added": [
+    "HilbertCatalog.Hilbert16QuadraticLimitCycles.conjecture",
+    "HilbertCatalog.Hilbert16QuinticSurfaces.conjecture"
+  ],
+  "removed": [],
+  "previous_commit": "33b3c405cc7f6499595ce65c50e86be40354d372",
+  "candidate_commit": "bc92995b0ab14ac035d3cd535cbca4a598097a8e"
+}
