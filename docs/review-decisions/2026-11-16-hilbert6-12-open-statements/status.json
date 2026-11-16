@@ -1,0 +1,85 @@
+{
+  "review_date": "2026-11-16",
+  "author": "claude-fable-5-2",
+  "request": "Fix Hilbert 6 and Hilbert 12 so that they carry reward targets.",
+  "supersedes": "The 'no reward target' findings for Hilbert 6 and general Hilbert 12 in 2026-11-15-hilbert16-open-cases/README.md",
+  "source_commit": "6adcbe13652f4e7c69ad02a783465ae2a99d5cb3",
+  "source_patch_sha256": "352280407fbbe83e636aa07a5c090aab15c6353c7cd77c0491284cd40df51275",
+  "entries": [
+    {
+      "problem": "Hilbert 12, Question 4 of Borger and de Smit",
+      "theorem": "HilbertCatalog.BorgerDeSmitQuestion4.conjecture",
+      "proposition": "HilbertDrafts.Hilbert12Lambda.BorgerDeSmitQuestion4",
+      "type_sha256": "sha256:db5f471ae9e5e35a90ce01af0024b715cb3149085406dbeb3cbc3e488cf2c27d",
+      "admission": "eligible",
+      "lean_semantics_review": "no_defect_found",
+      "fidelity_review": "accept_with_labelling_changes_applied",
+      "full_resolution_claim_found": false,
+      "source": "https://arxiv.org/abs/1809.02295",
+      "source_location": "Section 12.1, Question 4",
+      "literature_status": "open; no answer for any number field beyond Q and imaginary quadratic fields"
+    },
+    {
+      "problem": "Hilbert 12, universal Λ-geometric form",
+      "theorem": "HilbertCatalog.Hilbert12LambdaGeometric.conjecture",
+      "proposition": "HilbertDrafts.Hilbert12Lambda.Hilbert12LambdaGeometric",
+      "type_sha256": "sha256:f28d8edcf23363a02f34165540cfc5634b4b1be6404cbc6f0d21fbd2a256a25a",
+      "admission": "eligible",
+      "lean_semantics_review": "no_defect_found",
+      "fidelity_review": "accept_with_labelling_changes_applied",
+      "full_resolution_claim_found": false,
+      "source": "https://arxiv.org/abs/1809.02295",
+      "source_location": "Section 12.1; universal form of Question 4, not posed in the paper",
+      "literature_status": "open in both directions; known for Q and imaginary quadratic fields"
+    },
+    {
+      "problem": "Hilbert 6, Vlasov–Poisson mean-field limit",
+      "theorem": "HilbertCatalog.Hilbert6VlasovPoissonLimit.conjecture",
+      "proposition": "HilbertDrafts.Hilbert6MeanField.VlasovPoissonMeanFieldLimit",
+      "type_sha256": "sha256:0272a455c7e66e49c24c4a057161e2308bd2dec410983211ef5b3ddf26f6f81f",
+      "admission": "eligible",
+      "lean_semantics_review": "no_defect_found",
+      "fidelity_review": "accept_with_labelling_changes_applied",
+      "full_resolution_claim_found": false,
+      "source": "https://www.math.umd.edu/~tadmor/ki_net/pubs/files/review_MF.pdf",
+      "known_part": "HilbertDrafts.Hilbert6MeanField.VlasovPoissonExistence",
+      "open_part": "HilbertDrafts.Hilbert6MeanField.MeanFieldConvergence",
+      "literature_status": "open in 3D without cutoff or noise; expected true"
+    }
+  ],
+  "coupling": "A proof of the universal form proves Question 4 and a refutation of Question 4 refutes the universal form; in every consistent outcome two of the four rewards are payable.",
+  "reviewers": [
+    {
+      "role": "Hilbert 12 Lean-semantics adversary",
+      "model": "claude-fable-5-2",
+      "report": "reviews/hilbert12-lean-semantics-review.md",
+      "verdict": "NO DEFECT FOUND for both statements"
+    },
+    {
+      "role": "Hilbert 12 mathematical fidelity",
+      "model": "claude-fable-5-2",
+      "report": "reviews/hilbert12-mathematical-fidelity-review.md",
+      "verdict": "ACCEPT WITH CHANGES; labelling changes and the companion Question 4 statement applied"
+    },
+    {
+      "role": "Hilbert 6 Lean-semantics adversary",
+      "model": "claude-fable-5-2",
+      "report": "reviews/hilbert6-lean-semantics-review.md",
+      "verdict": "NO DEFECT FOUND"
+    },
+    {
+      "role": "Hilbert 6 mathematical fidelity",
+      "model": "claude-fable-5-2",
+      "report": "reviews/hilbert6-mathematical-fidelity-review.md",
+      "verdict": "ACCEPT WITH CHANGES; labelling and disclosure changes applied"
+    }
+  ],
+  "review_limits": [
+    "Reviewers share the author's model family and ran in separate contexts.",
+    "No cross-model or human mathematician review.",
+    "The Hilbert 12 source is an unrefereed preprint.",
+    "Bounded literature searches."
+  ],
+  "validation": "evidence/validation.json",
+  "no_open_problem_claimed_proved": true
+}

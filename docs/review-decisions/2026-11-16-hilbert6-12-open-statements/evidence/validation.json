@@ -1,0 +1,131 @@
+{
+  "lean": "4.35.0-rc2",
+  "mathlib": "065356127b1dc0016f66b7283ce0ce2c4055aa55",
+  "image_id": "sha256:4da29ed9e4448435a979baeda82e934b091abde3754bd9976d8b1df93708fa90",
+  "warnings_as_errors": true,
+  "source_sha256": {
+    "HilbertDrafts/Hilbert6.lean": "b15cea7afccf3daefe69de272cae19970929ede0f93a6934e4326a7de21a25fd",
+    "HilbertDrafts/Hilbert12.lean": "2a8006ae7579e5269cca0a88a3d8f1e5dc6898ec04c7d8228cb591e76fe8b19c",
+    "HilbertDrafts/Hilbert6MeanField.lean": "ea700e204fed6d895127dadaa8603503ea5184711f3b2f11cae0fd1eb4cf7a9d",
+    "HilbertDrafts/Hilbert6MeanFieldChecks.lean": "0cdfad3ff1241b7dee0cc43883d322c004811d11020175b229f4141843f256b2",
+    "HilbertDrafts/Hilbert12Lambda.lean": "d53136df7933955dcd67b0404b43fc3fc562482369cc60ccefd3dcf19d34f6a9",
+    "HilbertDrafts/Hilbert12LambdaChecks.lean": "2038346d64fa83de565fed099f34c6ed71af304778ff8e1f585c4895c2cecb1f"
+  },
+  "reviewer_attack_files": 18,
+  "compilation": [
+    {
+      "module": "HilbertDrafts/Hilbert6.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "HilbertDrafts/Hilbert12.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "HilbertDrafts/Hilbert6MeanField.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "HilbertDrafts/Hilbert6MeanFieldChecks.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "HilbertDrafts/Hilbert12Lambda.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "HilbertDrafts/Hilbert12LambdaChecks.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Rev/Axioms.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Rev/Force.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Rev/Indep.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Rev/Null.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Rev/Reverse.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Rev/Sanity.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Review/Sanity1.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Review/Affine.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Review/Affine2.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Review/Line.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Review/Points.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Review/RatCycle.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Review/All.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Review/Print.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Review/Q4.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Review/Q4Print.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Review/Q4Print2.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Review/Q4b.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Audit.lean",
+      "exit_code": 0
+    }
+  ],
+  "audited_declarations": 58,
+  "observed_axioms": [
+    "Classical.choice",
+    "Quot.sound",
+    "propext"
+  ],
+  "axiom_audit_passed": true,
+  "closed_targets": [
+    "HilbertDrafts.Hilbert6MeanField.VlasovPoissonMeanFieldLimit",
+    "HilbertDrafts.Hilbert12Lambda.Hilbert12LambdaGeometric",
+    "HilbertDrafts.Hilbert12Lambda.BorgerDeSmitQuestion4"
+  ],
+  "passed": true,
+  "passed_meaning": "Compilation and axiom audit only. It does not establish any of the statements."
+}

@@ -1,0 +1,26 @@
+{
+  "adapter_required": 497,
+  "automatically_taskable": 5562,
+  "by_category": {
+    "API": 389,
+    "research open": 1722,
+    "research solved": 1957,
+    "test": 1798,
+    "textbook": 203
+  },
+  "by_classification": {
+    "BOOL_ANSWER": 0,
+    "DEFINITION_HOLE": 0,
+    "DIRECT_PROP": 5538,
+    "FINITE_ANSWER": 0,
+    "GENERAL_VALUE_ANSWER": 199,
+    "INT_ANSWER": 0,
+    "MULTIPLE_ANSWER_HOLES": 0,
+    "NAT_ANSWER": 24,
+    "POINTER_DECLARATION": 0,
+    "PROP_ANSWER_WRAPPER": 298,
+    "UNSUPPORTED": 10
+  },
+  "total_declarations": 6069,
+  "unsupported": 10
+}

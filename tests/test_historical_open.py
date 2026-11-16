@@ -34,7 +34,7 @@ def test_historical_admission_requires_exact_declaration():
     name = 'HajosCycleDecomposition'
     path = f'FormalConjectures/HistoricalOpen/{name}.lean'
     theorem = f'FullOldProblemsCatalog.{name}.conjecture'
-    assert len(HISTORICAL_OPEN_TARGETS) == 19
+    assert len(HISTORICAL_OPEN_TARGETS) == 22
     assert _valid_source_identity(family, name, path, theorem)
     assert not _valid_source_identity(family, name, path, theorem + '.weaker')
     assert not _valid_source_identity(family, name, path, theorem.replace(name, 'Other'))

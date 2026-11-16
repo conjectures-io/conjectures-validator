@@ -1,0 +1,12 @@
+{
+  "retained_declarations": 6066,
+  "retained_rows_changed": 0,
+  "added": [
+    "HilbertCatalog.BorgerDeSmitQuestion4.conjecture",
+    "HilbertCatalog.Hilbert12LambdaGeometric.conjecture",
+    "HilbertCatalog.Hilbert6VlasovPoissonLimit.conjecture"
+  ],
+  "removed": [],
+  "previous_commit": "bc92995b0ab14ac035d3cd535cbca4a598097a8e",
+  "candidate_commit": "6adcbe13652f4e7c69ad02a783465ae2a99d5cb3"
+}
