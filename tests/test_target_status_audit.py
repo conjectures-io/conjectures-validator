@@ -87,7 +87,10 @@ def test_changed_review_bytes_are_rejected(tmp_path):
         load_selection_audit(path)
 
 
-@pytest.mark.parametrize("slug", ["Hilbert13", "RankOneAbelianStark", "Hilbert16QuinticSurfaces"])
+@pytest.mark.parametrize("slug", [
+    "Hilbert13", "RankOneAbelianStark", "Hilbert16QuinticSurfaces",
+    "Hilbert6VlasovPoissonLimit", "Hilbert12LambdaGeometric", "BorgerDeSmitQuestion4",
+])
 def test_hilbert_admission_requires_exact_statement_and_unresolved_claim_screen(tmp_path, slug):
     from verifier.task_pool import HISTORICAL_STATUS_LOCATOR
 

@@ -14,12 +14,12 @@
   "formal_conjectures": {
     "repository": "https://github.com/google-deepmind/formal-conjectures.git",
     "base_commit": "7d1a8c9912747679d0093f6d1216420c33ee5ffa",
-    "commit": "bc92995b0ab14ac035d3cd535cbca4a598097a8e",
-    "patch_sha256": "f6c7ec34b58bbfd057026828d66d23013342c2fd21c4e0a29ae6ee9400cebf4b"
+    "commit": "6adcbe13652f4e7c69ad02a783465ae2a99d5cb3",
+    "patch_sha256": "352280407fbbe83e636aa07a5c090aab15c6353c7cd77c0491284cd40df51275"
   },
   "tasks": {
     "repository": "https://github.com/conjectures-io/conjectures-tasks.git",
-    "commit": "58084b51e91f3cfd8ce1e992c76582ab5a9fa1eb"
+    "commit": "eab6d807916924af32ff4f15e0433a381a318f5f"
   },
   "lean": {
     "toolchain": "leanprover/lean4:v4.35.0-rc2",

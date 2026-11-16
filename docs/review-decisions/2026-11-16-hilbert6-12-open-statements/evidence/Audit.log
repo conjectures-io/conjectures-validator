@@ -1,0 +1,102 @@
+'HilbertDrafts.Hilbert6MeanField.SmoothDensity' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert6MeanField.coulomb' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert6MeanField.acceleration' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert6MeanField.IsCoulombTrajectory' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert6MeanField.meanField' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert6MeanField.IsVlasovPoissonSolution' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert6MeanField.productLaw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert6MeanField.deviationSet' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert6MeanField.VlasovPoissonMeanFieldLimit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert6MeanField.norm_coulomb' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert6MeanField.coulomb_neg' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert6MeanField.SmoothDensity.initialDensity' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'HilbertDrafts.Hilbert6MeanField.acceleration_pair' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert6MeanField.VlasovPoissonExistence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert6MeanField.MeanFieldConvergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert6MeanField.vlasovPoissonMeanFieldLimit_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'HilbertDrafts.Hilbert6MeanField.acceleration_single' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert6MeanField.freeParticle_isCoulombTrajectory' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'HilbertDrafts.Hilbert6MeanField.zero_isVlasovPoissonSolution' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'HilbertDrafts.Hilbert6MeanField.trajectory_distinct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert6MeanFieldChecks.exists_smoothDensity' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12Lambda.Prime' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12Lambda.Base' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12Lambda.IntegralScheme' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12Lambda.IntegralScheme.scalar' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12Lambda.IntegralScheme.OverPrime' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12Lambda.IntegralScheme.IsFrobeniusLift' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'HilbertDrafts.Hilbert12Lambda.LambdaStructure' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12Lambda.LambdaStructure.psiList' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12Lambda.idealOfList' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12Lambda.Cycle' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12Lambda.Cycle.Equivalent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12Lambda.GeometricPoint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12Lambda.IsPeriodic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12Lambda.value' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12Lambda.periodicValues' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12Lambda.LambdaGeometric' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12Lambda.Hilbert12LambdaGeometric' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12Lambda.BorgerDeSmitQuestion4' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12LambdaChecks.idealOfList_nil' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12LambdaChecks.idealOfList_append' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12LambdaChecks.psiList_append' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12LambdaChecks.psiList_perm' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12LambdaChecks.equivalent_refl' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12LambdaChecks.frobeniusLift_global' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12LambdaChecks.baseScheme' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12LambdaChecks.id_appLE' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12LambdaChecks.id_appLE_top' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12LambdaChecks.affineLine' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12LambdaChecks.affineLine_coordinates' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12LambdaChecks.id_not_frobeniusLift_affineLine' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'HilbertDrafts.Hilbert12LambdaChecks.sub_pow_mem_map_of_fraction' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'HilbertDrafts.Hilbert12LambdaChecks.sub_pow_absNorm_mem' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12LambdaChecks.stalk_fraction' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12LambdaChecks.spec_sub_pow_mem' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12LambdaChecks.id_isFrobeniusLift_base' depends on axioms: [propext, Classical.choice, Quot.sound]
+'HilbertDrafts.Hilbert12LambdaChecks.finrank_cyclotomicField_five' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'HilbertDrafts.Hilbert12LambdaChecks.question4_of_universal' depends on axioms: [propext, Classical.choice, Quot.sound]
+def HilbertDrafts.Hilbert6MeanField.VlasovPoissonMeanFieldLimit : Prop :=
+∀ (f₀ : HilbertDrafts.Hilbert6.Phase → ℝ),
+  HilbertDrafts.Hilbert6MeanField.SmoothDensity f₀ →
+    (∃ f,
+        HilbertDrafts.Hilbert6MeanField.IsVlasovPoissonSolution f ∧
+          ∀ (z : HilbertDrafts.Hilbert6.Phase), f 0 z = f₀ z) ∧
+      ∀ (f : ℝ → HilbertDrafts.Hilbert6.Phase → ℝ),
+        HilbertDrafts.Hilbert6MeanField.IsVlasovPoissonSolution f →
+          (∀ (z : HilbertDrafts.Hilbert6.Phase), f 0 z = f₀ z) →
+            ∀ (t : ℝ),
+              0 ≤ t →
+                ∀ (φ : HilbertDrafts.Hilbert6.Phase → ℝ),
+                  Continuous φ →
+                    HasCompactSupport φ →
+                      ∀ (δ : ℝ),
+                        0 < δ →
+                          Filter.Tendsto
+                            (fun N =>
+                              (HilbertDrafts.Hilbert6MeanField.productLaw N f₀)
+                                (HilbertDrafts.Hilbert6MeanField.deviationSet N f t δ φ))
+                            Filter.atTop (nhds 0)
+def HilbertDrafts.Hilbert12Lambda.Hilbert12LambdaGeometric : Prop :=
+∀ (K : Type) [inst : Field K] [inst_1 : NumberField K], HilbertDrafts.Hilbert12Lambda.LambdaGeometric K
+def HilbertDrafts.Hilbert12Lambda.BorgerDeSmitQuestion4 : Prop :=
+∃ K x,
+  ∃ (x_1 : NumberField K),
+    Module.finrank ℚ K ≠ 1 ∧
+      ¬(Module.finrank ℚ K = 2 ∧ IsEmpty (K →+* ℝ)) ∧ HilbertDrafts.Hilbert12Lambda.LambdaGeometric K

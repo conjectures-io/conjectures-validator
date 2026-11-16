@@ -29,7 +29,7 @@ RETIRED_CONJECTURE_SCHEMA_VERSION = 1
 HELD_SOURCE_SCHEMA_VERSION = 1
 DEFAULT_TASK_TIER = "tier-1"
 TASK_TIER = re.compile(r"^tier-[1-9][0-9]*$")
-DEFAULT_TIER_SIZE = 327
+DEFAULT_TIER_SIZE = 330
 DEFAULT_TIER_TASK_COUNT = DEFAULT_TIER_SIZE * len(PRODUCTION_TASK_MODES)
 MINIMUM_ERDOS_TASKS = 218
 TASK_POOL_SELECTION = "audited-direct-propositions-v2"
@@ -77,6 +77,9 @@ SOURCE_FAMILY_STATUSES = {
 NAMED_SOURCE_NAMESPACES = {
     "FormalConjectures/HistoricalOpen/Hilbert13.lean": "HilbertCatalog.Hilbert13",
     "FormalConjectures/HistoricalOpen/Hilbert16QuinticSurfaces.lean": "HilbertCatalog.Hilbert16QuinticSurfaces",
+    "FormalConjectures/HistoricalOpen/Hilbert6VlasovPoissonLimit.lean": "HilbertCatalog.Hilbert6VlasovPoissonLimit",
+    "FormalConjectures/HistoricalOpen/Hilbert12LambdaGeometric.lean": "HilbertCatalog.Hilbert12LambdaGeometric",
+    "FormalConjectures/HistoricalOpen/BorgerDeSmitQuestion4.lean": "HilbertCatalog.BorgerDeSmitQuestion4",
     "FormalConjectures/HistoricalOpen/RankOneAbelianStark.lean": "HilbertCatalog.RankOneAbelianStark",
     'FormalConjectures/HistoricalOpen/HajosCycleDecomposition.lean': 'FullOldProblemsCatalog.HajosCycleDecomposition',
     'FormalConjectures/HistoricalOpen/BergeFulkerson.lean': 'FullOldProblemsCatalog.BergeFulkerson',

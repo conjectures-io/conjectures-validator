@@ -1,0 +1,24 @@
+{"case": "positive-counterexample", "passed": true, "reason": "VERIFIED"}
+{"case": "HilbertCatalog-Hilbert12LambdaGeometric-conjecture-formalized-wrong-statement", "passed": true, "reason": "STATEMENT_MISMATCH"}
+{"case": "HilbertCatalog-Hilbert12LambdaGeometric-conjecture-formalized-sorry", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "HilbertCatalog-BorgerDeSmitQuestion4-conjecture-counterexample-wrong-statement", "passed": true, "reason": "STATEMENT_MISMATCH"}
+{"case": "HilbertCatalog-Hilbert12LambdaGeometric-conjecture-formalized-axiom", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "HilbertCatalog-BorgerDeSmitQuestion4-conjecture-formalized-wrong-statement", "passed": true, "reason": "STATEMENT_MISMATCH"}
+{"case": "HilbertCatalog-BorgerDeSmitQuestion4-conjecture-counterexample-sorry", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "HilbertCatalog-Hilbert12LambdaGeometric-conjecture-formalized-source-placeholder", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "HilbertCatalog-Hilbert12LambdaGeometric-conjecture-counterexample-wrong-statement", "passed": true, "reason": "STATEMENT_MISMATCH"}
+{"case": "HilbertCatalog-BorgerDeSmitQuestion4-conjecture-formalized-sorry", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "HilbertCatalog-BorgerDeSmitQuestion4-conjecture-counterexample-axiom", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "HilbertCatalog-Hilbert12LambdaGeometric-conjecture-counterexample-sorry", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "HilbertCatalog-BorgerDeSmitQuestion4-conjecture-formalized-axiom", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "HilbertCatalog-Hilbert12LambdaGeometric-conjecture-counterexample-axiom", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "HilbertCatalog-BorgerDeSmitQuestion4-conjecture-formalized-source-placeholder", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "HilbertCatalog-Hilbert6VlasovPoissonLimit-conjecture-counterexample-wrong-statement", "passed": true, "reason": "STATEMENT_MISMATCH"}
+{"case": "HilbertCatalog-Hilbert6VlasovPoissonLimit-conjecture-counterexample-sorry", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "HilbertCatalog-Hilbert6VlasovPoissonLimit-conjecture-counterexample-axiom", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "HilbertCatalog-Hilbert6VlasovPoissonLimit-conjecture-formalized-wrong-statement", "passed": true, "reason": "STATEMENT_MISMATCH"}
+{"case": "HilbertCatalog-Hilbert6VlasovPoissonLimit-conjecture-formalized-sorry", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "HilbertCatalog-Hilbert6VlasovPoissonLimit-conjecture-formalized-axiom", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{"case": "HilbertCatalog-Hilbert6VlasovPoissonLimit-conjecture-formalized-source-placeholder", "passed": true, "reason": "SUBMISSION_POLICY_VIOLATION"}
+{'passed': True, 'cases': 22, 'new_bundles_exercised': 6, 'positive_control_verified': True, 'insecure_development': False, 'uid': 10001, 'open_problems_proved': False, 'processes': 4}
+exit=0

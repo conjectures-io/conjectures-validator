@@ -1,0 +1,48 @@
+{
+  "schema_version": 2,
+  "problem_id": "fc-6adcbe13-borgerdesmitquestion4-conjecture-ef00f60d9fc2dfc0d4b7176e5f688eac-problem",
+  "task_id": "fc-v2-borgerdesmitquestion4-conjecture-041e6fa4ab92491897471428-formalized",
+  "repository_commit": "6adcbe13652f4e7c69ad02a783465ae2a99d5cb3",
+  "source_theorem": "HilbertCatalog.BorgerDeSmitQuestion4.conjecture",
+  "task_mode": "formalized",
+  "task_bundle_sha256": "sha256:0b69972244fd77ab55471e8e15cfc8676fe3d909f142eb72c73d9690ceaad82f",
+  "submission_sha256": "sha256:ad777397fec00027e82304d9b5261e1d75154822b50b4581b5c9e6e0c64f8cf7",
+  "accepted": false,
+  "stage": "RUN_COMPARATOR",
+  "reason_code": "STATEMENT_MISMATCH",
+  "checks": {
+    "manifest_valid": true,
+    "task_commitment_valid": true,
+    "production_task": true,
+    "production_sandbox": true,
+    "source_type_hash_valid": true,
+    "trusted_hashes_valid": true,
+    "submission_policy_valid": true,
+    "challenge_built": true,
+    "solution_built": true,
+    "same_statement": false,
+    "axioms_permitted": false,
+    "lean_kernel_passed": false,
+    "nanoda_enabled": false,
+    "nanoda_passed": false
+  },
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "duration_ms": 115488,
+  "comparator_exit_code": 1,
+  "stdout_tail": "Building Challenge\n\u26a0 [8941/8942] Replayed Challenge\nwarning: Challenge.lean:7:8: declaration uses `sorry`\nBuild completed successfully (8942 jobs).\nExporting #[Quot, Quot.mk, Quot.lift, Quot.ind, Bounty.target, propext, Quot.sound, Classical.choice, Nat.add, Nat.sub, Nat.mul, Nat.pow, Nat.gcd, Nat.div, Nat.mod, Nat.beq, Nat.ble, Nat.land, Nat.lor, Nat.xor, Nat.shiftLeft, Nat.shiftRight, String.ofList, Char.ofNat, List, eagerReduce, Nat, String, String.mk, Char, optParam, autoParam, semiOutParam, outParam] from Challenge\nBuilding Solution\n\u2714 [8941/8942] Built Solution (7.4s)\nBuild completed successfully (8942 jobs).\nExporting #[Quot, Quot.mk, Quot.lift, Quot.ind, Bounty.target, propext, Quot.sound, Classical.choice, Nat.add, Nat.sub, Nat.mul, Nat.pow, Nat.gcd, Nat.div, Nat.mod, Nat.beq, Nat.ble, Nat.land, Nat.lor, Nat.xor, Nat.shiftLeft, Nat.shiftRight, String.ofList, Char.ofNat, List, eagerReduce, Nat, String, String.mk, Char, optParam, autoParam, semiOutParam, outParam] from Solution\n",
+  "stderr_tail": "uncaught exception: Challenge and solution theorem statement do not match: 'Bounty.target'\n",
+  "workspace_retained": false,
+  "sandbox_mode": "landrun+seccomp",
+  "task_timeout_seconds": 14400,
+  "effective_timeout_seconds": 14400,
+  "case": "HilbertCatalog-BorgerDeSmitQuestion4-conjecture-formalized-wrong-statement",
+  "passed": true,
+  "seconds": 115.499
+}

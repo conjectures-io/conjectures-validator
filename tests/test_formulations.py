@@ -19,6 +19,7 @@ def test_all_four_hilbert_formulations_have_reviewed_source_bytes():
     packets = {
         "staged/hilbert-formulations-20261113/": "2026-11-12-hilbert-formulations",
         "staged/hilbert16-open-cases-20261115/": "2026-11-15-hilbert16-open-cases",
+        "staged/hilbert6-12-open-statements-20261116/": "2026-11-16-hilbert6-12-open-statements",
     }
     for item in records:
         for declaration in item.sources:
@@ -42,6 +43,15 @@ def test_all_four_hilbert_formulations_have_reviewed_source_bytes():
     ]
     # The site renders these labels on one line; a long one overflows a phone screen.
     assert all(len(link.label) <= 28 for item in records for link in item.related_targets)
+    # Hilbert 6 and 12 stay research pages and link their admitted statements.
+    assert [link.url for link in records[0].related_targets] == [
+        "/problems/hilbertcatalog-hilbert6vlasovpoissonlimit-conjecture"
+    ]
+    assert [link.url for link in records[1].related_targets] == [
+        "/problems/hilbertcatalog-rankoneabelianstark-conjecture",
+        "/problems/hilbertcatalog-hilbert12lambdageometric-conjecture",
+        "/problems/hilbertcatalog-borgerdesmitquestion4-conjecture",
+    ]
     held = [d for d in records[3].sources if d.declaration.endswith("QuadraticFourCycles")]
     assert len(held) == 1 and "held" in held[0].description
 
