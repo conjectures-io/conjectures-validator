@@ -59,11 +59,13 @@ def test_nineteen_problem_batch_excludes_solved_erdos173():
     review = json.loads((TIER_METADATA / "erdos-admission-audit.json").read_text())
     additions = [row for row in review["targets"]
                  if row.get("source_family", "erdos") == "erdos"]
-    assert len(additions) == 19
+    # The owner withdrew 345 from the nineteen on November 16; it is now an excluded candidate.
+    assert len(additions) == 18
     assert {row["number"] for row in additions} == {
-        151, 159, 295, 311, 322, 345, 388, 389, 393, 422, 423, 430,
+        151, 159, 295, 311, 322, 388, 389, 393, 422, 423, 430,
         461, 462, 467, 472, 478, 483, 545,
     }
+    assert {row["number"]: row["decision"] for row in review["excluded_candidates"]}[345] == "exclude_owner_withdrawn"
     targets = load_task_targets(TIER_METADATA / "task-targets.json").theorems
     assert {name for name in targets if name.startswith("Erdos12.")} == {
         "Erdos12.erdos_12.parts.iii"
@@ -72,11 +74,13 @@ def test_nineteen_problem_batch_excludes_solved_erdos173():
     assert "Erdos21.erdos_21.variants.three_n" not in targets
     assert "Erdos111.erdos_111" not in targets
     assert "Erdos173.erdos_173" not in targets
+    assert "Erdos345.erdos_345" not in targets
     assert "Erdos326.erdos_326" not in targets
     assert "Erdos509.erdos_509" not in targets
-    assert sum(row["decision"] == "eligible" for row in additions) == 19
+    assert sum(row["decision"] == "eligible" for row in additions) == 18
     retired = load_retired_sources(TIER_METADATA / "retired-source-theorems.json")
     assert "Erdos173.erdos_173" in retired.theorems
+    assert "Erdos345.erdos_345" in retired.theorems
     retained = {row["theorem"] for row in review["retained_selection"]}
     assert not retained & {row["theorem"] for row in additions}
 
@@ -157,7 +161,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert sum(
         item.source_path.startswith(ERDOS_SOURCE_PREFIX)
         for item in selected
-    ) == 255
+    ) == 254
     assert sum(
         item.source_path.startswith(GREENS_OPEN_PROBLEMS_SOURCE_PREFIX)
         for item in selected
@@ -169,7 +173,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
     assert targets.task_scope == TASK_POOL_TASK_SCOPE
-    assert len({item.source_path for item in selected}) == 281
+    assert len({item.source_path for item in selected}) == 280
     assert all(
         entry.source_status in SOURCE_FAMILY_STATUSES[entry.source_family]
         for entry in audit.entries
@@ -510,6 +514,7 @@ def test_retired_conjectures_are_readable_but_never_admissible():
                 "Erdos111.erdos_111": "retired",
                 "Erdos173.erdos_173": "retired",
                 "Erdos21.erdos_21.variants.three_n": "retired",
+                "Erdos345.erdos_345": "retired",
                 "Erdos456.erdos_456.parts.iii": "retired",
             }[entry["theorem"]]
             versions = VersionRegistry.load(TASKS_ROOT / "task-versions.json")
