@@ -1,0 +1,47 @@
+{
+  "repository_commit": "6adcbe13652f4e7c69ad02a783465ae2a99d5cb3",
+  "tasks": [
+    {
+      "task_id": "fc-v2-borgerdesmitquestion4-conjecture-041e6fa4ab92491897471428-formalized",
+      "theorem": "HilbertCatalog.BorgerDeSmitQuestion4.conjecture",
+      "mode": "formalized",
+      "location": "versions/fc-v2-borgerdesmitquestion4-conjecture-041e6fa4ab92491897471428-formalized",
+      "build_provenance_sha256": "sha256:c42f9951a2cb30fd72aa37dfeda4b828f79fce8809dd4ed1a213e559da4ff24b"
+    },
+    {
+      "task_id": "fc-v2-borgerdesmitquestion4-conjecture-d5b8b65601e2596acde8e5a8-counterexample",
+      "theorem": "HilbertCatalog.BorgerDeSmitQuestion4.conjecture",
+      "mode": "counterexample",
+      "location": "versions/fc-v2-borgerdesmitquestion4-conjecture-d5b8b65601e2596acde8e5a8-counterexample",
+      "build_provenance_sha256": "sha256:c42f9951a2cb30fd72aa37dfeda4b828f79fce8809dd4ed1a213e559da4ff24b"
+    },
+    {
+      "task_id": "fc-v2-hilbert12lambdageometric-conjecture-d091c33db6889a39db2f6553-formalized",
+      "theorem": "HilbertCatalog.Hilbert12LambdaGeometric.conjecture",
+      "mode": "formalized",
+      "location": "versions/fc-v2-hilbert12lambdageometric-conjecture-d091c33db6889a39db2f6553-formalized",
+      "build_provenance_sha256": "sha256:ad033ea370c60b195d3082373f33f2be5318bc86a82bd73e6fdaa79e6c1902c3"
+    },
+    {
+      "task_id": "fc-v2-hilbert12lambdageometric-conjecture-c549cfab9bb01beb0d21c5f6-counterexample",
+      "theorem": "HilbertCatalog.Hilbert12LambdaGeometric.conjecture",
+      "mode": "counterexample",
+      "location": "versions/fc-v2-hilbert12lambdageometric-conjecture-c549cfab9bb01beb0d21c5f6-counterexample",
+      "build_provenance_sha256": "sha256:ad033ea370c60b195d3082373f33f2be5318bc86a82bd73e6fdaa79e6c1902c3"
+    },
+    {
+      "task_id": "fc-v2-hilbert6vlasovpoissonlimit-conjecture-7f5a0c08c85d62de0892fb95-formalized",
+      "theorem": "HilbertCatalog.Hilbert6VlasovPoissonLimit.conjecture",
+      "mode": "formalized",
+      "location": "versions/fc-v2-hilbert6vlasovpoissonlimit-conjecture-7f5a0c08c85d62de0892fb95-formalized",
+      "build_provenance_sha256": "sha256:aa7d04e25f5f56caa9af4427229e0516b0bbd8ab72328e8e1f66926fd523d1e9"
+    },
+    {
+      "task_id": "fc-v2-hilbert6vlasovpoissonlimit-conjecture-ac019f6c5bf36b5128c469bc-counterexample",
+      "theorem": "HilbertCatalog.Hilbert6VlasovPoissonLimit.conjecture",
+      "mode": "counterexample",
+      "location": "versions/fc-v2-hilbert6vlasovpoissonlimit-conjecture-ac019f6c5bf36b5128c469bc-counterexample",
+      "build_provenance_sha256": "sha256:aa7d04e25f5f56caa9af4427229e0516b0bbd8ab72328e8e1f66926fd523d1e9"
+    }
+  ]
+}

@@ -417,13 +417,14 @@ python -m verifier catalog build \
 python -m verifier catalog stats --catalog data/catalog.json
 ```
 
-The checked-in catalog covers 6,066 declarations in the full Formal Conjectures source snapshot.
-The November 15 release prepares 328 reward targets and 656 bundles. It adds one open case of
-Hilbert 16, the bound of 23 connected components for real quintic surfaces. The quadratic
-limit-cycle case is published in the source and held while a claim of that exact result is
-unreviewed. The reviewed formulations for Hilbert 6, 12, algebraic 13 and 16 remain published
-with their scope and claim-status records. See the
-[Hilbert 16 open-case review](docs/review-decisions/2026-11-15-hilbert16-open-cases/README.md)
+The checked-in catalog covers 6,069 declarations in the full Formal Conjectures source snapshot.
+The November 16 release prepares 330 reward targets and 660 bundles. It adds three statements:
+Hilbert 12 in the Λ-geometric form of Borger and de Smit, their Question 4, and the mean-field
+limit for the Vlasov–Poisson equation as an open problem of the Hilbert 6 programme. The
+November 15 release added the quintic-surface case of Hilbert 16 and holds the quadratic
+limit-cycle case; Erdős 345 was withdrawn on November 16. See the
+[Hilbert 6 and 12 review](docs/review-decisions/2026-11-16-hilbert6-12-open-statements/README.md),
+the [Hilbert 16 open-case review](docs/review-decisions/2026-11-15-hilbert16-open-cases/README.md)
 and the [November 13 release report](docs/review-decisions/2026-11-13-erdos19-hilbert-release/README.md).
 
 Generate one target or a category batch:

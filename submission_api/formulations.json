@@ -9,13 +9,14 @@
         60,
         70
       ],
-      "summary": "Axiomatization of physics through probability, mechanics and classical limiting processes. The reviewed Lean package specifies selected kinetic, fluid, elastic and rigid-body models.",
+      "summary": "Axiomatization of physics through probability, mechanics and classical limiting processes. One open problem of the particle-to-continuum programme is an active reward target. The reviewed Lean package also specifies selected kinetic, fluid, elastic and rigid-body models.",
       "display_status": "research",
       "scope": [
         "The package includes probability consistency, Newtonian mechanics, kinetic-to-fluid limits and elasticity-to-rigid-body limits for explicitly chosen models.",
         "The gas formulations include ensemble and initial-data variants. Their relation to the cited physical models remains part of the stated scope.",
         "Hilbert’s unrestricted physical-sciences programme extends beyond this selected collection. Fable 5.2 accepted the precise specifications under their declared interpretations after four review rounds.",
-        "A reward-readiness review on November 15, 2026 found no closed open statement within this programme that is eligible for a reward. The selected models follow results with published proof claims."
+        "One statement carries a reward: point charges under the untruncated repulsive Coulomb force, started from independent samples of a smooth density, have empirical averages converging to the solution of the three-dimensional Vlasov–Poisson equation. It is open and expected to be true.",
+        "That statement is a modern instance of the programme of deriving continuum equations from particle dynamics. It is not a question Hilbert posed, and it is separate from the hard-sphere, Boltzmann and fluid derivations in the selected models."
       ],
       "proof_status": "The specification and its supporting lemmas compile. The classical-limit obligations remain statements to establish, including known-theorem obligations under the declared hypotheses.",
       "sources": [
@@ -25,6 +26,13 @@
           "lean": "def ClassicalLimitsProgram : Prop :=\n  Hilbert6Fluid.ClassicalGasProgram ∧ PolynomialMaterialWitness ∧\n    ElasticityToStiff ∧ ContinuumRigidLimit",
           "source_url": "https://github.com/conjectures-io/conjectures-tasks/blob/ab3ecc93d19428ced0f14cdc467a6a075e3dd852/staged/hilbert-formulations-20261113/draft/HilbertDrafts/Hilbert6.lean",
           "source_sha256": "b15cea7afccf3daefe69de272cae19970929ede0f93a6934e4326a7de21a25fd"
+        },
+        {
+          "declaration": "HilbertDrafts.Hilbert6MeanField.VlasovPoissonMeanFieldLimit",
+          "description": "The active reward target: the known existence theorem together with the open mean-field convergence.",
+          "lean": "def VlasovPoissonMeanFieldLimit : Prop :=\n  ∀ f₀ : Phase → ℝ, SmoothDensity f₀ →\n    (∃ f : ℝ → Phase → ℝ, IsVlasovPoissonSolution f ∧ ∀ z, f 0 z = f₀ z) ∧\n    ∀ f : ℝ → Phase → ℝ, IsVlasovPoissonSolution f → (∀ z, f 0 z = f₀ z) →\n      ∀ t : ℝ, 0 ≤ t →\n        ∀ φ : Phase → ℝ, Continuous φ → HasCompactSupport φ →\n          ∀ δ : ℝ, 0 < δ →\n            Tendsto (fun N => productLaw N f₀ (deviationSet N f t δ φ)) atTop (𝓝 0)",
+          "source_url": "https://github.com/conjectures-io/conjectures-tasks/blob/eab6d807916924af32ff4f15e0433a381a318f5f/staged/hilbert6-12-open-statements-20261116/draft/HilbertDrafts/Hilbert6MeanField.lean",
+          "source_sha256": "ea700e204fed6d895127dadaa8603503ea5184711f3b2f11cae0fd1eb4cf7a9d"
         }
       ],
       "references": [
@@ -33,11 +41,24 @@
           "url": "https://github.com/conjectures-io/conjectures-tasks/tree/ab3ecc93d19428ced0f14cdc467a6a075e3dd852/staged/hilbert-formulations-20261113/PRIMARY_SOURCE_REVIEW.md"
         },
         {
-          "label": "Reward-readiness review of November 15, 2026",
-          "url": "https://github.com/conjectures-io/conjectures-validator/blob/main/docs/review-decisions/2026-11-15-hilbert16-open-cases/README.md"
+          "label": "Jabin's review of mean-field limits for Vlasov equations",
+          "url": "https://www.math.umd.edu/~tadmor/ki_net/pubs/files/review_MF.pdf"
+        },
+        {
+          "label": "Mean-field statement, reviews and literature record",
+          "url": "https://github.com/conjectures-io/conjectures-tasks/tree/eab6d807916924af32ff4f15e0433a381a318f5f/staged/hilbert6-12-open-statements-20261116"
+        },
+        {
+          "label": "Review of November 16, 2026",
+          "url": "https://github.com/conjectures-io/conjectures-validator/blob/main/docs/review-decisions/2026-11-16-hilbert6-12-open-statements/README.md"
         }
       ],
-      "related_targets": [],
+      "related_targets": [
+        {
+          "label": "Vlasov–Poisson mean field",
+          "url": "/problems/hilbertcatalog-hilbert6vlasovpoissonlimit-conjecture"
+        }
+      ],
       "active_target_slug": null,
       "reviewed_at": "2026-11-13",
       "review_url": "https://github.com/conjectures-io/conjectures-validator/blob/main/docs/review-decisions/2026-11-13-hilbert-publication/REVIEW.md",
@@ -50,16 +71,17 @@
       "ams_subjects": [
         11
       ],
-      "summary": "Explicit construction of abelian extensions of number fields. The package specifies arithmetic classification, rational and imaginary-quadratic benchmarks, and field-attached analytic recipes.",
+      "summary": "Explicit construction of abelian extensions of number fields. A general statement in the Λ-geometric form of Borger and de Smit is an active reward target, alongside the rank-one Stark conjecture. The package also specifies arithmetic classification and the classical benchmarks.",
       "display_status": "research",
       "scope": [
         "Arithmetic output includes ray class groups, Frobenius reciprocity, conductors, discriminants and exact catalogues with prescribed degree, group and relative discriminant.",
         "The benchmarks use the exponential over the rationals and actual Weierstrass, j and Weber values for imaginary quadratic fields.",
         "A proposed general analytic recipe must meet the generation contract. Its mathematical explicitness needs an additional criterion beyond this contract.",
         "The separately available rank-one abelian Stark target is a specified route associated with Hilbert 12.",
-        "A reward-readiness review on November 15, 2026 examined three explicitness criteria. None gives a faithful general statement that resists trivial satisfaction, so the reward remains on the Stark target."
+        "A general statement carries a reward: for every number field, the maximal abelian extension is generated by the periodic points of one flat separated scheme of finite type with commuting Frobenius lifts. Finite type is the explicitness requirement. It is known for the rational numbers and imaginary quadratic fields, and its answer for other fields is unknown.",
+        "Question 4 of Borger and de Smit, which asks for one further number field with this property, is a second reward target. This is one published precise formulation of explicit class field theory, not the only reading of Hilbert 12."
       ],
-      "proof_status": "Fable 5.2 accepted the stated interpretation. The general explicitness requirement remains an open formulation issue, and the displayed arithmetic output is an obligation to supply.",
+      "proof_status": "Fable 5.2 accepted the stated interpretation of the package. The field-attached recipe contract still does not certify explicitness on its own. The Λ-geometric statements use the published finite-type criterion instead; they were reviewed on November 16, 2026 and are open in both directions.",
       "sources": [
         {
           "declaration": "HilbertDrafts.Hilbert12ClassField.ArithmeticOutput",
@@ -74,6 +96,27 @@
           "lean": "def FieldHilbert12For (R : FieldRecipe) : Prop :=\n  ∀ (K : Type) [Field K] [NumberField K] (ι : Ambient K →+* ℂ),\n    GenerationContract K ι (R.parameters (embeddedField K ι))",
           "source_url": "https://github.com/conjectures-io/conjectures-tasks/blob/ab3ecc93d19428ced0f14cdc467a6a075e3dd852/staged/hilbert-formulations-20261113/draft/HilbertDrafts/Hilbert12.lean",
           "source_sha256": "2a8006ae7579e5269cca0a88a3d8f1e5dc6898ec04c7d8228cb591e76fe8b19c"
+        },
+        {
+          "declaration": "HilbertDrafts.Hilbert12Lambda.LambdaGeometric",
+          "description": "One finite-type scheme with commuting Frobenius lifts whose periodic points generate every finite abelian extension.",
+          "lean": "def LambdaGeometric : Prop :=\n  ∃ (M : IntegralScheme K) (Λ : LambdaStructure M), FixedValueCoverage K (periodicValues Λ)",
+          "source_url": "https://github.com/conjectures-io/conjectures-tasks/blob/eab6d807916924af32ff4f15e0433a381a318f5f/staged/hilbert6-12-open-statements-20261116/draft/HilbertDrafts/Hilbert12Lambda.lean",
+          "source_sha256": "d53136df7933955dcd67b0404b43fc3fc562482369cc60ccefd3dcf19d34f6a9"
+        },
+        {
+          "declaration": "HilbertDrafts.Hilbert12Lambda.Hilbert12LambdaGeometric",
+          "description": "The active general target: the property for every number field.",
+          "lean": "def Hilbert12LambdaGeometric : Prop :=\n  ∀ (K : Type) [Field K] [NumberField K], LambdaGeometric K",
+          "source_url": "https://github.com/conjectures-io/conjectures-tasks/blob/eab6d807916924af32ff4f15e0433a381a318f5f/staged/hilbert6-12-open-statements-20261116/draft/HilbertDrafts/Hilbert12Lambda.lean",
+          "source_sha256": "d53136df7933955dcd67b0404b43fc3fc562482369cc60ccefd3dcf19d34f6a9"
+        },
+        {
+          "declaration": "HilbertDrafts.Hilbert12Lambda.BorgerDeSmitQuestion4",
+          "description": "The active companion target: Question 4 of Borger and de Smit.",
+          "lean": "def BorgerDeSmitQuestion4 : Prop :=\n  ∃ (K : Type) (_ : Field K) (_ : NumberField K),\n    Module.finrank ℚ K ≠ 1 ∧ ¬ (Module.finrank ℚ K = 2 ∧ IsEmpty (K →+* ℝ)) ∧\n      LambdaGeometric K",
+          "source_url": "https://github.com/conjectures-io/conjectures-tasks/blob/eab6d807916924af32ff4f15e0433a381a318f5f/staged/hilbert6-12-open-statements-20261116/draft/HilbertDrafts/Hilbert12Lambda.lean",
+          "source_sha256": "d53136df7933955dcd67b0404b43fc3fc562482369cc60ccefd3dcf19d34f6a9"
         }
       ],
       "references": [
@@ -82,14 +125,30 @@
           "url": "https://github.com/conjectures-io/conjectures-tasks/tree/ab3ecc93d19428ced0f14cdc467a6a075e3dd852/staged/hilbert-formulations-20261113/PRIMARY_SOURCE_REVIEW.md"
         },
         {
-          "label": "Reward-readiness review of November 15, 2026",
-          "url": "https://github.com/conjectures-io/conjectures-validator/blob/main/docs/review-decisions/2026-11-15-hilbert16-open-cases/README.md"
+          "label": "Borger and de Smit on Λ-rings and explicit class field theory",
+          "url": "https://arxiv.org/abs/1809.02295"
+        },
+        {
+          "label": "Λ-geometric statements, reviews and literature record",
+          "url": "https://github.com/conjectures-io/conjectures-tasks/tree/eab6d807916924af32ff4f15e0433a381a318f5f/staged/hilbert6-12-open-statements-20261116"
+        },
+        {
+          "label": "Review of November 16, 2026",
+          "url": "https://github.com/conjectures-io/conjectures-validator/blob/main/docs/review-decisions/2026-11-16-hilbert6-12-open-statements/README.md"
         }
       ],
       "related_targets": [
         {
           "label": "Rank-one abelian Stark",
           "url": "/problems/hilbertcatalog-rankoneabelianstark-conjecture"
+        },
+        {
+          "label": "Λ-geometric class fields",
+          "url": "/problems/hilbertcatalog-hilbert12lambdageometric-conjecture"
+        },
+        {
+          "label": "Borger–de Smit Question 4",
+          "url": "/problems/hilbertcatalog-borgerdesmitquestion4-conjecture"
         }
       ],
       "active_target_slug": null,

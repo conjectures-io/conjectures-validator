@@ -1,0 +1,48 @@
+{
+  "schema_version": 2,
+  "problem_id": "fc-6adcbe13-borgerdesmitquestion4-conjecture-ef00f60d9fc2dfc0d4b7176e5f688eac-problem",
+  "task_id": "fc-v2-borgerdesmitquestion4-conjecture-041e6fa4ab92491897471428-formalized",
+  "repository_commit": "6adcbe13652f4e7c69ad02a783465ae2a99d5cb3",
+  "source_theorem": "HilbertCatalog.BorgerDeSmitQuestion4.conjecture",
+  "task_mode": "formalized",
+  "task_bundle_sha256": "sha256:0b69972244fd77ab55471e8e15cfc8676fe3d909f142eb72c73d9690ceaad82f",
+  "submission_sha256": "sha256:b00eeb1cdd03d1b60e3621a76776ee69658cb2b9b8697398f6c6dd843ca53c6c",
+  "accepted": false,
+  "stage": "STATIC_POLICY_CHECK",
+  "reason_code": "SUBMISSION_POLICY_VIOLATION",
+  "checks": {
+    "manifest_valid": true,
+    "task_commitment_valid": true,
+    "production_task": true,
+    "production_sandbox": false,
+    "source_type_hash_valid": false,
+    "trusted_hashes_valid": true,
+    "submission_policy_valid": false,
+    "challenge_built": false,
+    "solution_built": false,
+    "same_statement": false,
+    "axioms_permitted": false,
+    "lean_kernel_passed": false,
+    "nanoda_enabled": false,
+    "nanoda_passed": false
+  },
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "duration_ms": 333,
+  "comparator_exit_code": null,
+  "stdout_tail": "",
+  "stderr_tail": "axiom is prohibited at 1:1\ntop-level command axiom is prohibited at 1:1\nsource declaration dependency is prohibited: HilbertCatalog.BorgerDeSmitQuestion4.conjecture",
+  "workspace_retained": false,
+  "sandbox_mode": "not-started",
+  "task_timeout_seconds": 14400,
+  "effective_timeout_seconds": 14400,
+  "case": "HilbertCatalog-BorgerDeSmitQuestion4-conjecture-formalized-axiom",
+  "passed": true,
+  "seconds": 0.334
+}

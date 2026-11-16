@@ -1,0 +1,23 @@
+{
+  "tasks_pr": "https://github.com/conjectures-io/conjectures-tasks/pull/30",
+  "tasks_commit": "eab6d807916924af32ff4f15e0433a381a318f5f",
+  "source_base_commit": "7d1a8c9912747679d0093f6d1216420c33ee5ffa",
+  "source_commit": "6adcbe13652f4e7c69ad02a783465ae2a99d5cb3",
+  "source_patch_sha256": "352280407fbbe83e636aa07a5c090aab15c6353c7cd77c0491284cd40df51275",
+  "active_reward_targets": 330,
+  "active_bundles": 660,
+  "new_targets": [
+    "HilbertCatalog.BorgerDeSmitQuestion4.conjecture",
+    "HilbertCatalog.Hilbert12LambdaGeometric.conjecture",
+    "HilbertCatalog.Hilbert6VlasovPoissonLimit.conjecture"
+  ],
+  "new_task_ids": [
+    "fc-v2-borgerdesmitquestion4-conjecture-041e6fa4ab92491897471428-formalized",
+    "fc-v2-borgerdesmitquestion4-conjecture-d5b8b65601e2596acde8e5a8-counterexample",
+    "fc-v2-hilbert12lambdageometric-conjecture-d091c33db6889a39db2f6553-formalized",
+    "fc-v2-hilbert12lambdageometric-conjecture-c549cfab9bb01beb0d21c5f6-counterexample",
+    "fc-v2-hilbert6vlasovpoissonlimit-conjecture-7f5a0c08c85d62de0892fb95-formalized",
+    "fc-v2-hilbert6vlasovpoissonlimit-conjecture-ac019f6c5bf36b5128c469bc-counterexample"
+  ],
+  "deployment_status": "prepared"
+}

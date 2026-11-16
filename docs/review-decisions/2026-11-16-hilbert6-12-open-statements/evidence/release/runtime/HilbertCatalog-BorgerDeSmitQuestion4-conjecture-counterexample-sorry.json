@@ -1,0 +1,48 @@
+{
+  "schema_version": 2,
+  "problem_id": "fc-6adcbe13-borgerdesmitquestion4-conjecture-ef00f60d9fc2dfc0d4b7176e5f688eac-problem",
+  "task_id": "fc-v2-borgerdesmitquestion4-conjecture-d5b8b65601e2596acde8e5a8-counterexample",
+  "repository_commit": "6adcbe13652f4e7c69ad02a783465ae2a99d5cb3",
+  "source_theorem": "HilbertCatalog.BorgerDeSmitQuestion4.conjecture",
+  "task_mode": "counterexample",
+  "task_bundle_sha256": "sha256:ceaeb04472093f718aff437f3b347ed8c03fbd4811f1152a326c9e625a77a1dc",
+  "submission_sha256": "sha256:dd7d108edb9d16674e6ad5ece851bbf4a0cfad778e98928dbbd38fffe7067084",
+  "accepted": false,
+  "stage": "STATIC_POLICY_CHECK",
+  "reason_code": "SUBMISSION_POLICY_VIOLATION",
+  "checks": {
+    "manifest_valid": true,
+    "task_commitment_valid": true,
+    "production_task": true,
+    "production_sandbox": false,
+    "source_type_hash_valid": false,
+    "trusted_hashes_valid": true,
+    "submission_policy_valid": false,
+    "challenge_built": false,
+    "solution_built": false,
+    "same_statement": false,
+    "axioms_permitted": false,
+    "lean_kernel_passed": false,
+    "nanoda_enabled": false,
+    "nanoda_passed": false
+  },
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "duration_ms": 321,
+  "comparator_exit_code": null,
+  "stdout_tail": "",
+  "stderr_tail": "sorry is prohibited at 1:90",
+  "workspace_retained": false,
+  "sandbox_mode": "not-started",
+  "task_timeout_seconds": 14400,
+  "effective_timeout_seconds": 14400,
+  "case": "HilbertCatalog-BorgerDeSmitQuestion4-conjecture-counterexample-sorry",
+  "passed": true,
+  "seconds": 0.322
+}

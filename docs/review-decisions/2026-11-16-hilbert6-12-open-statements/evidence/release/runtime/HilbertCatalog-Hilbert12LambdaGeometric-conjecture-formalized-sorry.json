@@ -1,0 +1,48 @@
+{
+  "schema_version": 2,
+  "problem_id": "fc-6adcbe13-hilbert12lambdageometric-conjecture-829e22182b0723db387a601b8b4c9f37-problem",
+  "task_id": "fc-v2-hilbert12lambdageometric-conjecture-d091c33db6889a39db2f6553-formalized",
+  "repository_commit": "6adcbe13652f4e7c69ad02a783465ae2a99d5cb3",
+  "source_theorem": "HilbertCatalog.Hilbert12LambdaGeometric.conjecture",
+  "task_mode": "formalized",
+  "task_bundle_sha256": "sha256:3264841c5cdbb40e01cd39111feb8ab43c9e14af898dd366e704e35659bca401",
+  "submission_sha256": "sha256:263a16b832d34cd19cf0f651f1cbbdfa0825d3db8c78b6170d155eb8ac4c942f",
+  "accepted": false,
+  "stage": "STATIC_POLICY_CHECK",
+  "reason_code": "SUBMISSION_POLICY_VIOLATION",
+  "checks": {
+    "manifest_valid": true,
+    "task_commitment_valid": true,
+    "production_task": true,
+    "production_sandbox": false,
+    "source_type_hash_valid": false,
+    "trusted_hashes_valid": true,
+    "submission_policy_valid": false,
+    "challenge_built": false,
+    "solution_built": false,
+    "same_statement": false,
+    "axioms_permitted": false,
+    "lean_kernel_passed": false,
+    "nanoda_enabled": false,
+    "nanoda_passed": false
+  },
+  "theorem_names": [
+    "Bounty.target"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "duration_ms": 307,
+  "comparator_exit_code": null,
+  "stdout_tail": "",
+  "stderr_tail": "sorry is prohibited at 1:91",
+  "workspace_retained": false,
+  "sandbox_mode": "not-started",
+  "task_timeout_seconds": 14400,
+  "effective_timeout_seconds": 14400,
+  "case": "HilbertCatalog-Hilbert12LambdaGeometric-conjecture-formalized-sorry",
+  "passed": true,
+  "seconds": 0.308
+}
