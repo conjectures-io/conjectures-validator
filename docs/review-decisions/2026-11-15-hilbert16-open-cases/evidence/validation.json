@@ -1,0 +1,59 @@
+{
+  "lean": "4.35.0-rc2",
+  "mathlib": "065356127b1dc0016f66b7283ce0ce2c4055aa55",
+  "image_id": "sha256:4da29ed9e4448435a979baeda82e934b091abde3754bd9976d8b1df93708fa90",
+  "warnings_as_errors": true,
+  "source_sha256": {
+    "HilbertDrafts/Hilbert16.lean": "2a0330f6e2424f6a3bb069ac4fe3ce01df5101252f9694597872d489451c0b18",
+    "HilbertDrafts/Hilbert16Open.lean": "dc50b94094faa993a0ac4eb9936cfd25dfdff1931410752f52484ebf6aed6f44",
+    "HilbertDrafts/Hilbert16OpenChecks.lean": "e71f8e3acf609881e6f4b9cc4b4b2fa28b7994954b927a68fda8d00ef340414e"
+  },
+  "reviewer_attack_sha256": {
+    "ReviewA1.lean": "405812503a1196a3815e8e1f58e2fd9a22cb1847fbd826657805b20d2381fc79",
+    "ReviewA2.lean": "efc11ec6e870aae5ab87b1b648e4761d4963c30e4972dbd56ea0d75811e9c6c9",
+    "ReviewA3.lean": "9ea53ffe7a28dba238f171f4ca049085c0e7e420b53a69eb862e721e59224f87"
+  },
+  "compilation": [
+    {
+      "module": "HilbertDrafts/Hilbert16.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "HilbertDrafts/Hilbert16Open.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "HilbertDrafts/Hilbert16OpenChecks.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "HilbertDrafts/ReviewA1.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "HilbertDrafts/ReviewA2.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "HilbertDrafts/ReviewA3.lean",
+      "exit_code": 0
+    },
+    {
+      "module": "Audit.lean",
+      "exit_code": 0
+    }
+  ],
+  "audited_declarations": 36,
+  "observed_axioms": [
+    "Classical.choice",
+    "Quot.sound",
+    "propext"
+  ],
+  "axiom_audit_passed": true,
+  "closed_targets": [
+    "HilbertDrafts.Hilbert16Open.QuadraticFourCycles",
+    "HilbertDrafts.Hilbert16Open.QuinticSurfaceComponents"
+  ],
+  "passed": true,
+  "passed_meaning": "Compilation and axiom audit only. It does not establish either conjecture."
+}

@@ -76,6 +76,7 @@ SOURCE_FAMILY_STATUSES = {
 # Named source identities are explicit: a similar filename or namespace is not admission.
 NAMED_SOURCE_NAMESPACES = {
     "FormalConjectures/HistoricalOpen/Hilbert13.lean": "HilbertCatalog.Hilbert13",
+    "FormalConjectures/HistoricalOpen/Hilbert16QuinticSurfaces.lean": "HilbertCatalog.Hilbert16QuinticSurfaces",
     "FormalConjectures/HistoricalOpen/RankOneAbelianStark.lean": "HilbertCatalog.RankOneAbelianStark",
     'FormalConjectures/HistoricalOpen/HajosCycleDecomposition.lean': 'FullOldProblemsCatalog.HajosCycleDecomposition',
     'FormalConjectures/HistoricalOpen/BergeFulkerson.lean': 'FullOldProblemsCatalog.BergeFulkerson',

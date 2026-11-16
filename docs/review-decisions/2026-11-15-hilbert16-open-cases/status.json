@@ -1,0 +1,71 @@
+{
+  "review_date": "2026-11-15",
+  "author": "claude-fable-5-2",
+  "request": "Make the published Hilbert problems ready and offer them with rewards once they meet the admission bar.",
+  "source_commit": "bc92995b0ab14ac035d3cd535cbca4a598097a8e",
+  "source_patch_sha256": "f6c7ec34b58bbfd057026828d66d23013342c2fd21c4e0a29ae6ee9400cebf4b",
+  "entries": [
+    {
+      "problem": "Hilbert 16, first part, quintic surfaces",
+      "theorem": "HilbertCatalog.Hilbert16QuinticSurfaces.conjecture",
+      "proposition": "HilbertDrafts.Hilbert16Open.QuinticSurfaceComponents",
+      "type_sha256": "sha256:6e4c06e1cf999c5dc013101e750352b9bc52f5eab6f810014b1f85b12aeaedc1",
+      "admission": "eligible",
+      "lean_semantics_review": "no_defect_found",
+      "fidelity_review": "accept_with_labelling_changes_applied",
+      "literature_status": "open; maximum known to be 23, 24 or 25",
+      "full_resolution_claim_found": false
+    },
+    {
+      "problem": "Hilbert 16, second part, quadratic limit cycles",
+      "theorem": "HilbertCatalog.Hilbert16QuadraticLimitCycles.conjecture",
+      "proposition": "HilbertDrafts.Hilbert16Open.QuadraticFourCycles",
+      "type_sha256": "sha256:8739dd833b3b8824c462b19f164250f18d5cb1ed7949604319da73c94f6b5523",
+      "admission": "hold_resolution_claim",
+      "lean_semantics_review": "no_defect_found",
+      "fidelity_review": "accept_with_labelling_changes_applied",
+      "literature_status": "open in expert sources; one live unrefereed claim of the exact statement",
+      "full_resolution_claim_found": true,
+      "claim": "https://arxiv.org/abs/2103.07193v4",
+      "claim_assessment": "neither established nor refuted"
+    },
+    {
+      "problem": "Hilbert 16, general uniform bound",
+      "proposition": "HilbertDrafts.Hilbert16.UniformBound",
+      "admission": "hold_resolution_claim",
+      "claim": "OpenAI manuscript of September 24, 2026; no independent verification located"
+    },
+    {
+      "problem": "Hilbert 12",
+      "admission": "no_general_target",
+      "reward_route": "HilbertCatalog.RankOneAbelianStark.conjecture",
+      "reason": "No explicitness criterion examined yields a faithful statement that resists trivial satisfaction."
+    },
+    {
+      "problem": "Hilbert 6",
+      "admission": "no_target",
+      "reason": "Reviewed statements are selected models following results with published proof claims, in variants not proved literally."
+    }
+  ],
+  "reviewers": [
+    {
+      "role": "Lean-semantics adversary",
+      "model": "claude-fable-5-2",
+      "report": "reviews/lean-semantics-review.md",
+      "verdict": "NO DEFECT FOUND for both statements"
+    },
+    {
+      "role": "Mathematical fidelity",
+      "model": "claude-fable-5-2",
+      "report": "reviews/mathematical-fidelity-review.md",
+      "verdict": "ACCEPT WITH CHANGES for both statements; changes are labelling only and are applied"
+    }
+  ],
+  "review_limits": [
+    "Reviewers share the author's model family and ran in separate contexts.",
+    "No cross-model or human mathematician review.",
+    "Bounded literature searches."
+  ],
+  "validation": "evidence/validation.json",
+  "no_open_problem_claimed_proved": true
+}

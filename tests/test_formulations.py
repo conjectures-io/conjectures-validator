@@ -16,13 +16,18 @@ def test_all_four_hilbert_formulations_have_reviewed_source_bytes():
     assert [item.number for item in records] == [6, 12, 13, 16]
     assert len({item.slug for item in records}) == 4
     root = Path(__file__).resolve().parents[1]
+    packets = {
+        "staged/hilbert-formulations-20261113/": "2026-11-12-hilbert-formulations",
+        "staged/hilbert16-open-cases-20261115/": "2026-11-15-hilbert16-open-cases",
+    }
     for item in records:
-        source = root / (
-            "docs/review-decisions/2026-11-12-hilbert-formulations/"
-            f"draft/HilbertDrafts/Hilbert{item.number}.lean"
-        )
-        raw = source.read_bytes()
         for declaration in item.sources:
+            # Each excerpt is checked against the reviewed file its link names.
+            staged, packet = next(
+                pair for pair in packets.items() if pair[0] in declaration.source_url
+            )
+            relative = declaration.source_url.split(staged, 1)[1]
+            raw = (root / "docs/review-decisions" / packet / relative).read_bytes()
             assert declaration.source_sha256 == hashlib.sha256(raw).hexdigest()
             assert declaration.lean in raw.decode()
             assert declaration.declaration.rsplit(".", 1)[-1] in declaration.lean
@@ -31,6 +36,12 @@ def test_all_four_hilbert_formulations_have_reviewed_source_bytes():
     assert records[2].active_target_slug == "hilbertcatalog-hilbert13-conjecture"
     assert records[3].display_status == "proof_claimed"
     assert [item.number for item in records if item.active_target_slug] == [13]
+    # Hilbert 16 keeps its claim status and links the one admitted open case.
+    assert [link.url for link in records[3].related_targets] == [
+        "/problems/hilbertcatalog-hilbert16quinticsurfaces-conjecture"
+    ]
+    held = [d for d in records[3].sources if d.declaration.endswith("QuadraticFourCycles")]
+    assert len(held) == 1 and "held" in held[0].description
 
 
 def test_formulations_are_public_without_a_database_session_or_task_contract():
