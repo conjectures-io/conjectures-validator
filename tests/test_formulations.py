@@ -40,6 +40,8 @@ def test_all_four_hilbert_formulations_have_reviewed_source_bytes():
     assert [link.url for link in records[3].related_targets] == [
         "/problems/hilbertcatalog-hilbert16quinticsurfaces-conjecture"
     ]
+    # The site renders these labels on one line; a long one overflows a phone screen.
+    assert all(len(link.label) <= 28 for item in records for link in item.related_targets)
     held = [d for d in records[3].sources if d.declaration.endswith("QuadraticFourCycles")]
     assert len(held) == 1 and "held" in held[0].description
 
