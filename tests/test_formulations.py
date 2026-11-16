@@ -18,6 +18,7 @@ def test_all_four_hilbert_formulations_have_reviewed_source_bytes():
     root = Path(__file__).resolve().parents[1]
     packets = {
         "staged/hilbert-formulations-20261113/": "2026-11-12-hilbert-formulations",
+        "staged/hilbert12-combined-20261116/": "2026-11-16-hilbert12-combined",
         "staged/hilbert16-open-cases-20261115/": "2026-11-15-hilbert16-open-cases",
         "staged/hilbert6-12-open-statements-20261116/": "2026-11-16-hilbert6-12-open-statements",
     }
@@ -34,6 +35,7 @@ def test_all_four_hilbert_formulations_have_reviewed_source_bytes():
             assert declaration.declaration.rsplit(".", 1)[-1] in declaration.lean
     assert records[0].display_status == "research"
     assert records[1].display_status == "research"
+    assert records[1].sources[0].declaration == "Hilbert12.Hilbert12Combined"
     assert records[2].active_target_slug == "hilbertcatalog-hilbert13-conjecture"
     assert records[3].display_status == "proof_claimed"
     assert [item.number for item in records if item.active_target_slug] == [13]
