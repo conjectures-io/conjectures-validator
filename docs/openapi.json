@@ -11308,6 +11308,15 @@
             "title": "Description",
             "type": "string"
           },
+          "environment_limits": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "default": {},
+            "title": "Environment Limits",
+            "type": "object"
+          },
           "execution_limits": {
             "additionalProperties": true,
             "title": "Execution Limits",
@@ -11322,7 +11331,6 @@
             "type": "array"
           },
           "max_file_bytes": {
-            "default": 256000,
             "title": "Max File Bytes",
             "type": "integer"
           },
@@ -11380,7 +11388,8 @@
           "policy_status",
           "execution_limits",
           "context",
-          "boards"
+          "boards",
+          "max_file_bytes"
         ],
         "title": "TorchLeanOverview",
         "type": "object"
