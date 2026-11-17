@@ -18,7 +18,6 @@ from submission_api import torchlean_reads as store
 from submission_api.competitions import TENSOR_KERNELS, KERNEL_COMPETITIONS, TORCHLEAN, Competition
 from submission_api.dependencies import ServicesDep
 from submission_api.errors import Forbidden
-from submission_api.kernel_upload import MAX_FILE_BYTES
 from submission_api.routers._account import decode_id_cursor, encode_id_cursor
 from submission_api.routers.competitions import resolve_competition
 from submission_api.routers.torchlean import competition_session, intake_setting
@@ -45,13 +44,19 @@ DESCRIPTIONS = {
 
 class TorchLeanOverview(catalog.Competition):
     boards: list[str]
-    max_file_bytes: int = MAX_FILE_BYTES
+    # The upload limit this API enforces (`<PREFIX>_MAX_SOURCE_BYTES`), as in `files`.
+    max_file_bytes: int
+    # Each benchmark environment's build limits. They override the build values in
+    # `execution_limits`, which are only the defaults an environment without its own falls back to.
+    environment_limits: dict[str, dict] = {}
 
 
 async def overview(competition, services, session):
     snapshot = await store.state(session)
     config = snapshot["config_evidence"]
     counts = await store.counts(session)
+    max_bytes = intake_setting(services.settings, competition.slug, "max_source_bytes")
+    environments = (config or {}).get("environments", {})
     return TorchLeanOverview(
         slug=competition.slug,
         name=competition.name,
@@ -62,7 +67,9 @@ async def overview(competition, services, session):
         current_snapshot_id=snapshot["publication_hash"],
         policy=(snapshot["publication"] or {}).get("rewards"),
         execution_limits=(config or {}).get("timing", {}),
-        files=[{"name": "Kernel.lean", "max_bytes": MAX_FILE_BYTES}],
+        environment_limits={name: env.get("timing", {}) for name, env in environments.items()},
+        files=[{"name": "Kernel.lean", "max_bytes": max_bytes}],
+        max_file_bytes=max_bytes,
         metric_definitions=[
             {"key": "ratio", "label": "Time / reference", "unit": "ratio", "better": "lower"}
         ],
