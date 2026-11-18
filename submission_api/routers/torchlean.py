@@ -118,7 +118,7 @@ async def spend(services, subject, limit, slug=TORCHLEAN):
         await session.commit()
     if hits > limit:
         raise TooManyRequests(
-            f"{KERNEL_COMPETITIONS[slug]} submission request limit exceeded.",
+            f"{KERNEL_COMPETITIONS.get(slug, slug)} submission request limit exceeded.",
             reason_code="RATE_LIMITED",
         )
 

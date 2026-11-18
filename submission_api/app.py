@@ -67,6 +67,8 @@ from submission_api.competitions import (
     DEFLATE,
     FLOATLIB,
     FLOATLIB_NAME,
+    BENDTT,
+    BENDTT_NAME,
     FLOATLIB_SLUG,
     TORCHLEAN,
     KERNEL_COMPETITIONS,
@@ -103,6 +105,7 @@ from submission_api.routers import competitions as competitions_router
 from submission_api.routers import competition_reads
 from submission_api.routers import competitions_admin as competitions_admin_router
 from submission_api.routers import torchlean as torchlean_router
+from submission_api.routers import bendtt as bendtt_router
 from submission_api.routers import floatlib as floatlib_router
 from submission_api.routers import tmc_pay as tmc_pay_router
 from submission_api.routers import (
@@ -209,13 +212,21 @@ def build_competitions(settings: Settings) -> CompetitionRegistry:
         entries.append(
             Competition(
                 slug=slug,
-                name=FLOATLIB_NAME
+                name=BENDTT_NAME
+                if slug == BENDTT
+                else FLOATLIB_NAME
                 if floatlib
                 else KERNEL_COMPETITIONS[slug]
                 if kernels
                 else settings.competition_name,
                 speed_floor=settings.competition_speed_floor,
-                kind=FLOATLIB if floatlib else TORCHLEAN if kernels else DEFLATE,
+                kind=BENDTT
+                if slug == BENDTT
+                else FLOATLIB
+                if floatlib
+                else TORCHLEAN
+                if kernels
+                else DEFLATE,
                 engine=engine,
                 sessions=async_session_factory(engine),
             )
@@ -262,9 +273,7 @@ def build_services(
     competitions = build_competitions(settings)
     # The DEFLATE competition's, or the first one's: what a competition route without a slug
     # in its path reads -- `/v1/competitions` itself.
-    primary = next(
-        (c for c in competitions if c.kind == DEFLATE), next(iter(competitions), None)
-    )
+    primary = next((c for c in competitions if c.kind == DEFLATE), next(iter(competitions), None))
     competition_engine: AsyncEngine | None = primary.engine if primary else None
     balance_reader = (
         BittensorBalanceReader(
@@ -366,12 +375,8 @@ def build_services(
     )
 
 
-def create_app(
-    settings: Settings | None = None, *, services: Services | None = None
-) -> FastAPI:
-    resolved_settings = settings or (
-        services.settings if services else Settings.from_env()
-    )
+def create_app(settings: Settings | None = None, *, services: Services | None = None) -> FastAPI:
+    resolved_settings = settings or (services.settings if services else Settings.from_env())
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -417,9 +422,7 @@ def create_app(
         finally:
             # First, so a poll in flight is cancelled before the client it is using is closed.
             await refresher.stop()
-            get_axiom().info(
-                source="api", event_type="service_stopped", version=__version__
-            )
+            get_axiom().info(source="api", event_type="service_stopped", version=__version__)
             # Only tear down resources this app created; injected ones belong to the caller.
             if services is None:
                 built = application.state.services
@@ -468,9 +471,7 @@ def create_app(
     application.add_exception_handler(VerifierError, errors.verifier_error_handler)
     application.add_exception_handler(DatabaseError, errors.database_error_handler)
     application.add_exception_handler(PoolTimeout, errors.pool_timeout_handler)
-    application.add_exception_handler(
-        RequestValidationError, errors.validation_error_handler
-    )
+    application.add_exception_handler(RequestValidationError, errors.validation_error_handler)
     application.add_exception_handler(Exception, errors.unhandled_error_handler)
 
     # Added innermost first, because `add_middleware` prepends: the last one added ends up
@@ -521,12 +522,8 @@ def create_app(
         # Skipped entirely when no origin is configured. An empty allowlist and no CORS layer are
         # the same outcome for a browser, and not installing it keeps the stack honest about
         # whether cross-origin access is configured at all.
-        application.add_middleware(
-            ScopedCORSMiddleware, **cors_options(resolved_settings)
-        )
-    application.add_middleware(
-        SessionCookieRefreshMiddleware, settings=resolved_settings
-    )
+        application.add_middleware(ScopedCORSMiddleware, **cors_options(resolved_settings))
+    application.add_middleware(SessionCookieRefreshMiddleware, settings=resolved_settings)
     application.add_middleware(SecurityHeadersMiddleware, settings=resolved_settings)
     application.add_middleware(trajectories.PrivateHeadersMiddleware)
     # Outermost. It observes the final status of every response, including the ones the layers
@@ -570,6 +567,7 @@ def create_app(
     #
     # FloatLib's router first: its routes match only FloatLib's slugs (`{slug:floatlib}`), and
     # every one of them has a DEFLATE route of the same shape that would otherwise answer it.
+    application.include_router(bendtt_router.router)
     application.include_router(torchlean_router.router)
     application.include_router(floatlib_router.router)
     # FloatLib's `/health`, at the root where its own API serves it; see `routers/floatlib.py`.

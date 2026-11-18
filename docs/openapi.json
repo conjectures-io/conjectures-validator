@@ -1268,6 +1268,39 @@
         "title": "AdmissionRule",
         "type": "object"
       },
+      "Allocation": {
+        "additionalProperties": false,
+        "properties": {
+          "hotkey": {
+            "title": "Hotkey",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "miner",
+              "treasury"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "uid": {
+            "title": "Uid",
+            "type": "integer"
+          },
+          "weight": {
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "uid",
+          "hotkey",
+          "weight",
+          "role"
+        ],
+        "title": "Allocation",
+        "type": "object"
+      },
       "ApprovalReason": {
         "additionalProperties": false,
         "properties": {
@@ -1285,6 +1318,283 @@
           "description"
         ],
         "title": "ApprovalReason",
+        "type": "object"
+      },
+      "Attempt": {
+        "additionalProperties": false,
+        "properties": {
+          "builds": {
+            "items": {
+              "$ref": "#/components/schemas/Build"
+            },
+            "title": "Builds",
+            "type": "array"
+          },
+          "evaluation_id": {
+            "title": "Evaluation Id",
+            "type": "string"
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Failure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_progress_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Progress At"
+          },
+          "lease": {
+            "enum": [
+              "valid",
+              "expired",
+              "not_applicable"
+            ],
+            "title": "Lease",
+            "type": "string"
+          },
+          "links": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Links",
+            "type": "object"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/Progress"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "stage": {
+            "enum": [
+              "preparing",
+              "benchmarking",
+              "finished",
+              "unknown"
+            ],
+            "title": "Stage",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "running",
+              "completed",
+              "failed",
+              "expired",
+              "cancelled"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "request_id",
+          "evaluation_id",
+          "target",
+          "number",
+          "state",
+          "stage",
+          "started_at",
+          "finished_at",
+          "last_progress_at",
+          "lease",
+          "builds",
+          "progress",
+          "failure",
+          "links"
+        ],
+        "title": "Attempt",
+        "type": "object"
+      },
+      "AttemptTiming": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempt Seconds"
+          },
+          "benchmark_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Benchmark Seconds"
+          },
+          "build_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build Seconds"
+          },
+          "queue_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue Seconds"
+          }
+        },
+        "required": [
+          "queue_seconds",
+          "build_seconds",
+          "benchmark_seconds",
+          "attempt_seconds"
+        ],
+        "title": "AttemptTiming",
+        "type": "object"
+      },
+      "Authentication": {
+        "additionalProperties": false,
+        "properties": {
+          "registration_required": {
+            "title": "Registration Required",
+            "type": "boolean"
+          },
+          "scheme": {
+            "const": "hotkey_signature_v2",
+            "default": "hotkey_signature_v2",
+            "title": "Scheme",
+            "type": "string"
+          }
+        },
+        "required": [
+          "registration_required"
+        ],
+        "title": "Authentication",
+        "type": "object"
+      },
+      "Baseline": {
+        "additionalProperties": false,
+        "properties": {
+          "source_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Source Sha256",
+            "type": "string"
+          },
+          "telemetry_only": {
+            "const": true,
+            "default": true,
+            "title": "Telemetry Only",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "source_sha256"
+        ],
+        "title": "Baseline",
+        "type": "object"
+      },
+      "BaselineComparison": {
+        "additionalProperties": false,
+        "properties": {
+          "challenger_speedup": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Challenger Speedup"
+          },
+          "confidence_interval": {
+            "title": "Confidence Interval",
+            "type": "null"
+          },
+          "incumbent_speedup": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incumbent Speedup"
+          },
+          "method": {
+            "const": "unpaired_per_unit_medians_weighted_geometric_mean",
+            "default": "unpaired_per_unit_medians_weighted_geometric_mean",
+            "title": "Method",
+            "type": "string"
+          },
+          "paired": {
+            "const": false,
+            "default": false,
+            "title": "Paired",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "challenger_speedup",
+          "incumbent_speedup"
+        ],
+        "title": "BaselineComparison",
         "type": "object"
       },
       "Bounds": {
@@ -1641,6 +1951,88 @@
         "title": "BountyQuote",
         "type": "object"
       },
+      "Build": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact Sha256"
+          },
+          "cache_hit": {
+            "title": "Cache Hit",
+            "type": "boolean"
+          },
+          "elapsed_seconds": {
+            "title": "Elapsed Seconds",
+            "type": "number"
+          },
+          "finished_at": {
+            "format": "date-time",
+            "title": "Finished At",
+            "type": "string"
+          },
+          "peak_rss_kib": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peak Rss Kib"
+          },
+          "role": {
+            "enum": [
+              "baseline",
+              "incumbent",
+              "challenger"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "source_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Source Sha256",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "completed",
+              "timeout",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "source_sha256",
+          "status",
+          "cache_hit",
+          "started_at",
+          "finished_at",
+          "elapsed_seconds",
+          "peak_rss_kib",
+          "artifact_sha256"
+        ],
+        "title": "Build",
+        "type": "object"
+      },
       "Capabilities": {
         "additionalProperties": false,
         "description": "What this session may do, evaluated once so the navigation does not have to guess.\n\nFive actions rather than a permission per endpoint: these are the five things the site\noffers as an affordance. Reads are omitted deliberately — a page the caller may not read\nanswers 403 on its own, and listing every readable route here would make this a mirror of\nthe router that has to be maintained alongside it.",
@@ -1694,98 +2086,77 @@
         "title": "Capability",
         "type": "object"
       },
-      "Champion": {
+      "Chain": {
+        "additionalProperties": false,
+        "properties": {
+          "freshness": {
+            "enum": [
+              "fresh",
+              "stale",
+              "unknown"
+            ],
+            "title": "Freshness",
+            "type": "string"
+          },
+          "netuid": {
+            "title": "Netuid",
+            "type": "integer"
+          },
+          "network": {
+            "title": "Network",
+            "type": "string"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "observed_block": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed Block"
+          }
+        },
+        "required": [
+          "network",
+          "netuid",
+          "observed_block",
+          "observed_at",
+          "freshness"
+        ],
+        "title": "Chain",
+        "type": "object"
+      },
+      "ChampionState": {
+        "additionalProperties": false,
         "properties": {
           "current": {
             "title": "Current",
             "type": "boolean"
           },
-          "demoted_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Demoted At"
-          },
-          "hotkey": {
-            "title": "Hotkey",
-            "type": "string"
-          },
-          "promoted_at": {
-            "title": "Promoted At",
-            "type": "string"
-          },
-          "rank": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rank"
-          },
-          "rank_share": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rank Share"
-          },
-          "ratio": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ratio"
-          },
-          "speedup_basis": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Speedup Basis"
-          },
-          "speedup_vs_shipped": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Speedup Vs Shipped"
-          },
-          "submission": {
-            "title": "Submission",
-            "type": "integer"
+          "ever_promoted": {
+            "title": "Ever Promoted",
+            "type": "boolean"
           }
         },
         "required": [
-          "submission",
-          "hotkey",
-          "promoted_at",
-          "current"
+          "current",
+          "ever_promoted"
         ],
-        "title": "Champion",
+        "title": "ChampionState",
         "type": "object"
       },
       "CliChallengeRequest": {
@@ -2190,7 +2561,7 @@
           },
           "references": {
             "items": {
-              "$ref": "#/components/schemas/Reference"
+              "$ref": "#/components/schemas/submission_api__schemas_public__Reference"
             },
             "title": "References",
             "type": "array"
@@ -3445,6 +3816,130 @@
         "title": "ContributionsMeta",
         "type": "object"
       },
+      "CorpusCase": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "expected_outcome": {
+            "enum": [
+              "accepted",
+              "rejected"
+            ],
+            "title": "Expected Outcome",
+            "type": "string"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "input_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Input Sha256",
+            "type": "string"
+          },
+          "rounds": {
+            "title": "Rounds",
+            "type": "integer"
+          },
+          "source": {
+            "$ref": "#/components/schemas/CorpusSource"
+          },
+          "tier": {
+            "title": "Tier",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "group",
+          "tier",
+          "rounds",
+          "input_sha256",
+          "expected_outcome",
+          "source",
+          "description"
+        ],
+        "title": "CorpusCase",
+        "type": "object"
+      },
+      "CorpusPage": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CorpusCase"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "profile_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Profile Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "as_of",
+          "profile_hash"
+        ],
+        "title": "CorpusPage",
+        "type": "object"
+      },
+      "CorpusSource": {
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "title": "Project",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "project",
+          "url"
+        ],
+        "title": "CorpusSource",
+        "type": "object"
+      },
       "CorrectionRequest": {
         "additionalProperties": false,
         "description": "One correction: the decision that replaces an earlier one, and what it replaces.\n\nThree differences from `DecisionRequest`, and each one is the reason this is a separate body\nrather than a flag on that one.\n\n`supersedes_id` is required and names the decision being corrected as the reviewer last read\nit. If it is not the current binding decision the request is refused with the id that is —\nso a reviewer cannot correct a decision somebody else has already corrected, and a\ndouble-clicked correction is refused rather than appended twice. It is the panel's optimistic\nlock, and there is no way to spell \"correct whatever is current\" because that is exactly the\nrequest nobody should be able to make blind.\n\n`notes` is required rather than optional. On a first decision the internal note is a\ncourtesy; on a correction it is the record of why a colleague's decision was overridden, and\nthat is the sentence an operator needs six months later when a payout is questioned.\n\n`notes_public` is required for the same reason it is on a decision, and carries more weight:\nit *replaces* the published explanation the miner was already given, so leaving the old one\nstanding under a new outcome is not an option the body offers.",
@@ -4214,6 +4709,66 @@
         "title": "CursorPage[TmcPayOrder]",
         "type": "object"
       },
+      "Decision": {
+        "additionalProperties": false,
+        "properties": {
+          "estimated_time_reduction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Time Reduction"
+          },
+          "guard_passed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guard Passed"
+          },
+          "outcome": {
+            "enum": [
+              "promoted",
+              "not_promoted",
+              "benchmark_failed",
+              "inconclusive"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "speedup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Speedup"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "outcome",
+          "speedup",
+          "estimated_time_reduction",
+          "guard_passed",
+          "reason"
+        ],
+        "title": "Decision",
+        "type": "object"
+      },
       "DecisionRequest": {
         "additionalProperties": false,
         "description": "One binding decision, as the panel's modal sends it.\n\n`extra=\"forbid\"`, like every other request body on this API: a misspelled field name is a\nreviewer's decision going somewhere other than where they think it is, and on this endpoint\nthat means the wrong reason code attached to a payout.\n\nTwo text fields, and the difference between them is the whole reason the column pair exists.\n`notes_public` is published — it reaches the miner on `GET /v1/results/{id}` and is the\n\"concise miner-visible explanation\" the review policy requires of every binding decision, so\nit is required here rather than optional. `notes` is the internal audit trail and never\ncrosses an API boundary again, in either direction: nothing reads it back out to a client.\n\n`decision` is spelled as the two outcomes rather than as `approve: bool`, so the request says\nwhat it does and matches `review_decisions.decision` and every status this API serves.",
@@ -4483,7 +5038,7 @@
             "title": "Source Sha256"
           },
           "submission": {
-            "$ref": "#/components/schemas/Submission"
+            "$ref": "#/components/schemas/submission_api__schemas_compression__Submission"
           }
         },
         "required": [
@@ -4498,6 +5053,29 @@
           "links"
         ],
         "title": "Detail",
+        "type": "object"
+      },
+      "Diagnostic": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "const": false,
+            "default": false,
+            "title": "Available",
+            "type": "boolean"
+          },
+          "text": {
+            "title": "Text",
+            "type": "null"
+          },
+          "truncated": {
+            "const": false,
+            "default": false,
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "title": "Diagnostic",
         "type": "object"
       },
       "DisplayInterval": {
@@ -4552,6 +5130,63 @@
         "title": "DisqualificationReason",
         "type": "object"
       },
+      "Eligibility": {
+        "additionalProperties": false,
+        "properties": {
+          "chain": {
+            "$ref": "#/components/schemas/Chain"
+          },
+          "eligible": {
+            "title": "Eligible",
+            "type": "boolean"
+          },
+          "hotkey": {
+            "title": "Hotkey",
+            "type": "string"
+          },
+          "intake_mode": {
+            "enum": [
+              "subnet",
+              "dev"
+            ],
+            "title": "Intake Mode",
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "eligible",
+              "registration_bypassed",
+              "not_registered",
+              "registration_before_cutoff",
+              "registration_used",
+              "chain_unavailable",
+              "submissions_closed"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "registration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Registration"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "hotkey",
+          "intake_mode",
+          "eligible",
+          "reason",
+          "registration",
+          "chain"
+        ],
+        "title": "Eligibility",
+        "type": "object"
+      },
       "EmailLinkRequest": {
         "additionalProperties": false,
         "properties": {
@@ -4583,6 +5218,245 @@
           "token"
         ],
         "title": "EmailVerifyRequest",
+        "type": "object"
+      },
+      "Evaluation": {
+        "additionalProperties": false,
+        "properties": {
+          "admission_id": {
+            "title": "Admission Id",
+            "type": "string"
+          },
+          "baseline_source_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Baseline Source Sha256",
+            "type": "string"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "coordinator_snapshot": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Coordinator Snapshot",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Decision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "generation": {
+            "title": "Generation",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "incumbent": {
+            "$ref": "#/components/schemas/submission_api__schemas_bendtt__Reference"
+          },
+          "links": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Links",
+            "type": "object"
+          },
+          "policy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Scoring"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "profile_hash": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Hash"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "completed",
+              "superseded",
+              "cancelled"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/Request"
+            },
+            "title": "Targets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "submission_id",
+          "generation",
+          "state",
+          "profile_hash",
+          "coordinator_snapshot",
+          "admission_id",
+          "incumbent",
+          "baseline_source_sha256",
+          "created_at",
+          "completed_at",
+          "policy",
+          "decision",
+          "targets",
+          "links"
+        ],
+        "title": "Evaluation",
+        "type": "object"
+      },
+      "EvaluationSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "generation": {
+            "title": "Generation",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "enum": [
+                  "promoted",
+                  "not_promoted",
+                  "benchmark_failed",
+                  "inconclusive"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "profile_hash": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Hash"
+          },
+          "reference_promotion_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Promotion Id"
+          },
+          "speedup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Speedup"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "completed",
+              "superseded",
+              "cancelled"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "targets_completed": {
+            "title": "Targets Completed",
+            "type": "integer"
+          },
+          "targets_required": {
+            "title": "Targets Required",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "generation",
+          "state",
+          "outcome",
+          "speedup",
+          "targets_completed",
+          "targets_required",
+          "profile_hash",
+          "reference_promotion_id",
+          "created_at",
+          "completed_at"
+        ],
+        "title": "EvaluationSummary",
         "type": "object"
       },
       "Facet": {
@@ -4625,6 +5499,109 @@
           "count"
         ],
         "title": "FacetValue",
+        "type": "object"
+      },
+      "Failure": {
+        "additionalProperties": false,
+        "properties": {
+          "elapsed_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elapsed Seconds"
+          },
+          "kind": {
+            "enum": [
+              "policy_rejected",
+              "proof_rejected",
+              "timeout",
+              "budget_exhausted",
+              "resource_limit",
+              "wrong_output",
+              "invalid_observation",
+              "lease_expired",
+              "infrastructure",
+              "unknown"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "limit_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit Seconds"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "phase": {
+            "enum": [
+              "intake",
+              "proof",
+              "build",
+              "benchmark",
+              "scoring",
+              "infrastructure"
+            ],
+            "title": "Phase",
+            "type": "string"
+          },
+          "side": {
+            "anyOf": [
+              {
+                "enum": [
+                  "candidate",
+                  "incumbent",
+                  "baseline",
+                  "infrastructure"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Side"
+          }
+        },
+        "required": [
+          "phase",
+          "kind",
+          "message"
+        ],
+        "title": "Failure",
+        "type": "object"
+      },
+      "File": {
+        "additionalProperties": false,
+        "properties": {
+          "max_bytes": {
+            "title": "Max Bytes",
+            "type": "integer"
+          },
+          "name": {
+            "const": "Submission.lean",
+            "default": "Submission.lean",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "max_bytes"
+        ],
+        "title": "File",
         "type": "object"
       },
       "FormulationLink": {
@@ -5254,6 +6231,35 @@
         "title": "InvitationSummary",
         "type": "object"
       },
+      "Limits": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt_seconds": {
+            "title": "Attempt Seconds",
+            "type": "number"
+          },
+          "build_seconds_per_role": {
+            "title": "Build Seconds Per Role",
+            "type": "number"
+          },
+          "measurement_seconds": {
+            "title": "Measurement Seconds",
+            "type": "number"
+          },
+          "run_seconds": {
+            "title": "Run Seconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "build_seconds_per_role",
+          "run_seconds",
+          "measurement_seconds",
+          "attempt_seconds"
+        ],
+        "title": "Limits",
+        "type": "object"
+      },
       "LinkedIdentity": {
         "additionalProperties": false,
         "description": "An external sign-in method. The provider's stable subject is never exposed.",
@@ -5453,6 +6459,265 @@
         ],
         "title": "ManualReviewState",
         "type": "string"
+      },
+      "Measurement": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt_id": {
+            "title": "Attempt Id",
+            "type": "string"
+          },
+          "case_id": {
+            "title": "Case Id",
+            "type": "string"
+          },
+          "check_and_render_ns": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check And Render Ns"
+          },
+          "checker_outcome": {
+            "anyOf": [
+              {
+                "enum": [
+                  "accepted",
+                  "rejected",
+                  "exhausted",
+                  "parse-error"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checker Outcome"
+          },
+          "cpu_ns": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpu Ns"
+          },
+          "diagnostic": {
+            "$ref": "#/components/schemas/Diagnostic"
+          },
+          "finished_at": {
+            "format": "date-time",
+            "title": "Finished At",
+            "type": "string"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "input_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Input Sha256",
+            "type": "string"
+          },
+          "links": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Links",
+            "type": "object"
+          },
+          "members_recorded": {
+            "title": "Members Recorded",
+            "type": "integer"
+          },
+          "output_bytes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Bytes"
+          },
+          "parse_ns": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parse Ns"
+          },
+          "peak_rss_kib": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peak Rss Kib"
+          },
+          "phase": {
+            "enum": [
+              "benchmark",
+              "probe_before",
+              "probe_after"
+            ],
+            "title": "Phase",
+            "type": "string"
+          },
+          "returncode": {
+            "title": "Returncode",
+            "type": "integer"
+          },
+          "role": {
+            "enum": [
+              "baseline",
+              "incumbent",
+              "challenger"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "round_index": {
+            "title": "Round Index",
+            "type": "integer"
+          },
+          "sandbox_seconds": {
+            "title": "Sandbox Seconds",
+            "type": "number"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "completed",
+              "timeout",
+              "input-error",
+              "resource-failure",
+              "invalid-output",
+              "invalid-observation",
+              "invalid-timing",
+              "budget-exhausted",
+              "wrong-output",
+              "affinity-mismatch",
+              "diagnostic-mismatch"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "wall_ns": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wall Ns"
+          }
+        },
+        "required": [
+          "id",
+          "attempt_id",
+          "phase",
+          "round_index",
+          "case_id",
+          "group",
+          "role",
+          "input_sha256",
+          "status",
+          "started_at",
+          "finished_at",
+          "wall_ns",
+          "cpu_ns",
+          "check_and_render_ns",
+          "parse_ns",
+          "sandbox_seconds",
+          "peak_rss_kib",
+          "output_bytes",
+          "returncode",
+          "checker_outcome",
+          "members_recorded",
+          "links"
+        ],
+        "title": "Measurement",
+        "type": "object"
+      },
+      "Member": {
+        "additionalProperties": false,
+        "properties": {
+          "case_id": {
+            "title": "Case Id",
+            "type": "string"
+          },
+          "check_and_render_ns": {
+            "title": "Check And Render Ns",
+            "type": "string"
+          },
+          "checker_outcome": {
+            "enum": [
+              "accepted",
+              "rejected",
+              "exhausted"
+            ],
+            "title": "Checker Outcome",
+            "type": "string"
+          },
+          "diagnostic": {
+            "$ref": "#/components/schemas/Diagnostic"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "input_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Input Sha256",
+            "type": "string"
+          },
+          "output_bytes": {
+            "title": "Output Bytes",
+            "type": "string"
+          },
+          "parse_ns": {
+            "title": "Parse Ns",
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "case_id",
+          "input_sha256",
+          "parse_ns",
+          "check_and_render_ns",
+          "output_bytes",
+          "checker_outcome"
+        ],
+        "title": "Member",
+        "type": "object"
       },
       "Metrics": {
         "properties": {
@@ -5759,6 +7024,143 @@
         "title": "OperatorSubmission",
         "type": "object"
       },
+      "Overview": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "authentication": {
+            "$ref": "#/components/schemas/Authentication"
+          },
+          "baseline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/submission_api__schemas_bendtt__Reference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "champion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/submission_api__schemas_bendtt__Reference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/File"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "intake_mode": {
+            "enum": [
+              "subnet",
+              "dev"
+            ],
+            "title": "Intake Mode",
+            "type": "string"
+          },
+          "links": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Links",
+            "type": "object"
+          },
+          "name": {
+            "const": "BendTT checker",
+            "default": "BendTT checker",
+            "title": "Name",
+            "type": "string"
+          },
+          "profile_hash": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Hash"
+          },
+          "proof_identity": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proof Identity"
+          },
+          "queue": {
+            "$ref": "#/components/schemas/Queue"
+          },
+          "registration_policy": {
+            "$ref": "#/components/schemas/RegistrationPolicy"
+          },
+          "scoring": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Scoring"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "slug": {
+            "const": "bendtt",
+            "default": "bendtt",
+            "title": "Slug",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "not_ready"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "submissions_open": {
+            "title": "Submissions Open",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "as_of",
+          "status",
+          "submissions_open",
+          "intake_mode",
+          "files",
+          "authentication",
+          "registration_policy",
+          "profile_hash",
+          "proof_identity",
+          "scoring",
+          "queue",
+          "champion",
+          "baseline",
+          "links"
+        ],
+        "title": "Overview",
+        "type": "object"
+      },
       "OwnerVerificationReport": {
         "additionalProperties": false,
         "description": "The complete verifier report, for the submission's owner.\n\nUnlike `schemas_public.PublicVerificationReport`, nothing is withheld: `stdout_tail` and\n`stderr_tail` quote the owner's own proof back at them, which is what they need to fix it.\n`report` is passed through as the stored JSON rather than modelled field by field, because\nits shape is the verifier's `VerificationReport` and this module must not become a second\nplace that has to be updated when the verifier adds a field.",
@@ -5784,6 +7186,278 @@
           "report"
         ],
         "title": "OwnerVerificationReport",
+        "type": "object"
+      },
+      "Page_Allocation_": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Allocation"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "as_of"
+        ],
+        "title": "Page[Allocation]",
+        "type": "object"
+      },
+      "Page_Attempt_": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Attempt"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "as_of"
+        ],
+        "title": "Page[Attempt]",
+        "type": "object"
+      },
+      "Page_Champion_": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/submission_api__schemas_bendtt__Champion"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "as_of"
+        ],
+        "title": "Page[Champion]",
+        "type": "object"
+      },
+      "Page_EvaluationSummary_": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluationSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "as_of"
+        ],
+        "title": "Page[EvaluationSummary]",
+        "type": "object"
+      },
+      "Page_Measurement_": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Measurement"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "as_of"
+        ],
+        "title": "Page[Measurement]",
+        "type": "object"
+      },
+      "Page_Member_": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Member"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "as_of"
+        ],
+        "title": "Page[Member]",
+        "type": "object"
+      },
+      "Page_Submission_": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/submission_api__schemas_bendtt__Submission"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "as_of"
+        ],
+        "title": "Page[Submission]",
+        "type": "object"
+      },
+      "Page_WeightSet_": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WeightSet"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "as_of"
+        ],
+        "title": "Page[WeightSet]",
         "type": "object"
       },
       "ParetoPage": {
@@ -6448,6 +8122,129 @@
         "title": "PinRotationWindow",
         "type": "object"
       },
+      "Policy": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "baseline_source_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Baseline Source Sha256",
+            "type": "string"
+          },
+          "coordinator_snapshot": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Coordinator Snapshot",
+            "type": "string"
+          },
+          "execution_identity": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Execution Identity",
+            "type": "string"
+          },
+          "git_commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Git Commit"
+          },
+          "git_dirty": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Git Dirty"
+          },
+          "manifest_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Manifest Sha256",
+            "type": "string"
+          },
+          "profile_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Profile Hash",
+            "type": "string"
+          },
+          "proof_identity": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Proof Identity",
+            "type": "string"
+          },
+          "rewards": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RewardPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scoring": {
+            "$ref": "#/components/schemas/Scoring"
+          },
+          "scoring_identity": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Scoring Identity",
+            "type": "string"
+          },
+          "source_policy": {
+            "const": "former_champions_only",
+            "title": "Source Policy",
+            "type": "string"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/TargetPolicy"
+            },
+            "title": "Targets",
+            "type": "array"
+          },
+          "tiers": {
+            "items": {
+              "$ref": "#/components/schemas/Tier"
+            },
+            "title": "Tiers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "profile_hash",
+          "coordinator_snapshot",
+          "git_commit",
+          "git_dirty",
+          "proof_identity",
+          "execution_identity",
+          "scoring_identity",
+          "manifest_sha256",
+          "baseline_source_sha256",
+          "source_policy",
+          "scoring",
+          "tiers",
+          "targets"
+        ],
+        "title": "Policy",
+        "type": "object"
+      },
       "PoolMeta": {
         "additionalProperties": false,
         "description": "Pool-wide metadata: what is on offer, what an attempt costs, and what verifies it.",
@@ -6639,6 +8436,306 @@
           }
         },
         "title": "ProfilePatch",
+        "type": "object"
+      },
+      "Progress": {
+        "additionalProperties": false,
+        "properties": {
+          "measurements_planned": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measurements Planned"
+          },
+          "measurements_recorded": {
+            "title": "Measurements Recorded",
+            "type": "integer"
+          },
+          "paired_runs_completed": {
+            "title": "Paired Runs Completed",
+            "type": "integer"
+          },
+          "paired_runs_planned": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired Runs Planned"
+          }
+        },
+        "required": [
+          "paired_runs_completed",
+          "paired_runs_planned",
+          "measurements_recorded",
+          "measurements_planned"
+        ],
+        "title": "Progress",
+        "type": "object"
+      },
+      "Proof": {
+        "additionalProperties": false,
+        "properties": {
+          "admission_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admission Id"
+          },
+          "attempt_count": {
+            "title": "Attempt Count",
+            "type": "integer"
+          },
+          "contract": {
+            "const": "Pilot.Contract Submission.check",
+            "default": "Pilot.Contract Submission.check",
+            "title": "Contract",
+            "type": "string"
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Failure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "git_commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Git Commit"
+          },
+          "phases": {
+            "items": {
+              "$ref": "#/components/schemas/ProofPhase"
+            },
+            "title": "Phases",
+            "type": "array"
+          },
+          "proof_identity": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proof Identity"
+          },
+          "reused": {
+            "title": "Reused",
+            "type": "boolean"
+          },
+          "source_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Source Sha256",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "running",
+              "passed",
+              "rejected",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_id",
+          "admission_id",
+          "proof_identity",
+          "state",
+          "reused",
+          "attempt_count",
+          "source_sha256",
+          "phases",
+          "failure"
+        ],
+        "title": "Proof",
+        "type": "object"
+      },
+      "ProofPhase": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "elapsed_seconds": {
+            "title": "Elapsed Seconds",
+            "type": "number"
+          },
+          "finished_at": {
+            "format": "date-time",
+            "title": "Finished At",
+            "type": "string"
+          },
+          "peak_rss_kib": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peak Rss Kib"
+          },
+          "phase": {
+            "title": "Phase",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "completed",
+              "timeout",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "system_cpu_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Cpu Seconds"
+          },
+          "user_cpu_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Cpu Seconds"
+          }
+        },
+        "required": [
+          "attempt",
+          "phase",
+          "status",
+          "started_at",
+          "finished_at",
+          "elapsed_seconds",
+          "user_cpu_seconds",
+          "system_cpu_seconds",
+          "peak_rss_kib"
+        ],
+        "title": "ProofPhase",
+        "type": "object"
+      },
+      "ProofSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "admission_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admission Id"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "identity": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "running",
+              "passed",
+              "rejected",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "admission_id",
+          "identity",
+          "state",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "ProofSummary",
         "type": "object"
       },
       "PublicActivityItem": {
@@ -7391,6 +9488,81 @@
         "title": "PurchaseRequest",
         "type": "object"
       },
+      "Quality": {
+        "additionalProperties": false,
+        "properties": {
+          "good_probe_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Good Probe Fraction"
+          },
+          "probes_planned": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Probes Planned"
+          },
+          "probes_recorded": {
+            "title": "Probes Recorded",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "usable",
+              "inconclusive-environment"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "good_probe_fraction",
+          "probes_recorded",
+          "probes_planned"
+        ],
+        "title": "Quality",
+        "type": "object"
+      },
+      "Queue": {
+        "additionalProperties": false,
+        "properties": {
+          "benchmarking": {
+            "default": 0,
+            "title": "Benchmarking",
+            "type": "integer"
+          },
+          "proving": {
+            "default": 0,
+            "title": "Proving",
+            "type": "integer"
+          },
+          "queued": {
+            "default": 0,
+            "title": "Queued",
+            "type": "integer"
+          },
+          "waiting": {
+            "default": 0,
+            "title": "Waiting",
+            "type": "integer"
+          }
+        },
+        "title": "Queue",
+        "type": "object"
+      },
       "QueueDepths": {
         "additionalProperties": false,
         "properties": {
@@ -7511,15 +9683,18 @@
         "title": "RedemptionView",
         "type": "object"
       },
-      "Reference": {
+      "Registration": {
         "additionalProperties": false,
-        "description": "A pointer to where the conjecture is stated, as the source declaration records it.\n\n`label` is the human text and `url` the link, split apart here because the catalog stores\nthem as one Markdown string and a website should not have to parse Markdown to render a\nlink. `url` is null when the source gave no link.",
         "properties": {
-          "label": {
-            "title": "Label",
+          "registered_block": {
+            "title": "Registered Block",
             "type": "string"
           },
-          "url": {
+          "uid": {
+            "title": "Uid",
+            "type": "integer"
+          },
+          "used_by_submission": {
             "anyOf": [
               {
                 "type": "string"
@@ -7528,18 +9703,49 @@
                 "type": "null"
               }
             ],
-            "title": "Url"
+            "title": "Used By Submission"
           }
         },
         "required": [
-          "label"
+          "uid",
+          "registered_block",
+          "used_by_submission"
         ],
-        "title": "Reference",
+        "title": "Registration",
         "type": "object"
       },
-      "Report": {
+      "RegistrationPolicy": {
+        "additionalProperties": false,
         "properties": {
-          "report": {
+          "minimum_registered_block": {
+            "title": "Minimum Registered Block",
+            "type": "string"
+          },
+          "netuid": {
+            "title": "Netuid",
+            "type": "integer"
+          },
+          "network": {
+            "title": "Network",
+            "type": "string"
+          }
+        },
+        "required": [
+          "network",
+          "netuid",
+          "minimum_registered_block"
+        ],
+        "title": "RegistrationPolicy",
+        "type": "object"
+      },
+      "Request": {
+        "additionalProperties": false,
+        "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "completed_attempt_id": {
             "anyOf": [
               {
                 "type": "string"
@@ -7548,10 +9754,75 @@
                 "type": "null"
               }
             ],
-            "title": "Report"
+            "title": "Completed Attempt Id"
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Failure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_progress_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Progress At"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/Progress"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "speedup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Speedup"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed",
+              "cancelled"
+            ],
+            "title": "State",
+            "type": "string"
           }
         },
-        "title": "Report",
+        "required": [
+          "id",
+          "request_id",
+          "state",
+          "attempts",
+          "completed_attempt_id",
+          "last_progress_at",
+          "progress",
+          "speedup",
+          "failure"
+        ],
+        "title": "Request",
         "type": "object"
       },
       "Requeued": {
@@ -7861,6 +10132,50 @@
         "title": "RewardItem",
         "type": "object"
       },
+      "RewardPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "competition_share": {
+            "title": "Competition Share",
+            "type": "number"
+          },
+          "rank_shares": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Rank Shares",
+            "type": "array"
+          },
+          "reign_full_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reign Full Days"
+          },
+          "reign_zero_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reign Zero Days"
+          }
+        },
+        "required": [
+          "rank_shares",
+          "competition_share"
+        ],
+        "title": "RewardPolicy",
+        "type": "object"
+      },
       "RewardState": {
         "enum": [
           "INELIGIBLE",
@@ -7934,6 +10249,55 @@
           "amount_rao"
         ],
         "title": "RewardSummary",
+        "type": "object"
+      },
+      "Rewards": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "latest_weight_set": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WeightSet"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "links": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Links",
+            "type": "object"
+          },
+          "measured_emission": {
+            "title": "Measured Emission",
+            "type": "null"
+          },
+          "policy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RewardPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "as_of",
+          "policy",
+          "latest_weight_set",
+          "links"
+        ],
+        "title": "Rewards",
         "type": "object"
       },
       "RolesRequest": {
@@ -8030,6 +10394,56 @@
           "payment_eligible"
         ],
         "title": "Score",
+        "type": "object"
+      },
+      "Scoring": {
+        "additionalProperties": false,
+        "properties": {
+          "aggregation": {
+            "const": "cost_tier_paired_bootstrap",
+            "default": "cost_tier_paired_bootstrap",
+            "title": "Aggregation",
+            "type": "string"
+          },
+          "confidence_level": {
+            "default": 0.95,
+            "maximum": 0.95,
+            "minimum": 0.95,
+            "title": "Confidence Level",
+            "type": "number"
+          },
+          "maximum_regression": {
+            "title": "Maximum Regression",
+            "type": "number"
+          },
+          "metric": {
+            "const": "whole_request_wall_time",
+            "default": "whole_request_wall_time",
+            "title": "Metric",
+            "type": "string"
+          },
+          "minimum_time_reduction": {
+            "title": "Minimum Time Reduction",
+            "type": "number"
+          },
+          "regression_guard_enforced": {
+            "title": "Regression Guard Enforced",
+            "type": "boolean"
+          },
+          "require_speedup_lower_above": {
+            "default": 1.0,
+            "maximum": 1.0,
+            "minimum": 1.0,
+            "title": "Require Speedup Lower Above",
+            "type": "number"
+          }
+        },
+        "required": [
+          "minimum_time_reduction",
+          "regression_guard_enforced",
+          "maximum_regression"
+        ],
+        "title": "Scoring",
         "type": "object"
       },
       "SessionCounts": {
@@ -8378,6 +10792,52 @@
         "title": "SpeedTest",
         "type": "object"
       },
+      "Speedup": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence_level": {
+            "default": 0.95,
+            "maximum": 0.95,
+            "minimum": 0.95,
+            "title": "Confidence Level",
+            "type": "number"
+          },
+          "direction": {
+            "const": "higher_is_better",
+            "default": "higher_is_better",
+            "title": "Direction",
+            "type": "string"
+          },
+          "estimate": {
+            "title": "Estimate",
+            "type": "number"
+          },
+          "lower": {
+            "title": "Lower",
+            "type": "number"
+          },
+          "reference": {
+            "default": "incumbent",
+            "enum": [
+              "incumbent",
+              "baseline"
+            ],
+            "title": "Reference",
+            "type": "string"
+          },
+          "upper": {
+            "title": "Upper",
+            "type": "number"
+          }
+        },
+        "required": [
+          "estimate",
+          "lower",
+          "upper"
+        ],
+        "title": "Speedup",
+        "type": "object"
+      },
       "Stage": {
         "properties": {
           "finished_at": {
@@ -8441,105 +10901,6 @@
           "status"
         ],
         "title": "Stage",
-        "type": "object"
-      },
-      "Submission": {
-        "properties": {
-          "admission": {
-            "$ref": "#/components/schemas/Admission"
-          },
-          "aggregation_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Aggregation Id"
-          },
-          "baseline_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Baseline Name"
-          },
-          "gate_status": {
-            "enum": [
-              "queued",
-              "running",
-              "passed",
-              "failed",
-              "error",
-              "unknown"
-            ],
-            "title": "Gate Status",
-            "type": "string"
-          },
-          "hotkey": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Hotkey"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "kind": {
-            "enum": [
-              "miner",
-              "baseline"
-            ],
-            "title": "Kind",
-            "type": "string"
-          },
-          "metrics": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Metrics"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "score": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Score"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "submitted_at": {
-            "title": "Submitted At",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "kind",
-          "hotkey",
-          "baseline_name",
-          "submitted_at",
-          "gate_status",
-          "admission"
-        ],
-        "title": "Submission",
         "type": "object"
       },
       "SubmissionColdkeyRequest": {
@@ -8892,7 +11253,7 @@
           },
           "items": {
             "items": {
-              "$ref": "#/components/schemas/Submission"
+              "$ref": "#/components/schemas/submission_api__schemas_compression__Submission"
             },
             "title": "Items",
             "type": "array"
@@ -9194,6 +11555,68 @@
         "title": "SubmissionTerms",
         "type": "object"
       },
+      "SubmissionTiming": {
+        "additionalProperties": false,
+        "properties": {
+          "admission_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admission Seconds"
+          },
+          "elapsed_seconds": {
+            "title": "Elapsed Seconds",
+            "type": "number"
+          },
+          "end_to_end_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End To End Seconds"
+          },
+          "evaluation_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluation Seconds"
+          },
+          "queue_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue Seconds"
+          }
+        },
+        "required": [
+          "queue_seconds",
+          "admission_seconds",
+          "evaluation_seconds",
+          "end_to_end_seconds",
+          "elapsed_seconds"
+        ],
+        "title": "SubmissionTiming",
+        "type": "object"
+      },
       "SubmissionView": {
         "properties": {
           "champion_sha256": {
@@ -9396,6 +11819,162 @@
         "title": "SystemStatus",
         "type": "object"
       },
+      "TargetHealth": {
+        "additionalProperties": false,
+        "properties": {
+          "activity": {
+            "enum": [
+              "busy",
+              "recent",
+              "stale",
+              "unknown"
+            ],
+            "title": "Activity",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_contact_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Contact At"
+          }
+        },
+        "required": [
+          "id",
+          "activity",
+          "last_contact_at"
+        ],
+        "title": "TargetHealth",
+        "type": "object"
+      },
+      "TargetPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/Limits"
+          },
+          "machine_identity": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machine Identity"
+          },
+          "process_units": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process Units"
+          },
+          "rounds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rounds"
+          },
+          "weight": {
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "weight",
+          "machine_identity",
+          "limits"
+        ],
+        "title": "TargetPolicy",
+        "type": "object"
+      },
+      "TargetReport": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempt Id"
+          },
+          "baseline_comparison": {
+            "$ref": "#/components/schemas/BaselineComparison"
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Failure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "quality": {
+            "$ref": "#/components/schemas/Quality"
+          },
+          "speedup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Speedup"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "timing": {
+            "$ref": "#/components/schemas/AttemptTiming"
+          }
+        },
+        "required": [
+          "id",
+          "attempt_id",
+          "speedup",
+          "quality",
+          "baseline_comparison",
+          "timing",
+          "failure"
+        ],
+        "title": "TargetReport",
+        "type": "object"
+      },
       "TaskList": {
         "additionalProperties": false,
         "properties": {
@@ -9487,6 +12066,40 @@
           "target_type_sha256s"
         ],
         "title": "TaskSummary",
+        "type": "object"
+      },
+      "Tier": {
+        "additionalProperties": false,
+        "properties": {
+          "batch_size": {
+            "title": "Batch Size",
+            "type": "integer"
+          },
+          "cases": {
+            "title": "Cases",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "process_units": {
+            "title": "Process Units",
+            "type": "integer"
+          },
+          "rounds": {
+            "title": "Rounds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "cases",
+          "process_units",
+          "rounds",
+          "batch_size"
+        ],
+        "title": "Tier",
         "type": "object"
       },
       "TimingInterval": {
@@ -12429,6 +15042,102 @@
         "title": "WalletVerifyRequest",
         "type": "object"
       },
+      "WeightSet": {
+        "additionalProperties": false,
+        "properties": {
+          "block": {
+            "title": "Block",
+            "type": "string"
+          },
+          "champion_promotion_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Champion Promotion Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "epoch_block": {
+            "title": "Epoch Block",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "links": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Links",
+            "type": "object"
+          },
+          "mode": {
+            "enum": [
+              "dry_run",
+              "live"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "snapshot_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Snapshot Sha256",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "planned",
+              "dry_run",
+              "submitted",
+              "failed",
+              "unknown",
+              "skipped"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "mode",
+          "status",
+          "block",
+          "epoch_block",
+          "champion_promotion_id",
+          "snapshot_sha256",
+          "created_at",
+          "finished_at",
+          "reason",
+          "links"
+        ],
+        "title": "WeightSet",
+        "type": "object"
+      },
       "Weights": {
         "properties": {
           "chain_accepted": {
@@ -12618,6 +15327,472 @@
         "title": "PublicCredit",
         "type": "object"
       },
+      "submission_api__schemas_bendtt__Accepted": {
+        "additionalProperties": false,
+        "properties": {
+          "competition": {
+            "const": "bendtt",
+            "default": "bendtt",
+            "title": "Competition",
+            "type": "string"
+          },
+          "intake_mode": {
+            "enum": [
+              "subnet",
+              "dev"
+            ],
+            "title": "Intake Mode",
+            "type": "string"
+          },
+          "processing_state": {
+            "enum": [
+              "queued",
+              "proving",
+              "waiting",
+              "benchmarking",
+              "completed",
+              "rejected",
+              "failed"
+            ],
+            "title": "Processing State",
+            "type": "string"
+          },
+          "proof_state": {
+            "enum": [
+              "queued",
+              "running",
+              "passed",
+              "rejected",
+              "failed"
+            ],
+            "title": "Proof State",
+            "type": "string"
+          },
+          "replayed": {
+            "title": "Replayed",
+            "type": "boolean"
+          },
+          "source_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Source Sha256",
+            "type": "string"
+          },
+          "status_url": {
+            "title": "Status Url",
+            "type": "string"
+          },
+          "submission": {
+            "title": "Submission",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission",
+          "source_sha256",
+          "proof_state",
+          "processing_state",
+          "intake_mode",
+          "replayed",
+          "status_url"
+        ],
+        "title": "Accepted",
+        "type": "object"
+      },
+      "submission_api__schemas_bendtt__Champion": {
+        "additionalProperties": false,
+        "properties": {
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "evaluation_id": {
+            "title": "Evaluation Id",
+            "type": "string"
+          },
+          "hotkey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hotkey"
+          },
+          "profile_hash": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Hash"
+          },
+          "promoted_at": {
+            "format": "date-time",
+            "title": "Promoted At",
+            "type": "string"
+          },
+          "promotion_id": {
+            "title": "Promotion Id",
+            "type": "string"
+          },
+          "source_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Source Sha256",
+            "type": "string"
+          },
+          "source_visibility": {
+            "enum": [
+              "public",
+              "withheld"
+            ],
+            "title": "Source Visibility",
+            "type": "string"
+          },
+          "speedup_over_predecessor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Speedup"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "promotion_id",
+          "submission_id",
+          "hotkey",
+          "source_sha256",
+          "promoted_at",
+          "current",
+          "evaluation_id",
+          "profile_hash",
+          "speedup_over_predecessor",
+          "source_visibility"
+        ],
+        "title": "Champion",
+        "type": "object"
+      },
+      "submission_api__schemas_bendtt__Health": {
+        "additionalProperties": false,
+        "properties": {
+          "active_evaluation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Evaluation Id"
+          },
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "chain": {
+            "enum": [
+              "fresh",
+              "stale",
+              "unknown",
+              "not_required"
+            ],
+            "title": "Chain",
+            "type": "string"
+          },
+          "coordinator": {
+            "enum": [
+              "recent",
+              "stale",
+              "unknown"
+            ],
+            "title": "Coordinator",
+            "type": "string"
+          },
+          "database": {
+            "enum": [
+              "up",
+              "down"
+            ],
+            "title": "Database",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "degraded",
+              "not_ready"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "submissions_open": {
+            "title": "Submissions Open",
+            "type": "boolean"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/TargetHealth"
+            },
+            "title": "Targets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "status",
+          "as_of",
+          "database",
+          "coordinator",
+          "chain",
+          "active_evaluation_id",
+          "targets",
+          "submissions_open"
+        ],
+        "title": "Health",
+        "type": "object"
+      },
+      "submission_api__schemas_bendtt__Reference": {
+        "additionalProperties": false,
+        "properties": {
+          "promotion_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promotion Id"
+          },
+          "shipped": {
+            "default": false,
+            "title": "Shipped",
+            "type": "boolean"
+          },
+          "source_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Source Sha256",
+            "type": "string"
+          },
+          "submission_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submission Id"
+          }
+        },
+        "required": [
+          "promotion_id",
+          "submission_id",
+          "source_sha256"
+        ],
+        "title": "Reference",
+        "type": "object"
+      },
+      "submission_api__schemas_bendtt__Report": {
+        "additionalProperties": false,
+        "properties": {
+          "baseline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Baseline"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "complete": {
+            "default": false,
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Decision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evaluation": {
+            "title": "Evaluation",
+            "type": "null"
+          },
+          "evaluation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluation Id"
+          },
+          "links": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Links",
+            "type": "object"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/TargetReport"
+            },
+            "title": "Targets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "submission_id"
+        ],
+        "title": "Report",
+        "type": "object"
+      },
+      "submission_api__schemas_bendtt__Submission": {
+        "additionalProperties": false,
+        "properties": {
+          "champion": {
+            "$ref": "#/components/schemas/ChampionState"
+          },
+          "evaluation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Failure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hotkey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hotkey"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "intake_mode": {
+            "enum": [
+              "subnet",
+              "dev"
+            ],
+            "title": "Intake Mode",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "links": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Links",
+            "type": "object"
+          },
+          "processing_state": {
+            "enum": [
+              "queued",
+              "proving",
+              "waiting",
+              "benchmarking",
+              "completed",
+              "rejected",
+              "failed"
+            ],
+            "title": "Processing State",
+            "type": "string"
+          },
+          "proof": {
+            "$ref": "#/components/schemas/ProofSummary"
+          },
+          "source_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Source Sha256",
+            "type": "string"
+          },
+          "source_visibility": {
+            "enum": [
+              "public",
+              "withheld"
+            ],
+            "title": "Source Visibility",
+            "type": "string"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          },
+          "timing": {
+            "$ref": "#/components/schemas/SubmissionTiming"
+          }
+        },
+        "required": [
+          "id",
+          "hotkey",
+          "label",
+          "source_sha256",
+          "submitted_at",
+          "intake_mode",
+          "processing_state",
+          "proof",
+          "evaluation",
+          "champion",
+          "source_visibility",
+          "failure",
+          "timing",
+          "links"
+        ],
+        "title": "Submission",
+        "type": "object"
+      },
       "submission_api__schemas_compression__Accepted": {
         "properties": {
           "competition": {
@@ -12765,6 +15940,105 @@
         "title": "Ranking",
         "type": "object"
       },
+      "submission_api__schemas_compression__Submission": {
+        "properties": {
+          "admission": {
+            "$ref": "#/components/schemas/Admission"
+          },
+          "aggregation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aggregation Id"
+          },
+          "baseline_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Name"
+          },
+          "gate_status": {
+            "enum": [
+              "queued",
+              "running",
+              "passed",
+              "failed",
+              "error",
+              "unknown"
+            ],
+            "title": "Gate Status",
+            "type": "string"
+          },
+          "hotkey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hotkey"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "miner",
+              "baseline"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "metrics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Metrics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "score": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Score"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "submitted_at": {
+            "title": "Submitted At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "hotkey",
+          "baseline_name",
+          "submitted_at",
+          "gate_status",
+          "admission"
+        ],
+        "title": "Submission",
+        "type": "object"
+      },
       "submission_api__schemas_floatlib__Accepted": {
         "properties": {
           "competition": {
@@ -12806,6 +16080,100 @@
           "digest"
         ],
         "title": "Accepted",
+        "type": "object"
+      },
+      "submission_api__schemas_floatlib__Champion": {
+        "properties": {
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "demoted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demoted At"
+          },
+          "hotkey": {
+            "title": "Hotkey",
+            "type": "string"
+          },
+          "promoted_at": {
+            "title": "Promoted At",
+            "type": "string"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          },
+          "rank_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank Share"
+          },
+          "ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ratio"
+          },
+          "speedup_basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speedup Basis"
+          },
+          "speedup_vs_shipped": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speedup Vs Shipped"
+          },
+          "submission": {
+            "title": "Submission",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "submission",
+          "hotkey",
+          "promoted_at",
+          "current"
+        ],
+        "title": "Champion",
         "type": "object"
       },
       "submission_api__schemas_floatlib__Health": {
@@ -13028,6 +16396,23 @@
         "title": "Ranking",
         "type": "object"
       },
+      "submission_api__schemas_floatlib__Report": {
+        "properties": {
+          "report": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report"
+          }
+        },
+        "title": "Report",
+        "type": "object"
+      },
       "submission_api__schemas_public__PublicCredit": {
         "additionalProperties": false,
         "description": "Authorship the submitting coldkey explicitly signed for public display.",
@@ -13063,6 +16448,32 @@
           "name"
         ],
         "title": "PublicCredit",
+        "type": "object"
+      },
+      "submission_api__schemas_public__Reference": {
+        "additionalProperties": false,
+        "description": "A pointer to where the conjecture is stated, as the source declaration records it.\n\n`label` is the human text and `url` the link, split apart here because the catalog stores\nthem as one Markdown string and a website should not have to parse Markdown to render a\nlink. `url` is null when the source gave no link.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "title": "Reference",
         "type": "object"
       }
     },
@@ -16050,6 +19461,1482 @@
         ]
       }
     },
+    "/v1/competitions/bendtt": {
+      "get": {
+        "operationId": "overview_v1_competitions_bendtt_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Overview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Overview",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/attempts/{attempt_id}": {
+      "get": {
+        "operationId": "attempt_v1_competitions_bendtt_attempts__attempt_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attempt_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Attempt Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attempt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Attempt",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/attempts/{attempt_id}/measurements": {
+      "get": {
+        "operationId": "measurements_v1_competitions_bendtt_attempts__attempt_id__measurements_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attempt_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Attempt Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "baseline",
+                    "incumbent",
+                    "challenger"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Role"
+            }
+          },
+          {
+            "in": "query",
+            "name": "phase",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "benchmark",
+                    "probe_before",
+                    "probe_after"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Phase"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "completed",
+                    "timeout",
+                    "input-error",
+                    "resource-failure",
+                    "invalid-output",
+                    "invalid-observation",
+                    "invalid-timing",
+                    "budget-exhausted",
+                    "wrong-output",
+                    "affinity-mismatch",
+                    "diagnostic-mismatch"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "case_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Case Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "round_index",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 10000,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Round Index"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 9223372036854775807,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "After Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Measurement_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Measurements",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/champions": {
+      "get": {
+        "operationId": "champions_v1_competitions_bendtt_champions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Champion_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Champions",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/corpus": {
+      "get": {
+        "operationId": "corpus_v1_competitions_bendtt_corpus_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "profile_hash",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Profile Hash"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tier",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tier"
+            }
+          },
+          {
+            "in": "query",
+            "name": "group",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Group"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorpusPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Corpus",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/eligibility": {
+      "get": {
+        "operationId": "eligibility_v1_competitions_bendtt_eligibility_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "hotkey",
+            "required": true,
+            "schema": {
+              "pattern": "^[1-9A-HJ-NP-Za-km-z]{46,64}$",
+              "title": "Hotkey",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Eligibility"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Eligibility",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/evaluations/{evaluation_id}": {
+      "get": {
+        "operationId": "evaluation_v1_competitions_bendtt_evaluations__evaluation_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "evaluation_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Evaluation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Evaluation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evaluation",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/evaluations/{evaluation_id}/attempts": {
+      "get": {
+        "operationId": "attempts_v1_competitions_bendtt_evaluations__evaluation_id__attempts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "evaluation_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Evaluation Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "running",
+                    "completed",
+                    "failed",
+                    "expired",
+                    "cancelled"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Attempt_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Attempts",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/evaluations/{evaluation_id}/report": {
+      "get": {
+        "operationId": "evaluation_report_v1_competitions_bendtt_evaluations__evaluation_id__report_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "evaluation_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Evaluation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/submission_api__schemas_bendtt__Report"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evaluation Report",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/health": {
+      "get": {
+        "operationId": "health_v1_competitions_bendtt_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/submission_api__schemas_bendtt__Health"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/measurements/{measurement_id}/members": {
+      "get": {
+        "operationId": "members_v1_competitions_bendtt_measurements__measurement_id__members_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "measurement_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Measurement Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Member_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Members",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/policy": {
+      "get": {
+        "operationId": "policy_v1_competitions_bendtt_policy_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Policy"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Policy",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/rewards": {
+      "get": {
+        "operationId": "rewards_v1_competitions_bendtt_rewards_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Rewards"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Rewards",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/submissions": {
+      "get": {
+        "operationId": "submissions_v1_competitions_bendtt_submissions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hotkey",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Hotkey"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "queued",
+                    "proving",
+                    "waiting",
+                    "benchmarking",
+                    "completed",
+                    "rejected",
+                    "failed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "promoted",
+                    "not_promoted",
+                    "benchmark_failed",
+                    "inconclusive"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Outcome"
+            }
+          },
+          {
+            "in": "query",
+            "name": "intake_mode",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "subnet",
+                    "dev"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Intake Mode"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Submission_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submissions",
+        "tags": [
+          "bendtt"
+        ]
+      },
+      "post": {
+        "operationId": "submit_v1_competitions_bendtt_submissions_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Conjectures-Hotkey",
+            "required": true,
+            "schema": {
+              "title": "X-Conjectures-Hotkey",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Conjectures-Timestamp",
+            "required": true,
+            "schema": {
+              "title": "X-Conjectures-Timestamp",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Conjectures-Signature",
+            "required": true,
+            "schema": {
+              "title": "X-Conjectures-Signature",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "Submission.lean": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "Submission.lean"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/submission_api__schemas_bendtt__Accepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/submissions/{submission_id}": {
+      "get": {
+        "operationId": "submission_v1_competitions_bendtt_submissions__submission_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Submission Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/submission_api__schemas_bendtt__Submission"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submission",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/submissions/{submission_id}/evaluations": {
+      "get": {
+        "operationId": "evaluations_v1_competitions_bendtt_submissions__submission_id__evaluations_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Submission Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_EvaluationSummary_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evaluations",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/submissions/{submission_id}/proof": {
+      "get": {
+        "operationId": "proof_v1_competitions_bendtt_submissions__submission_id__proof_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Submission Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Proof"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Proof",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/submissions/{submission_id}/report": {
+      "get": {
+        "operationId": "submission_report_v1_competitions_bendtt_submissions__submission_id__report_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Submission Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/submission_api__schemas_bendtt__Report"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submission Report",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/submissions/{submission_id}/source": {
+      "get": {
+        "operationId": "source_v1_competitions_bendtt_submissions__submission_id__source_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Submission Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Source",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/weight-sets": {
+      "get": {
+        "operationId": "weight_sets_v1_competitions_bendtt_weight_sets_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mode",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(dry_run|live)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mode"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "planned",
+                    "dry_run",
+                    "submitted",
+                    "failed",
+                    "unknown",
+                    "skipped"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_WeightSet_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Weight Sets",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/weight-sets/{weight_set_id}/allocations": {
+      "get": {
+        "operationId": "allocations_v1_competitions_bendtt_weight_sets__weight_set_id__allocations_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weight_set_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Weight Set Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Allocation_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Allocations",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
     "/v1/competitions/floatlib/submissions": {
       "post": {
         "operationId": "submit_v1_competitions_floatlib_submissions_post",
@@ -17175,7 +22062,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/Champion"
+                    "$ref": "#/components/schemas/submission_api__schemas_floatlib__Champion"
                   },
                   "title": "Response Champions V1 Competitions  Board  Champions Get",
                   "type": "array"
@@ -17417,7 +22304,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Report"
+                  "$ref": "#/components/schemas/submission_api__schemas_floatlib__Report"
                 }
               }
             },

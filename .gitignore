@@ -45,3 +45,6 @@ CLAUDE.md
 
 # Competition-owned SQL snapshots needed by TorchLean API tests.
 !tests/fixtures/tensor_schema/*.sql
+
+# Competition-owned schema snapshots needed by BendTT API tests.
+!tests/fixtures/bendtt_schema/*.sql

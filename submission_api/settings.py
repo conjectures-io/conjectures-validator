@@ -602,7 +602,7 @@ def _competition_slugs(environ: Mapping[str, str], competition_slug: str) -> tup
     slugs = tuple(s.strip() for s in raw.split(",") if s.strip()) or (competition_slug,)
     if len(set(slugs)) != len(slugs):
         raise SettingsError(f"COMPETITIONS lists a competition twice: {raw!r}")
-    known = (competition_slug, "floatlib", *KERNEL_COMPETITIONS)
+    known = (competition_slug, "floatlib", "bendtt", *KERNEL_COMPETITIONS)
     for slug in slugs:
         if slug not in known:
             raise SettingsError(
@@ -986,6 +986,13 @@ class Settings:
     floatlib_submissions_enabled: bool = False
     floatlib_registration_cutoff: datetime | None = None
     floatlib_check_deflate_usage: bool = False
+    bendtt_submissions_enabled: bool = False
+    bendtt_dev_skip_registration: bool = False
+    bendtt_max_source_bytes: int = 4194304
+    bendtt_chain_network: str = "finney"
+    bendtt_chain_netuid: int = 66
+    bendtt_min_registered_block: int = 0
+    bendtt_max_chain_age_seconds: int = 120
     torchlean_max_source_bytes: int = DEFAULT_TORCHLEAN_MAX_SOURCE_BYTES
     torchlean_submissions_enabled: bool = False
     torchlean_registration_cutoff: datetime | None = None
@@ -1680,7 +1687,47 @@ class Settings:
                 f"{prefix}_dev_skip_registration": dev,
             }
 
+        if (
+            competitions_enabled
+            and "bendtt" in competition_slugs
+            and not dict(competition_database_urls).get("bendtt")
+        ):
+            raise SettingsError("COMPETITION_BENDTT_DATABASE_URL is required for BendTT")
+        bendtt_network = env.get("BENDTT_CHAIN_NETWORK", "finney").strip()
+        if (
+            not bendtt_network
+            or len(bendtt_network) > 256
+            or any(ord(c) < 32 for c in bendtt_network)
+        ):
+            raise SettingsError("BENDTT_CHAIN_NETWORK must be a nonempty network name or URL")
+        bendtt_uploads = _flag(env, "BENDTT_SUBMISSIONS_ENABLED", False)
+        bendtt_dev = _flag(env, "BENDTT_DEV_SKIP_REGISTRATION", False)
+        if production and bendtt_dev:
+            raise SettingsError("BENDTT_DEV_SKIP_REGISTRATION is forbidden in production")
+        if bendtt_uploads and (not competitions_enabled or "bendtt" not in competition_slugs):
+            raise SettingsError("BENDTT_SUBMISSIONS_ENABLED requires BendTT configured")
+        if (
+            bendtt_uploads
+            and not bendtt_dev
+            and not env.get("BENDTT_MIN_REGISTERED_BLOCK", "").strip()
+        ):
+            raise SettingsError("BENDTT_MIN_REGISTERED_BLOCK is required for registered uploads")
         return cls(
+            bendtt_submissions_enabled=bendtt_uploads,
+            bendtt_dev_skip_registration=bendtt_dev,
+            bendtt_max_source_bytes=_bounded_int(
+                env, "BENDTT_MAX_SOURCE_BYTES", 4194304, minimum=1, maximum=4194304
+            ),
+            bendtt_chain_network=bendtt_network,
+            bendtt_chain_netuid=_bounded_int(
+                env, "BENDTT_CHAIN_NETUID", 66, minimum=0, maximum=65535
+            ),
+            bendtt_min_registered_block=_bounded_int(
+                env, "BENDTT_MIN_REGISTERED_BLOCK", 0, minimum=0, maximum=2**63 - 1
+            ),
+            bendtt_max_chain_age_seconds=_bounded_int(
+                env, "BENDTT_MAX_CHAIN_AGE_SECONDS", 120, minimum=1, maximum=3600
+            ),
             **kernel_intake,
             deflate_submissions_enabled=deflate_uploads,
             floatlib_submissions_enabled=floatlib_uploads,

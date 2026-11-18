@@ -17,7 +17,7 @@ from sqlalchemy import text
 
 from conjectures_subnet.axiom import get_axiom
 from submission_api import __version__, schemas
-from submission_api.competitions import DEFLATE, FLOATLIB, TORCHLEAN
+from submission_api.competitions import BENDTT, DEFLATE, FLOATLIB, TORCHLEAN
 from submission_api.dependencies import ServicesDep, SessionDep
 from submission_api.errors import ServiceUnavailable
 
@@ -26,9 +26,7 @@ router = APIRouter(tags=["operations"])
 
 @router.get("/healthz", response_model=schemas.Health, summary="Liveness")
 async def healthz(services: ServicesDep) -> schemas.Health:
-    return schemas.Health(
-        status="ok", version=__version__, app_mode=services.settings.app_mode
-    )
+    return schemas.Health(status="ok", version=__version__, app_mode=services.settings.app_mode)
 
 
 @router.get("/readyz", response_model=schemas.Readiness, summary="Readiness")
@@ -55,7 +53,9 @@ async def readyz(services: ServicesDep, session: SessionDep) -> schemas.Readines
     for slug, kind, engine in probes:
         try:
             async with engine.connect() as conn:
-                if kind == TORCHLEAN:
+                if kind == BENDTT:
+                    from submission_api.bendtt.store import compatible
+                elif kind == TORCHLEAN:
                     from submission_api.torchlean_store import compatible
                 elif kind == FLOATLIB:
                     from submission_api.floatlib_store import compatible

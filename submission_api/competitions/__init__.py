@@ -59,12 +59,14 @@ DEFAULT_NAME: Final = "DEFLATE"
 # see the bar before spending an hour of validator time finding out.
 DEFAULT_SPEED_FLOOR: Final = 8.0
 
-Kind = Literal["deflate", "floatlib", "torchlean"]
+Kind = Literal["deflate", "floatlib", "torchlean", "bendtt"]
 DEFLATE: Final = "deflate"
 FLOATLIB: Final = "floatlib"
 TORCHLEAN: Final = "torchlean"
 TORCHLEAN_NAME: Final = "TorchLean kernels"
-KINDS: Final = (DEFLATE, FLOATLIB, TORCHLEAN)
+BENDTT: Final = "bendtt"
+BENDTT_NAME: Final = "BendTT checker"
+KINDS: Final = (DEFLATE, FLOATLIB, TORCHLEAN, BENDTT)
 
 # Tensor kernels is the next proved-kernel competition, run from a fork of TorchLean's code
 # (`conjectures-optimisation-float-kernels-new-competition`): the same schema, workers and
@@ -84,6 +86,7 @@ def kernel_settings_prefix(slug: str) -> str:
     if slug not in KERNEL_COMPETITIONS:
         raise ValueError(f"not a kernel competition: {slug!r}")
     return slug.replace("-", "_")
+
 
 # FloatLib's slug and boards, as `conjectures-optimisation-float-kernels` names them
 # (`validator/service/sig.py`): the competition's own slug is the paid full entry, each
@@ -130,6 +133,8 @@ class Competition:
                 f"a kernel competition is served as one of {', '.join(KERNEL_COMPETITIONS)}, "
                 f"not {self.slug!r}"
             )
+        if self.kind == BENDTT and self.slug != BENDTT:
+            raise ValueError("BendTT must use the bendtt slug")
         if self.kind == FLOATLIB and self.slug != FLOATLIB_SLUG:
             # Its practice boards' slugs are derived from this one, and miners sign them.
             raise ValueError(f"FloatLib is served as {FLOATLIB_SLUG!r}, not {self.slug!r}")

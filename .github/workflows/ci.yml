@@ -222,6 +222,7 @@ jobs:
           {
             printf 'FC_TEST_DATABASE_SYSTEM_IDENTIFIER=%s\n' "$identity"
             printf 'FC_POSTGRES_DSN=%s/conjectures-pytest\n' "$base"
+            printf 'BENDTT_TEST_ADMIN_DSN=%s/postgres\n' "${base/postgresql+psycopg:/postgresql:}"
             # The competition schema lives in a second database in the SAME server, as it does
             # in the deployment. Created below: a `services:` container takes one POSTGRES_DB.
             printf 'FC_COMPETITION_POSTGRES_DSN=%s/conjectures-pytest-competition\n' "$base"
