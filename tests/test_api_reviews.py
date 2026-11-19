@@ -1214,3 +1214,54 @@ def test_the_detail_carries_the_binding_decision_a_correction_names():
             await kit.teardown()
 
     run(scenario())
+
+
+def test_a_reopened_submission_is_back_on_the_queue_with_no_decision_in_force():
+    """An operator reopen appends an UNREVIEWED row; it must read as pending, not crash the queue.
+
+    The binding-decision model only knows APPROVED and REJECTED, so serving the reopen row as one
+    made `GET /v1/admin/reviews` answer 500 for every page that held a reopened submission.
+    """
+    from conjectures_subnet.db.models import ReviewOutcome
+
+    async def scenario():
+        kit = await harness().setup()
+        try:
+            submission_id = await _verified(kit, "reopened")
+            sid = uuid.UUID(submission_id)
+            async with kit.session() as session:
+                forfeit = await store.record_human_decision(
+                    session, sid, decision=ReviewOutcome.REJECTED,
+                    reason_code="CHAT_LOGS_NOT_ACCEPTED", reviewer="fixture-reviewer",
+                )
+                reopened = await store.correct_human_decision(
+                    session, sid, supersedes_id=forfeit.id, decision=ReviewOutcome.UNREVIEWED,
+                    reason_code="CHAT_LOG_DEADLINE_REMOVED", reviewer="fixture-operator",
+                    notes="Operator waived the chat-log deadline.",
+                    notes_public="Deadline rejection withdrawn.",
+                )
+                await session.commit()
+                reopened_id = reopened.id
+
+            async with await _client(kit) as http:
+                await _reviewer(kit, http)
+                queue = await http.get("/v1/admin/reviews", params={"limit": 100})
+                assert queue.status_code == 200, queue.text
+                (item,) = [i for i in queue.json()["items"] if i["submission_id"] == submission_id]
+                assert item["manual_review_status"] == "UNREVIEWED"
+                assert item["decision"] is None
+
+                detail = await http.get(f"/v1/admin/reviews/{submission_id}")
+                assert detail.status_code == 200, detail.text
+                assert detail.json()["decision"] is None
+
+                decided = await http.post(_decision_path(submission_id), json=APPROVAL, headers=WRITE)
+                assert decided.status_code == 201, decided.text
+
+            latest = (await _decisions(kit, submission_id))[-1]
+            assert latest.supersedes_id == reopened_id
+            assert await _statuses(kit, submission_id) == ("APPROVED", "ELIGIBLE")
+        finally:
+            await kit.teardown()
+
+    run(scenario())
