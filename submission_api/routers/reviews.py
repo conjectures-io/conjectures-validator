@@ -370,7 +370,8 @@ def _review(
 
 
 def _binding(review: public_store.ReviewRow | None) -> admin.AdminBindingDecision | None:
-    if review is None:
+    # A reopen row (UNREVIEWED) is not a decision in force; the next decision supersedes it.
+    if review is None or review.decision == ReviewOutcome.UNREVIEWED:
         return None
     return admin.AdminBindingDecision(
         review_decision_id=review.id,
