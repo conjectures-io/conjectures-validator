@@ -35,7 +35,13 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from submission_api.competitions import KERNEL_COMPETITIONS, kernel_settings_prefix
+from submission_api.competitions import (
+    EXACT_INTEGER_KERNELS,
+    KERNEL_COMPETITIONS,
+    TORCHLEAN,
+    kernel_settings_prefix,
+    kernel_upload,
+)
 from verifier.bundle import MAX_BUNDLE_BYTES, SS58_ADDRESS
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -757,9 +763,10 @@ def _cors_origins(environ: Mapping[str, str], key: str, *, production: bool) -> 
 # Each of the two submitted competition files. Generous on purpose: the largest reference
 # submission is under 20 KB, so anything approaching this is not a parser and a proof.
 MAX_COMPETITION_FILE_BYTES = 512 * 1024
-# Public admission policy can change without changing the workers' fixed 4 MiB ceiling.
-MAX_TORCHLEAN_SOURCE_BYTES = 4 * 1024 * 1024
-DEFAULT_TORCHLEAN_MAX_SOURCE_BYTES = 1024 * 1024
+# Public admission policy can change without changing the workers' fixed 4 MiB ceiling. Each
+# kernel competition's own pair is `competitions.kernel_upload`.
+MAX_TORCHLEAN_SOURCE_BYTES = kernel_upload(TORCHLEAN).max_bytes
+DEFAULT_TORCHLEAN_MAX_SOURCE_BYTES = kernel_upload(TORCHLEAN).default_bytes
 
 
 @dataclass(frozen=True)
@@ -996,6 +1003,11 @@ class Settings:
     tensor_kernels_submissions_enabled: bool = False
     tensor_kernels_registration_cutoff: datetime | None = None
     tensor_kernels_dev_skip_registration: bool = False
+    # And for Exact integer kernels, whose upload is one C file of at most 262,144 bytes.
+    exact_integer_kernels_max_source_bytes: int = kernel_upload(EXACT_INTEGER_KERNELS).default_bytes
+    exact_integer_kernels_submissions_enabled: bool = False
+    exact_integer_kernels_registration_cutoff: datetime | None = None
+    exact_integer_kernels_dev_skip_registration: bool = False
     competition_slugs: tuple[str, ...] = ()
     # Each competition's own database URL, from `COMPETITION_<SLUG>_DATABASE_URL`, as
     # (slug, url) pairs. A slug missing here is `competition_slug` falling back to
@@ -1644,10 +1656,12 @@ class Settings:
                     "FLOATLIB_CHECK_DEFLATE_USAGE requires DEFLATE configured with uploads disabled"
                 )
 
-        # Each kernel competition's intake, under its own prefix: TORCHLEAN_*, TENSOR_KERNELS_*.
+        # Each kernel competition's intake, under its own prefix: TORCHLEAN_*, TENSOR_KERNELS_*,
+        # EXACT_INTEGER_KERNELS_*.
         kernel_intake: dict[str, object] = {}
         for slug, name in KERNEL_COMPETITIONS.items():
             prefix = kernel_settings_prefix(slug)
+            upload = kernel_upload(slug)
             var = prefix.upper()
             uploads = _flag(env, f"{var}_SUBMISSIONS_ENABLED", False)
             dev = _flag(env, f"{var}_DEV_SKIP_REGISTRATION", False)
@@ -1671,9 +1685,9 @@ class Settings:
                 f"{prefix}_max_source_bytes": _bounded_int(
                     env,
                     f"{var}_MAX_SOURCE_BYTES",
-                    DEFAULT_TORCHLEAN_MAX_SOURCE_BYTES,
+                    upload.default_bytes,
                     minimum=1,
-                    maximum=MAX_TORCHLEAN_SOURCE_BYTES,
+                    maximum=upload.max_bytes,
                 ),
                 f"{prefix}_submissions_enabled": uploads,
                 f"{prefix}_registration_cutoff": kernel_cutoff,

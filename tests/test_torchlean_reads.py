@@ -950,6 +950,31 @@ def test_tensor_kernels_serves_its_own_boards_including_recurrent(database):
     assert tensor(database, "/champions?board=recurrent").json()["champions"] == []
 
 
+def test_overview_reports_the_enforced_upload_and_build_limits(database):
+    configure(database, boards=["mlp"])
+    # The coordinator stores each environment's resolved build limits beside the global defaults.
+    execute(
+        database,
+        """UPDATE coordinator_state SET config_evidence = jsonb_set(jsonb_set(config_evidence,
+                  '{environments,amd64,timing}', CAST(:amd AS jsonb)),
+                  '{environments,arm64,timing}', CAST(:arm AS jsonb))""",
+        amd=json.dumps({"build_seconds": 500, "cached_build_seconds": 120}),
+        arm=json.dumps({"build_seconds": 1500, "cached_build_seconds": 180}),
+    )
+    overview = get(database, "", slug=TENSOR_KERNELS, tensor_kernels_max_source_bytes=1_572_864)
+    assert overview.status_code == 200, overview.text
+    body = overview.json()
+    assert body["files"] == [{"name": "Kernel.lean", "max_bytes": 1_572_864}]
+    assert body["max_file_bytes"] == 1_572_864
+    assert body["environment_limits"] == {
+        "amd64": {"build_seconds": 500, "cached_build_seconds": 120},
+        "arm64": {"build_seconds": 1500, "cached_build_seconds": 180},
+    }
+    # Each competition reports its own setting.
+    torchlean = get(database, "", torchlean_max_source_bytes=262_144).json()
+    assert torchlean["max_file_bytes"] == 262_144
+
+
 # A failed bundle's stopped round, as the Tensor kernels worker keeps it (dev job 1, trimmed): each
 # side mixes `[ns, checksum]` cells with `__...` bookkeeping, and input plans sit beside the sides.
 STOPPED_ROUND = {

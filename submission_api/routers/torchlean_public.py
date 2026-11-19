@@ -1,7 +1,9 @@
 """Public dashboard reads of a kernel competition's persisted decisions and timing evidence.
 
-`build_router(slug, session)` serves them for one competition from its own database; TorchLean
-and Tensor kernels each get a copy (`routers/torchlean.py`).
+`build_router(slug, session)` serves them for one competition from its own database; TorchLean,
+Tensor kernels and Exact integer kernels each get a copy (`routers/torchlean.py`). Exact integer
+kernels' evidence is instruction counts and exhaustive checks, not timings, so its report route
+answers with its own projection (`torchlean_reads.eik_report`).
 """
 
 from contextlib import asynccontextmanager
@@ -15,10 +17,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from submission_api import schemas_compression as catalog
 from submission_api import schemas_torchlean as s
 from submission_api import torchlean_reads as store
-from submission_api.competitions import TENSOR_KERNELS, KERNEL_COMPETITIONS, TORCHLEAN, Competition
+from submission_api.competitions import (
+    EXACT_INTEGER_KERNELS,
+    KERNEL_COMPETITIONS,
+    TENSOR_KERNELS,
+    TORCHLEAN,
+    Competition,
+    kernel_upload,
+)
 from submission_api.dependencies import ServicesDep
 from submission_api.errors import Forbidden
-from submission_api.kernel_upload import MAX_FILE_BYTES
 from submission_api.routers._account import decode_id_cursor, encode_id_cursor
 from submission_api.routers.competitions import resolve_competition
 from submission_api.routers.torchlean import competition_session, intake_setting
@@ -40,18 +48,29 @@ async def prepare(session):
 DESCRIPTIONS = {
     TORCHLEAN: "Proved exact tensor kernels, evaluated on model-family boards",
     TENSOR_KERNELS: "Proved exact tensor kernels for CPU inference, evaluated on model-family boards",
+    EXACT_INTEGER_KERNELS: "Correctly rounded float functions in integer C, scored by instruction "
+    "counts on embedded targets",
 }
+# The `ratio` each board ranks by: timed against the reference, or Exact integer kernels' score
+# (instructions, tails and size) against the champion's.
+RATIO_LABELS = {EXACT_INTEGER_KERNELS: "Score / champion"}
 
 
 class TorchLeanOverview(catalog.Competition):
     boards: list[str]
-    max_file_bytes: int = MAX_FILE_BYTES
+    # The upload limit this API enforces (`<PREFIX>_MAX_SOURCE_BYTES`), as in `files`.
+    max_file_bytes: int
+    # Each benchmark environment's build limits. They override the build values in
+    # `execution_limits`, which are only the defaults an environment without its own falls back to.
+    environment_limits: dict[str, dict] = {}
 
 
 async def overview(competition, services, session):
     snapshot = await store.state(session)
     config = snapshot["config_evidence"]
     counts = await store.counts(session)
+    max_bytes = intake_setting(services.settings, competition.slug, "max_source_bytes")
+    environments = (config or {}).get("environments", {})
     return TorchLeanOverview(
         slug=competition.slug,
         name=competition.name,
@@ -62,9 +81,16 @@ async def overview(competition, services, session):
         current_snapshot_id=snapshot["publication_hash"],
         policy=(snapshot["publication"] or {}).get("rewards"),
         execution_limits=(config or {}).get("timing", {}),
-        files=[{"name": "Kernel.lean", "max_bytes": MAX_FILE_BYTES}],
+        environment_limits={name: env.get("timing", {}) for name, env in environments.items()},
+        files=[{"name": kernel_upload(competition.slug).name, "max_bytes": max_bytes}],
+        max_file_bytes=max_bytes,
         metric_definitions=[
-            {"key": "ratio", "label": "Time / reference", "unit": "ratio", "better": "lower"}
+            {
+                "key": "ratio",
+                "label": RATIO_LABELS.get(competition.slug, "Time / reference"),
+                "unit": "ratio",
+                "better": "lower",
+            }
         ],
         policy_status="ready" if config and snapshot["publication"] else "unknown",
         context=catalog.Context(
@@ -92,6 +118,7 @@ def build_router(slug: str, session_dependency) -> APIRouter:
         return await prepare(session)
 
     ReadSession = Annotated[AsyncSession, Depends(readonly)]
+    upload = kernel_upload(slug)
     router = APIRouter()
 
     @router.get("", response_model=TorchLeanOverview)
@@ -158,14 +185,25 @@ def build_router(slug: str, session_dependency) -> APIRouter:
     async def submission(submission_id: SubmissionId, session: ReadSession):
         return (await store.submissions(session, sid=submission_id))[0]
 
-    @router.get("/submissions/{submission_id}/report", response_model=s.TorchLeanReport)
-    async def report(submission_id: SubmissionId, session: ReadSession):
-        return await store.report(session, submission_id)
+    if slug == EXACT_INTEGER_KERNELS:
+
+        @router.get("/submissions/{submission_id}/report", response_model=s.EikReport)
+        async def eik_report(submission_id: SubmissionId, session: ReadSession):
+            """Instruction counts and exhaustive checks, per board, instead of timing rounds."""
+            return await store.eik_report(session, submission_id)
+
+    else:
+
+        @router.get("/submissions/{submission_id}/report", response_model=s.TorchLeanReport)
+        async def report(submission_id: SubmissionId, session: ReadSession):
+            return await store.report(session, submission_id)
 
     @router.get(
         "/submissions/{submission_id}/source",
         response_class=Response,
-        responses={200: {"content": {"text/plain": {"schema": {"type": "string"}}}}},
+        responses={
+            200: {"content": {upload.media_type.split(";")[0]: {"schema": {"type": "string"}}}}
+        },
     )
     async def source(submission_id: SubmissionId, session: ReadSession):
         """Only former champions whose source is no longer current on any board are public."""
@@ -180,9 +218,9 @@ def build_router(slug: str, session_dependency) -> APIRouter:
         )
         return Response(
             bytes(content),
-            media_type="text/plain; charset=utf-8",
+            media_type=upload.media_type,
             headers={
-                "Content-Disposition": 'attachment; filename="Kernel.lean"',
+                "Content-Disposition": f'attachment; filename="{upload.name}"',
                 "Cache-Control": "no-store",
                 "X-Content-Type-Options": "nosniff",
             },

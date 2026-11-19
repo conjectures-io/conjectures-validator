@@ -4552,6 +4552,794 @@
         "title": "DisqualificationReason",
         "type": "object"
       },
+      "EikBoardComparison": {
+        "properties": {
+          "beats": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`ratio` is within the takeover bar",
+            "title": "Beats"
+          },
+          "champion_S": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Champion S"
+          },
+          "champion_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null where the board had no champion",
+            "title": "Champion Sha256"
+          },
+          "entry_S": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry S"
+          },
+          "ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ratio"
+          }
+        },
+        "title": "EikBoardComparison",
+        "type": "object"
+      },
+      "EikCheck": {
+        "description": "One shard of the exhaustive check, on the host (`fullcheck`) or a target (`targetcheck`).",
+        "properties": {
+          "budget_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Seconds"
+          },
+          "examples": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/EikMismatch"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The first wrong outputs",
+            "title": "Examples"
+          },
+          "mismatches": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mismatches"
+          },
+          "reasons": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasons"
+          },
+          "seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seconds"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
+          },
+          "words_checked": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Words Checked"
+          }
+        },
+        "title": "EikCheck",
+        "type": "object"
+      },
+      "EikCompare": {
+        "description": "The entry's measurement in a compare job, and how it compared with each board's champion.",
+        "properties": {
+          "boards": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/EikBoardComparison"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Per board; null when the entry's measurement was rejected",
+            "title": "Boards"
+          },
+          "images": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Per target, the sha256 of the entry's compiled image",
+            "title": "Images"
+          },
+          "inputs_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The inputs drawn from the seed",
+            "title": "Inputs Sha256"
+          },
+          "scores": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/EikTargetScore"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Per target, and `overall`, the entry's score",
+            "title": "Scores"
+          }
+        },
+        "title": "EikCompare",
+        "type": "object"
+      },
+      "EikCoverage": {
+        "properties": {
+          "chunks_covered": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Of the 4,096 chunks of 2^20 inputs",
+            "title": "Chunks Covered"
+          },
+          "words_checked": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Words Checked"
+          }
+        },
+        "title": "EikCoverage",
+        "type": "object"
+      },
+      "EikDecision": {
+        "properties": {
+          "champion_S": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Champion S"
+          },
+          "champion_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Champion Sha256"
+          },
+          "entry_S": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry S"
+          },
+          "fullcheck": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EikFullcheck"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`qualifies`, `above-bar`, `benchmark-failed` or `check-failed`",
+            "title": "Outcome"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "reasons": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasons"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`entry_S / champion_S` on this board; lower is better",
+            "title": "Score"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The rejecting report's stage (failures only)",
+            "title": "Stage"
+          }
+        },
+        "title": "EikDecision",
+        "type": "object"
+      },
+      "EikEvaluationReport": {
+        "properties": {
+          "board": {
+            "title": "Board",
+            "type": "string"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "config_hash": {
+            "title": "Config Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EikDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "generation": {
+            "description": "Retry/replanning generation of this submission on this board",
+            "title": "Generation",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "job_results": {
+            "items": {
+              "$ref": "#/components/schemas/EikJob"
+            },
+            "title": "Job Results",
+            "type": "array"
+          },
+          "jobs": {
+            "$ref": "#/components/schemas/TorchLeanJobCounts"
+          },
+          "reference_hash": {
+            "title": "Reference Hash",
+            "type": "string"
+          },
+          "reference_promotion_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Promotion Id"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The seed the compare job drew its inputs from",
+            "title": "Seed"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "completed",
+              "superseded"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "board",
+          "generation",
+          "state",
+          "reference_promotion_id",
+          "reference_hash",
+          "config_hash",
+          "created_at",
+          "completed_at",
+          "decision",
+          "jobs",
+          "job_results"
+        ],
+        "title": "EikEvaluationReport",
+        "type": "object"
+      },
+      "EikFullcheck": {
+        "description": "The merged exhaustive check, host shards and target shards together.",
+        "properties": {
+          "functions": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/EikCoverage"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Per function, what the host shards covered",
+            "title": "Functions"
+          },
+          "required_targets": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Targets"
+          },
+          "targets": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/EikCoverage"
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Per target, per function, what the target (QEMU) shards covered",
+            "title": "Targets"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`passed`, `incomplete` or `rejected`",
+            "title": "Verdict"
+          }
+        },
+        "title": "EikFullcheck",
+        "type": "object"
+      },
+      "EikFunctionScore": {
+        "properties": {
+          "geo_mean_instr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Geometric mean of the instructions retired per call",
+            "title": "Geo Mean Instr"
+          },
+          "tail_factor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tail Factor"
+          }
+        },
+        "title": "EikFunctionScore",
+        "type": "object"
+      },
+      "EikJob": {
+        "properties": {
+          "check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EikCheck"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chunks": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A check shard's `[lo, hi)` chunk range",
+            "title": "Chunks"
+          },
+          "compare": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EikCompare"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "function": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The function a check shard covers",
+            "title": "Function"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`compare`, `fullcheck` or `targetcheck`",
+            "title": "Kind"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The target a `targetcheck` runs on",
+            "title": "Target"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "EikJob",
+        "type": "object"
+      },
+      "EikMismatch": {
+        "properties": {
+          "got": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Got"
+          },
+          "input": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "want": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Want"
+          }
+        },
+        "title": "EikMismatch",
+        "type": "object"
+      },
+      "EikReport": {
+        "properties": {
+          "evaluations": {
+            "items": {
+              "$ref": "#/components/schemas/EikEvaluationReport"
+            },
+            "title": "Evaluations",
+            "type": "array"
+          },
+          "submission": {
+            "$ref": "#/components/schemas/TorchLeanSubmission"
+          }
+        },
+        "required": [
+          "submission",
+          "evaluations"
+        ],
+        "title": "EikReport",
+        "type": "object"
+      },
+      "EikTargetScore": {
+        "properties": {
+          "S": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The score on this target or board; lower is better",
+            "title": "S"
+          },
+          "bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Code and tables on this target",
+            "title": "Bytes"
+          },
+          "functions": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/EikFunctionScore"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Functions"
+          },
+          "reported_only": {
+            "default": false,
+            "description": "Measured, but no board scores this target",
+            "title": "Reported Only",
+            "type": "boolean"
+          },
+          "size_factor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Factor"
+          }
+        },
+        "title": "EikTargetScore",
+        "type": "object"
+      },
       "EmailLinkRequest": {
         "additionalProperties": false,
         "properties": {
@@ -11308,6 +12096,15 @@
             "title": "Description",
             "type": "string"
           },
+          "environment_limits": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "default": {},
+            "title": "Environment Limits",
+            "type": "object"
+          },
           "execution_limits": {
             "additionalProperties": true,
             "title": "Execution Limits",
@@ -11322,7 +12119,6 @@
             "type": "array"
           },
           "max_file_bytes": {
-            "default": 256000,
             "title": "Max File Bytes",
             "type": "integer"
           },
@@ -11380,7 +12176,8 @@
           "policy_status",
           "execution_limits",
           "context",
-          "boards"
+          "boards",
+          "max_file_bytes"
         ],
         "title": "TorchLeanOverview",
         "type": "object"
@@ -16038,6 +16835,491 @@
         "summary": "Index",
         "tags": [
           "competitions"
+        ]
+      }
+    },
+    "/v1/competitions/exact-integer-kernels": {
+      "get": {
+        "operationId": "detail_v1_competitions_exact_integer_kernels_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanOverview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Detail",
+        "tags": [
+          "exact-integer-kernels"
+        ]
+      }
+    },
+    "/v1/competitions/exact-integer-kernels/boards": {
+      "get": {
+        "operationId": "boards_v1_competitions_exact_integer_kernels_boards_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanBoards"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Boards",
+        "tags": [
+          "exact-integer-kernels"
+        ]
+      }
+    },
+    "/v1/competitions/exact-integer-kernels/champions": {
+      "get": {
+        "operationId": "champions_v1_competitions_exact_integer_kernels_champions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "board",
+            "required": false,
+            "schema": {
+              "default": "overall",
+              "maxLength": 64,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "title": "Board",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanChampions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Champions",
+        "tags": [
+          "exact-integer-kernels"
+        ]
+      }
+    },
+    "/v1/competitions/exact-integer-kernels/health": {
+      "get": {
+        "operationId": "health_v1_competitions_exact_integer_kernels_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanHealth"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "exact-integer-kernels"
+        ]
+      }
+    },
+    "/v1/competitions/exact-integer-kernels/leaderboard": {
+      "get": {
+        "description": "One reference/configuration only. Older groups can be selected by their config hash.",
+        "operationId": "leaderboard_v1_competitions_exact_integer_kernels_leaderboard_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "board",
+            "required": false,
+            "schema": {
+              "default": "overall",
+              "maxLength": 64,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "title": "Board",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "promotion_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Promotion Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "config_hash",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Config Hash"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanLeaderboard"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Leaderboard",
+        "tags": [
+          "exact-integer-kernels"
+        ]
+      }
+    },
+    "/v1/competitions/exact-integer-kernels/submissions": {
+      "get": {
+        "description": "One page, newest first; pass `next_cursor` back as `cursor` with the same `state`.",
+        "operationId": "submissions_v1_competitions_exact_integer_kernels_submissions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "queued",
+                    "proving",
+                    "waiting",
+                    "benchmarking",
+                    "completed",
+                    "rejected",
+                    "disqualified"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanSubmissionPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submissions",
+        "tags": [
+          "exact-integer-kernels"
+        ]
+      },
+      "post": {
+        "operationId": "submit_v1_competitions_exact_integer_kernels_submissions_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Conjectures-Hotkey",
+            "required": true,
+            "schema": {
+              "title": "X-Conjectures-Hotkey",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Conjectures-Timestamp",
+            "required": true,
+            "schema": {
+              "title": "X-Conjectures-Timestamp",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Conjectures-Signature",
+            "required": true,
+            "schema": {
+              "title": "X-Conjectures-Signature",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "entry.c": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "entry.c"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit",
+        "tags": [
+          "exact-integer-kernels"
+        ]
+      }
+    },
+    "/v1/competitions/exact-integer-kernels/submissions/{submission_id}": {
+      "get": {
+        "operationId": "submission_v1_competitions_exact_integer_kernels_submissions__submission_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Submission Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TorchLeanSubmission"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submission",
+        "tags": [
+          "exact-integer-kernels"
+        ]
+      }
+    },
+    "/v1/competitions/exact-integer-kernels/submissions/{submission_id}/report": {
+      "get": {
+        "description": "Instruction counts and exhaustive checks, per board, instead of timing rounds.",
+        "operationId": "eik_report_v1_competitions_exact_integer_kernels_submissions__submission_id__report_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Submission Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EikReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Eik Report",
+        "tags": [
+          "exact-integer-kernels"
+        ]
+      }
+    },
+    "/v1/competitions/exact-integer-kernels/submissions/{submission_id}/source": {
+      "get": {
+        "description": "Only former champions whose source is no longer current on any board are public.",
+        "operationId": "source_v1_competitions_exact_integer_kernels_submissions__submission_id__source_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Submission Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/x-c": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Source",
+        "tags": [
+          "exact-integer-kernels"
         ]
       }
     },
