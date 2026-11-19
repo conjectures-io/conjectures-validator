@@ -154,11 +154,14 @@ The code ships dark. Until `exact-integer-kernels` is listed in `COMPETITIONS`, 
 under `/v1/competitions/exact-integer-kernels` answers 404 and the competition is absent from
 `/v1/competitions`. The switch is a configuration change, in this order:
 
-1. **Competition database**: create it and migrate it to the coordinator's head. Then apply the
-   coordinator's `coordinator/migrations/platform_api.sql` to it as the database owner. That is
-   Tensor kernels' grant list without the audit tables; `submissions.normalised_sha256` is not
-   granted. Do not run a grant script with `PLATFORM_API_PASSWORD` set: it rotates the password
-   of the cluster-wide `platform_api` role, which the other kernel competitions' URLs also use.
+1. **Competition database**: create it and migrate it to the coordinator's head
+   (`python -m coordinator.migrate`). Then apply the coordinator's
+   `coordinator/migrations/platform_api.sql` to it as the database owner. That is Tensor
+   kernels' grant list without the audit tables, and it changes privileges only. Do not run a
+   grant script with `PLATFORM_API_PASSWORD` set: it rotates the password of the cluster-wide
+   `platform_api` role, which the other kernel competitions' URLs also use. The suite runs
+   against copies of both files (`tests/fixtures/eik_schema`); refresh them, and
+   `coordinator_rows.json`, when the coordinator's schema or output changes.
 2. **Grants before the slug.** `/readyz` checks every configured competition database, and a
    deploy that fails it rolls back. A database the role cannot read yet is a failed deploy, so
    set `COMPETITION_EXACT_INTEGER_KERNELS_DATABASE_URL` and add the slug to `COMPETITIONS` only

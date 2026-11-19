@@ -1,16 +1,21 @@
 """Exact integer kernels: the kernel competition routes under a third slug, with a C upload and
-an instruction-count report, against the same schema and restricted platform role."""
+an instruction-count report, against the competition's own schema and `platform_api` grants
+(`fixtures/eik_schema`) and the rows its coordinator writes."""
 
 import asyncio
+import base64
 import hashlib
 import json
 from datetime import UTC, datetime
+from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+import sqlalchemy as sa
 from httpx import ASGITransport, AsyncClient
 
+from conftest import competition_dsn, postgres_dsn
 from conftest_api import build_settings
-from test_torchlean_intake import database as database, engines as engines
 from test_torchlean_intake import roles_lock as roles_lock
 from test_torchlean_intake import execute, headers, post, register, service
 
@@ -28,6 +33,61 @@ from submission_api.settings import SettingsError
 EIK = EXACT_INTEGER_KERNELS
 ENTRY = b"#include <stdint.h>\nuint32_t eik_exp(uint32_t x) { return x; }\n"
 CAP = 262_144
+SCHEMA = Path(__file__).parent / "fixtures/eik_schema"
+
+
+@pytest.fixture(scope="module")
+def engines(roles_lock):
+    """The competition database as `coordinator.migrate` leaves it, with its API grants."""
+    comp, central = competition_dsn(), postgres_dsn()
+    if not comp or not central:
+        pytest.skip("requires a declared private PostgreSQL fixture")
+    pinned = json.loads((SCHEMA / "sha256.json").read_text())
+    for name, digest in pinned.items():
+        assert hashlib.sha256((SCHEMA / name).read_bytes()).hexdigest() == digest, name
+    owner, api = sa.create_engine(comp), sa.create_engine(central)
+    with owner.begin() as c:
+        c.exec_driver_sql("DROP SCHEMA public CASCADE; CREATE SCHEMA public")
+        # As `coordinator.migrate` runs it: one transaction, no parameters.
+        c.exec_driver_sql(
+            (SCHEMA / "0001_schema.sql").read_text(), execution_options={"no_parameters": True}
+        )
+        c.exec_driver_sql(
+            "DO $$ BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='platform_api') "
+            "THEN CREATE ROLE platform_api; END IF; END $$"
+        )
+        c.exec_driver_sql("ALTER ROLE platform_api LOGIN PASSWORD 'private_eik_api_test'")
+        c.exec_driver_sql((SCHEMA / "platform_api.sql").read_text())
+    with api.begin() as c:
+        c.exec_driver_sql("DROP TABLE IF EXISTS competition_intake_limits")
+        c.exec_driver_sql(
+            (
+                Path(__file__).parents[1] / "deploy/migrate/sql/V054__competition_intake_limits.sql"
+            ).read_text()
+        )
+    url = sa.engine.make_url(comp).set(username="platform_api", password="private_eik_api_test")
+    yield SimpleNamespace(
+        owner=owner, api=api, comp=url.render_as_string(hide_password=False), central=central
+    )
+    with owner.begin() as c:
+        # Roles are cluster-wide; DROP OWNED also takes back the database-level CONNECT grant.
+        c.exec_driver_sql("DROP SCHEMA public CASCADE; CREATE SCHEMA public")
+        c.exec_driver_sql("DROP OWNED BY platform_api, eik_worker_access")
+        c.exec_driver_sql("DROP ROLE platform_api; DROP ROLE eik_worker_access")
+    owner.dispose()
+    api.dispose()
+
+
+@pytest.fixture
+def database(engines):
+    with engines.owner.begin() as c:
+        c.exec_driver_sql(
+            "TRUNCATE sources,registrations,submissions,coordinator_state CASCADE; "
+            "INSERT INTO coordinator_state(id) VALUES (1)"
+        )
+    with engines.api.begin() as c:
+        c.exec_driver_sql("TRUNCATE competition_intake_limits")
+    return engines
 
 
 def eik(database, *args, **kwargs):
@@ -240,576 +300,319 @@ def test_openapi_names_each_slugs_own_file_and_report(database):
     assert response.status_code == 201, response.text
 
 
-# --- Reads ------------------------------------------------------------------------------------
+# --- Reads, of the rows the coordinator writes -------------------------------------------------
 
-CONFIG = "c" * 64
-INCUMBENT = b"/* the shipped incumbent */\n"
-ROOT = hashlib.sha256(INCUMBENT).hexdigest()
-MEASUREMENT = "e" * 64
-VERIFIER = "f" * 64
-BOARDS = {
-    "rv32im": {"rv32im": 1},
-    "thumbv6m": {"thumbv6m": 1},
-    "overall": {"rv32im": 0.5, "thumbv6m": 0.5},
+ROWS = json.loads((SCHEMA / "coordinator_rows.json").read_text())
+JSONB = {
+    "proof_report",
+    "plan",
+    "decision",
+    "request",
+    "result",
+    "error",
+    "config_evidence",
+    "publication",
 }
-FUNCTIONS = ("exp", "sigmoid", "tanh")
+SERIALS = ("registrations", "submissions", "evaluations", "benchmark_jobs", "promotions")
+# Foreign keys first.
+TABLES = (
+    "registrations",
+    "sources",
+    "submissions",
+    "board_progress",
+    "evaluations",
+    "benchmark_jobs",
+    "evaluation_jobs",
+    "promotions",
+    "coordinator_state",
+)
+# The six entries, in submission order (generate_rows.ENTRIES).
+FIRST, GATE_REJECTED, COMPARE_REJECTED, CHECK_REJECTED, SECOND, IN_PROGRESS = range(1, 7)
+BOARDS = ("rv32im", "thumbv6m", "overall")
+# What a worker's report carries that the API must not publish.
+PRIVATE = (
+    "champions",
+    "fingerprint",
+    "hard_pool",
+    "sandbox",
+    "image_sha256",
+    "candidate_boards",
+    "needs_fullcheck",
+    "lease",
+    "owner",
+    "token",
+)
 
 
-def source(db, content):
-    sha = hashlib.sha256(content).hexdigest()
-    execute(
-        db,
-        "INSERT INTO sources(sha256,content) VALUES (:sha,:content) ON CONFLICT DO NOTHING",
-        sha=sha,
-        content=content,
-    )
-    return sha
+def value(column, v):
+    if isinstance(v, dict) and set(v) == {"base64"}:
+        return base64.b64decode(v["base64"])
+    if column in JSONB:
+        return json.dumps(v) if v is not None else None
+    return v
 
 
-def submit(db, name, content=None, state="proved", stage=None, reason=None):
-    sha = source(db, content if content is not None else name.encode())
-    sid = execute(
-        db,
-        """INSERT INTO submissions(hotkey,source_sha256,intake_mode,state,stage,reason)
-           VALUES (:name,:sha,'dev',:state,:stage,:reason) RETURNING id""",
-        name=name,
-        sha=sha,
-        state=state,
-        stage=stage,
-        reason=reason,
-    ).scalar_one()
-    return sid, sha
-
-
-def configure(db, kings=None):
-    """`config_evidence` and `publication` as CONTRACT.md describes them."""
-    source(db, INCUMBENT)
-    fullcheck = {"shards_per_function": 8, "require_targets": ["rv32im"], "targetcheck_shards": 8}
-    config = {
-        "competition": EIK,
-        "boards": {
-            board: {
-                "models": models,
-                "reference": {"sha256": ROOT},
-                "environments": {"eik-compare-x86": 1.0},
-            }
-            for board, models in BOARDS.items()
-        },
-        "environments": {
-            "eik-compare-x86": {"identity": MEASUREMENT, "weight": 1.0},
-            "eik-check": {"identity": VERIFIER, "weight": 1.0},
-        },
-        "admission": {"bar": 0.97, "guard": None},
-        "fullcheck": fullcheck,
-    }
-    publication = {
-        "version": "eik-top1-v1",
-        "rewards": {
-            "board_weights": {"rv32im": 0.25, "thumbv6m": 0.25, "overall": 0.5},
-            "rank_shares": [1.0],
-            "paused_policy": "treasury",
-        },
-        "boards": {
-            board: {
-                "config_hash": CONFIG,
-                "initial_reference": ROOT,
-                "paused": False,
-                "kings": (kings or {}).get(board, []),
-            }
-            for board in BOARDS
-        },
-    }
-    execute(
-        db,
-        """INSERT INTO coordinator_state(id,config_hash,config_evidence,publication,publication_hash)
-           VALUES (1,:hash,CAST(:config AS jsonb),CAST(:pub AS jsonb),:hash)
-           ON CONFLICT(id) DO UPDATE SET config_hash=excluded.config_hash,
-           config_evidence=excluded.config_evidence,publication=excluded.publication,
-           publication_hash=excluded.publication_hash""",
-        hash=CONFIG,
-        config=json.dumps(config),
-        pub=json.dumps(publication),
-    )
-    for board in BOARDS:
-        execute(
-            db,
-            "INSERT INTO board_progress(board,activation_boundary) VALUES (:b,0) "
-            "ON CONFLICT DO NOTHING",
-            b=board,
-        )
-
-
-MERGED = {
-    "verdict": "passed",
-    "functions": {fn: {"chunks_covered": 4096, "words_checked": 1 << 32} for fn in FUNCTIONS},
-    "targets": {
-        "rv32im": {fn: {"chunks_covered": 4096, "words_checked": 1 << 32} for fn in FUNCTIONS}
-    },
-    "required_targets": ["rv32im"],
-}
-
-
-def qualifies(board, refhash=ROOT):
-    return {
-        "outcome": "qualifies",
-        "score": 0.5,
-        "reason": None,
-        "entry_S": 100.0,
-        "champion_S": 200.0,
-        "champion_sha256": refhash,
-        "seed": 20261118,
-        "fullcheck": MERGED,
-    }
-
-
-def evaluate(db, sid, board, *, decision=None, ref=None, refhash=ROOT, state="completed"):
-    plan = {
-        "kind": "eik-v1",
-        "seed": 20261118,
-        "champion_sha256": refhash,
-        "takeover_ratio": 0.97,
-        "measurement_identity": MEASUREMENT,
-        "verifier_identity": VERIFIER,
-        "fullcheck": {"shards_per_function": 8, "require_targets": ["rv32im"]},
-    }
-    return execute(
-        db,
-        """INSERT INTO evaluations(submission_id,board,generation,config_hash,
-           reference_promotion_id,reference_hash,plan,state,decision,completed_at)
-           VALUES (:sid,:board,1,:hash,:ref,:refhash,CAST(:plan AS jsonb),:state,
-                   CAST(:decision AS jsonb),CASE WHEN :state='completed' THEN now() END)
-           RETURNING id""",
-        sid=sid,
-        board=board,
-        hash=CONFIG,
-        ref=ref,
-        refhash=refhash,
-        plan=json.dumps(plan),
-        state=state,
-        decision=json.dumps(decision if decision is not None else qualifies(board, refhash))
-        if state == "completed"
-        else None,
-    ).scalar_one()
-
-
-def promote(db, sid, board, **kwargs):
-    eid = evaluate(db, sid, board, **kwargs)
-    return execute(
-        db,
-        "INSERT INTO promotions(board,evaluation_id) VALUES (:b,:e) RETURNING id",
-        b=board,
-        e=eid,
-    ).scalar_one()
-
-
-def job(db, evaluations, sha, request, *, seed, state="completed", result=None, environment=None):
-    """One job linked to every evaluation in `evaluations`, as the coordinator plans it."""
-    environment = environment or (
-        "eik-compare-x86" if request["kind"] == "compare" else "eik-check"
-    )
-    jid = execute(
-        db,
-        """INSERT INTO benchmark_jobs(request_hash,request,candidate_hash,reference_hash,
-           environment,lease_seconds,retry_seconds,state,result,owner,token,claimant,lease_until)
-           VALUES (:hash,CAST(:request AS jsonb),:sha,:ref,:env,120,60,:state,
-                   CAST(:result AS jsonb),
-                   CASE WHEN :state='running' THEN 'SECRET' END,
-                   CASE WHEN :state='running' THEN 'SECRET' END,
-                   CASE WHEN :state='running' THEN 'SECRET' END,
-                   CASE WHEN :state='running' THEN now()+interval '1 hour' END) RETURNING id""",
-        hash=hashlib.sha256(json.dumps(request).encode()).hexdigest(),
-        request=json.dumps(request),
-        sha=sha,
-        ref=request.get("reference_hash", sha),
-        env=environment,
-        state=state,
-        result=json.dumps(result) if result is not None else None,
-    ).scalar_one()
-    for eid in evaluations:
-        execute(
-            db,
-            "INSERT INTO evaluation_jobs(evaluation_id,job_id,environment,seed) "
-            "VALUES (:e,:j,:env,:seed)",
-            e=eid,
-            j=jid,
-            env=environment,
-            seed=seed,
-        )
-
-
-FINGERPRINT = {"measurement": MEASUREMENT, "sandbox": "SECRET-SANDBOX", "verifier": VERIFIER}
-
-
-def target_score(s, size, functions=True, **extra):
-    row = {"S": s, "bytes": size, "size_factor": 1.05, **extra}
-    if functions:
-        row["functions"] = {
-            fn: {"geo_mean_instr": 1000.0 + i, "tail_factor": 1.01, "private": "SECRET"}
-            for i, fn in enumerate(FUNCTIONS)
-        }
-    return row
-
-
-def compare_result(sha, refhash=ROOT):
-    """`eik compare`'s report, shaped like build/prod-compare.json, with private extras."""
-    measure = {
-        "schema": "eik-report-1",
-        "kind": "measure",
-        "sha256": sha,
-        "seed": 20261118,
-        "inputs_sha256": "1" * 64,
-        "hard_pool": {"source": "hardscan", "samples": 67108864, "secret": "SECRET"},
-        "images": {"rv32im": "2" * 64, "thumbv6m": "3" * 64, "thumbv7em": "4" * 64},
-        "bytes": {"rv32im": 16600, "thumbv6m": 15476, "thumbv7em": 13480},
-        "fingerprint": FINGERPRINT,
-        "sampled": True,
-        "verdict": "passed",
-        "stage": None,
-        "reasons": [],
-        "scores": {
-            "rv32im": target_score(12326.18, 16600),
-            "thumbv6m": target_score(17990.92, 15476),
-            "thumbv7em": target_score(6830.42, 13480, reported_only=True),
-            "overall": {"S": 14891.59},
-        },
-    }
-    boards = {
-        board: {
-            "beats": True,
-            "champion_S": 2 * entry,
-            "champion_sha256": refhash,
-            "entry_S": entry,
-            "ratio": 0.5,
-        }
-        for board, entry in (("rv32im", 12326.18), ("thumbv6m", 17990.92), ("overall", 14891.59))
-    }
-    return {
-        "schema": "eik-report-1",
-        "kind": "compare",
-        "competition": EIK,
-        "sha256": sha,
-        "seed": 20261118,
-        "measure": measure,
-        # The champions' own measurements: never published.
-        "champions": {refhash: {"images": {"rv32im": "SECRET-CHAMPION-IMAGE"}}},
-        "decision": {"kind": "decision", "boards": boards, "fingerprint": FINGERPRINT},
-        "fingerprint": FINGERPRINT,
-    }
-
-
-def check_result(sha, fn, lo, hi, *, kind="fullcheck", target=None, rejected=False):
-    result = {
-        "schema": "eik-report-1",
-        "kind": kind,
-        "competition": EIK,
-        "sha256": sha,
-        "function": fn,
-        "chunk_lo": lo,
-        "chunk_hi": hi,
-        "budget_seconds": 30720,
-        "seconds": 4378.0,
-        "fingerprint": FINGERPRINT,
-        "exit": 0,
-        "quick": False,
-        "words_checked": (hi - lo) << 20,
-        "mismatches": 0,
-        "examples": [],
-        "verdict": "passed",
-        "stage": None,
-        "reasons": [],
-        "complete": False,
-        "range_complete": True,
-    }
-    if target:
-        result |= {"target": target, "image_sha256": "SECRET-IMAGE", "jobs": 8}
-    if rejected:
-        result |= {
-            "verdict": "rejected",
-            "stage": "fullcheck:outputs",
-            "reasons": ["1 wrong outputs of exp"],
-            "mismatches": 1,
-            "examples": [{"input": "bf317218", "got": "3f000001", "want": "3f000000"}],
-            "words_checked": 1 << 20,
-            "seconds": 20.4,
-            "range_complete": False,
-        }
-    return result
+def load(db):
+    """Every table the API reads, as the coordinator left it (fixtures/eik_schema/README.md)."""
+    with db.owner.begin() as c:
+        c.exec_driver_sql("DELETE FROM coordinator_state")
+        for table in TABLES:
+            for row in ROWS[table]:
+                # Promotions and the evaluations planned against them refer to each other.
+                row = {k: v for k, v in row.items() if k != "reference_promotion_id"}
+                names = ",".join(row)
+                values = ",".join(f"CAST(:{k} AS jsonb)" if k in JSONB else f":{k}" for k in row)
+                c.execute(
+                    sa.text(f"INSERT INTO {table}({names}) VALUES ({values})"),
+                    {k: value(k, v) for k, v in row.items()},
+                )
+        for row in ROWS["evaluations"]:
+            if row["reference_promotion_id"] is not None:
+                c.execute(
+                    sa.text("UPDATE evaluations SET reference_promotion_id=:p WHERE id=:id"),
+                    {"p": row["reference_promotion_id"], "id": row["id"]},
+                )
+        for table in SERIALS:
+            c.exec_driver_sql(
+                f"SELECT setval(pg_get_serial_sequence('{table}','id'),(SELECT max(id) FROM {table}))"
+            )
 
 
 def eik_get(db, path, **settings):
     return post(db, path=path, method="get", slug=EIK, **settings)
 
 
-def test_overview_names_entry_c_and_its_limit(database):
-    configure(database)
-    overview = eik_get(database, "")
-    assert overview.status_code == 200, overview.text
-    body = overview.json()
-    assert body["slug"] == EIK and body["name"] == "Exact integer kernels"
-    assert body["files"] == [{"name": "entry.c", "max_bytes": CAP}]
-    assert body["max_file_bytes"] == CAP
-    assert body["metric_definitions"][0]["label"] == "Score / champion"
-    assert body["execution_limits"] == {}
-    assert body["environment_limits"] == {"eik-compare-x86": {}, "eik-check": {}}
-    assert set(body["boards"]) == set(BOARDS)
-    # Tensor kernels and TorchLean still name Kernel.lean.
+def ok(db, path):
+    response = eik_get(db, path)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def report(db, sid):
+    response = eik_get(db, f"/submissions/{sid}/report")
+    assert response.status_code == 200, response.text
+    for private in PRIVATE:
+        assert f'"{private}"' not in response.text, private
+    return {e["board"]: e for e in response.json()["evaluations"]}
+
+
+def source_of(sid):
+    sha = next(s["source_sha256"] for s in ROWS["submissions"] if s["id"] == sid)
+    row = next(r for r in ROWS["sources"] if r["sha256"] == sha)
+    return base64.b64decode(row["content"]["base64"])
+
+
+def test_the_fixture_is_the_coordinators_eik_top2_publication():
+    publication = ROWS["coordinator_state"][0]["publication"]
+    assert publication["version"] == "eik-top2-v1"
+    assert publication["rewards"]["rank_shares"] == [1.0, 0.0]
+    assert [k["submission_id"] for k in publication["boards"]["rv32im"]["kings"]] == [SECOND, FIRST]
+
+
+def test_platform_role_reads_and_writes_only_what_the_grants_allow(database):
+    with database.owner.connect() as c:
+
+        def can(table, privilege, column=None):
+            if column:
+                return c.scalar(
+                    sa.text("SELECT has_column_privilege('platform_api',:t,:c,:p)"),
+                    {"t": table, "c": column, "p": privilege},
+                )
+            return c.scalar(
+                sa.text("SELECT has_table_privilege('platform_api',:t,:p)"),
+                {"t": table, "p": privilege},
+            )
+
+        assert can("submissions", "SELECT") and can("sources", "INSERT")
+        assert can("submissions", "INSERT", "intake_mode")
+        assert not can("submissions", "INSERT", "state")
+        assert not can("coordinator_state", "SELECT", "leader_token")
+        for table in ("promotions", "benchmark_jobs", "evaluations", "worker_logins"):
+            assert not can(table, "INSERT"), table
+
+
+def test_overview_boards_and_health(database):
+    load(database)
+    overview = ok(database, "")
+    assert overview["slug"] == EIK and overview["name"] == "Exact integer kernels"
+    assert overview["files"] == [{"name": "entry.c", "max_bytes": CAP}]
+    assert overview["max_file_bytes"] == CAP
+    assert overview["metric_definitions"][0]["label"] == "Score / champion"
+    assert overview["execution_limits"] == {}
+    assert overview["environment_limits"] == {"eik-compare-x86": {}, "eik-check": {}}
+    assert set(overview["boards"]) == set(BOARDS)
+    assert overview["policy_status"] == "ready" and overview["queue_depth"] == 1
+    # Tensor kernels still names Kernel.lean.
     tensor = post(database, path="", method="get", slug=TENSOR_KERNELS).json()
     assert tensor["files"][0]["name"] == "Kernel.lean"
     assert tensor["metric_definitions"][0]["label"] == "Time / reference"
 
-
-def test_boards_leaderboard_champions_and_health_read_its_shapes(database):
-    configure(database)
-    boards = eik_get(database, "/boards")
-    assert boards.status_code == 200, boards.text
-    by_id = {b["id"]: b for b in boards.json()["boards"]}
-    assert set(by_id) == set(BOARDS)
-    assert by_id["overall"]["models"] == {"rv32im": 0.5, "thumbv6m": 0.5}
-    assert by_id["overall"]["reward_share"] == 0.5
-    assert by_id["rv32im"]["promotion_bar"] == 0.97 and by_id["rv32im"]["guard_limit"] is None
-    assert by_id["rv32im"]["environments"] == [
-        {"id": "eik-compare-x86", "weight": 1.0, "identity": MEASUREMENT}
-    ]
-    health = eik_get(database, "/health")
-    assert health.status_code == 200 and health.json()["policy_ready"], health.text
-
-    a, ah = submit(database, "first")
-    pids = {board: promote(database, a, board) for board in BOARDS}
-    configure(
-        database,
-        kings={
-            b: [{"promotion_id": p, "submission_id": a, "hotkey": "first"}] for b, p in pids.items()
-        },
+    boards = {b["id"]: b for b in ok(database, "/boards")["boards"]}
+    assert set(boards) == set(BOARDS)
+    assert boards["overall"]["models"] == {"rv32im": 0.5, "thumbv6m": 0.5}
+    assert boards["overall"]["reward_share"] == 0.5 and boards["rv32im"]["reward_share"] == 0.25
+    assert boards["rv32im"]["promotion_bar"] == 0.97 and boards["rv32im"]["guard_limit"] is None
+    (environment,) = boards["rv32im"]["environments"]
+    assert environment["id"] == "eik-compare-x86" and environment["weight"] == 1.0
+    assert (
+        environment["identity"]
+        == ROWS["coordinator_state"][0]["config_evidence"]["environments"]["eik-compare-x86"][
+            "identity"
+        ]
     )
-    b, _ = submit(database, "challenger")
-    above = {
-        "outcome": "above-bar",
-        "score": 0.99,
-        "reason": "not within 0.97 of the champion",
-        "entry_S": 99.0,
-        "champion_S": 100.0,
-        "champion_sha256": ah,
-        "seed": 1,
-        "fullcheck": None,
+    assert boards["rv32im"]["current_promotion_id"] == 3 and boards["rv32im"]["paused"] is False
+
+    health = ok(database, "/health")
+    assert health["policy_ready"] and health["rank_shares"] == [1.0, 0.0]
+    assert health["benchmarking"] == 1 and health["queued"] == 0
+
+
+def test_champions_and_leaderboard(database):
+    load(database)
+    champions = ok(database, "/champions?board=overall")["champions"]
+    assert [c["submission"] for c in champions] == [SECOND, FIRST]
+    second, first = champions
+    assert second["current"] and second["reward_rank"] == 1 and second["rank_share"] == 1.0
+    assert second["competition_fraction"] == 0.5 and second["ratio"] == 0.9
+    # The previous champion keeps rank 2 in the publication, at a share of nothing.
+    assert not first["current"] and first["reward_rank"] == 2
+    assert first["competition_fraction"] == 0.0
+    assert first["source_available"] and not second["source_available"]
+    assert ok(database, "/champions?board=thumbv6m")["champions"][0]["submission"] == SECOND
+
+    board = ok(database, "/leaderboard?board=overall")
+    assert board["reference"]["submission"] == SECOND and not board["reference"]["shipped"]
+    (challenger,) = board["challengers"]
+    assert challenger["submission"] == IN_PROGRESS and challenger["state"] == "pending"
+    assert challenger["ratio"] is None
+    # The previous reference's group: everyone measured against the first champion.
+    old = ok(database, "/leaderboard?board=overall&promotion_id=2")
+    outcomes = {c["submission"]: c["admission"] for c in old["challengers"]}
+    assert outcomes == {
+        COMPARE_REJECTED: "benchmark-failed",
+        CHECK_REJECTED: "check-failed",
+        SECOND: "qualifies",
     }
-    evaluate(database, b, "overall", decision=above, ref=pids["overall"], refhash=ah)
-    leaderboard = eik_get(database, "/leaderboard?board=overall")
-    assert leaderboard.status_code == 200, leaderboard.text
-    assert leaderboard.json()["reference"]["submission"] == a
-    (challenger,) = leaderboard.json()["challengers"]
-    assert challenger["ratio"] == 0.99 and challenger["admission"] == "above-bar"
-    champions = eik_get(database, "/champions?board=overall")
-    assert champions.status_code == 200, champions.text
-    (champion,) = champions.json()["champions"]
-    assert champion["current"] and champion["reward_rank"] == 1
-    assert champion["competition_fraction"] == 0.5 and champion["ratio"] == 0.5
-    # A current champion's source is never public.
-    assert eik_get(database, f"/submissions/{a}/source").status_code == 403
 
 
-def test_a_rejected_entry_lists_with_its_gate_stage(database):
-    configure(database)
-    sid, _ = submit(
-        database,
-        "rejected",
-        state="rejected",
-        stage="ast",
-        reason="FloatingLiteral is not allowed (in eik_sigmoid); ...",
-    )
-    page = eik_get(database, "/submissions?state=rejected")
-    assert page.status_code == 200, page.text
-    (row,) = page.json()["submissions"]
-    assert row["id"] == sid and row["stage"] == "ast" and row["processing_state"] == "rejected"
-    report = eik_get(database, f"/submissions/{sid}/report")
-    assert report.status_code == 200, report.text
-    assert report.json()["evaluations"] == []
+def test_submissions_list_their_states(database):
+    load(database)
+    rows = {s["id"]: s for s in ok(database, "/submissions")["submissions"]}
+    assert rows[IN_PROGRESS]["processing_state"] == "benchmarking"
+    rejected = rows[GATE_REJECTED]
+    assert rejected["proof_state"] == "rejected" and rejected["stage"] == "ast"
+    assert rejected["reason"].startswith("FloatingLiteral is not allowed")
+    assert all(rows[s]["processing_state"] == "completed" for s in (FIRST, SECOND, CHECK_REJECTED))
+    page = ok(database, "/submissions?state=rejected")["submissions"]
+    assert [s["id"] for s in page] == [GATE_REJECTED]
+    decisions = {e["board"]: e["decision"] for e in rows[FIRST]["evaluations"]}
+    assert decisions["thumbv6m"]["outcome"] == "above-bar" and decisions["rv32im"]["score"] == 0.5
 
 
-def test_report_projects_instruction_counts_and_checks(database):
-    configure(database)
-    sid, sha = submit(database, "entry", content=ENTRY)
-    evaluations = {board: evaluate(database, sid, board) for board in BOARDS}
-    every = list(evaluations.values())
-    compare = {
-        "kind": "compare",
-        "identity": MEASUREMENT,
-        "seed": 20261118,
-        "candidate_hash": sha,
-        "reference_hash": ROOT,
-        "comparisons": {board: {"reference_hash": ROOT} for board in BOARDS},
-    }
-    job(database, every, sha, compare, seed=20261118, result=compare_result(sha))
-    host = {"kind": "fullcheck", "identity": VERIFIER, "function": "exp", "chunks": [0, 512]}
-    job(
-        database,
-        every,
-        sha,
-        host | {"reference_hash": sha},
-        seed=0,
-        result=check_result(sha, "exp", 0, 512),
-    )
-    on_target = host | {"kind": "targetcheck", "target": "rv32im", "chunks": [512, 1024]}
-    job(
-        database,
-        every,
-        sha,
-        on_target | {"reference_hash": sha},
-        seed=(1 << 24) + 512,
-        result=check_result(sha, "exp", 512, 1024, kind="targetcheck", target="rv32im"),
-    )
-    queued = host | {"function": "tanh", "chunks": [0, 512]}
-    job(database, every, sha, queued | {"reference_hash": sha}, seed=2 << 20, state="queued")
-
-    detail = eik_get(database, f"/submissions/{sid}")
-    assert detail.status_code == 200, detail.text
-    decision = detail.json()["evaluations"][0]["decision"]
+def test_report_of_a_takeover(database):
+    load(database)
+    boards = report(database, FIRST)
+    assert set(boards) == set(BOARDS)
+    rv32im, thumbv6m = boards["rv32im"], boards["thumbv6m"]
+    assert rv32im["seed"] == 20261118
+    decision = rv32im["decision"]
     assert decision["outcome"] == "qualifies" and decision["score"] == 0.5
+    assert decision["entry_S"] / decision["champion_S"] == pytest.approx(0.5)
+    assert decision["champion_sha256"] == rv32im["reference_hash"]
+    merged = decision["fullcheck"]
+    assert merged["verdict"] == "passed" and merged["required_targets"] == ["rv32im"]
+    assert merged["functions"]["exp"] == {"chunks_covered": 4096, "words_checked": 1 << 32}
+    assert merged["targets"]["rv32im"]["tanh"]["chunks_covered"] == 4096
 
-    response = eik_get(database, f"/submissions/{sid}/report")
-    assert response.status_code == 200, response.text
-    for private in ("SECRET", "champions", "fingerprint", "hard_pool", "rounds", "image_sha256"):
-        assert private not in response.text, private
-    reports = {e["board"]: e for e in response.json()["evaluations"]}
-    assert set(reports) == set(BOARDS)
-    overall = reports["overall"]
-    assert overall["seed"] == 20261118
-    assert overall["jobs"]["completed"] == 3 and overall["jobs"]["queued"] == 1
-    assert overall["decision"] == qualifies("overall") | {"stage": None, "reasons": None}
-    assert overall["decision"]["fullcheck"]["targets"]["rv32im"]["exp"]["chunks_covered"] == 4096
-
-    first, host_shard, target_shard, waiting = overall["job_results"]
-    assert (first["kind"], first["state"], first["check"]) == ("compare", "completed", None)
-    measured = first["compare"]
-    assert measured["inputs_sha256"] == "1" * 64
-    assert measured["images"] == {"rv32im": "2" * 64, "thumbv6m": "3" * 64, "thumbv7em": "4" * 64}
-    assert measured["scores"]["overall"] == {
-        "S": 14891.59,
-        "bytes": None,
-        "size_factor": None,
-        "functions": None,
-        "reported_only": False,
-    }
+    compare, *checks = rv32im["job_results"]
+    assert compare["kind"] == "compare" and compare["state"] == "completed"
+    measured = compare["compare"]
+    assert set(measured["scores"]) == {"rv32im", "thumbv6m", "thumbv7em", "overall"}
     rv = measured["scores"]["rv32im"]
-    assert rv["S"] == 12326.18 and rv["bytes"] == 16600 and not rv["reported_only"]
-    assert rv["functions"]["exp"] == {"geo_mean_instr": 1000.0, "tail_factor": 1.01}
+    assert rv["S"] == pytest.approx(12326.18) and rv["bytes"] == 16600
+    assert set(rv["functions"]) == {"exp", "sigmoid", "tanh"}
+    assert rv["functions"]["exp"]["tail_factor"] == 1.0 and not rv["reported_only"]
     assert measured["scores"]["thumbv7em"]["reported_only"] is True
-    assert measured["boards"]["rv32im"] == {
-        "entry_S": 12326.18,
-        "champion_S": 24652.36,
-        "champion_sha256": ROOT,
-        "ratio": 0.5,
-        "beats": True,
-    }
-
-    assert host_shard["kind"] == "fullcheck" and host_shard["compare"] is None
-    assert (host_shard["function"], host_shard["target"], host_shard["chunks"]) == (
-        "exp",
-        None,
-        [0, 512],
-    )
-    assert host_shard["check"] == {
+    assert measured["scores"]["overall"]["bytes"] is None
+    assert set(measured["images"]) == {"rv32im", "thumbv6m", "thumbv7em"}
+    assert len(measured["inputs_sha256"]) == 64
+    assert measured["boards"]["rv32im"]["beats"] and not measured["boards"]["thumbv6m"]["beats"]
+    # Two host shards per function, then one QEMU shard per function on the required target, in
+    # eik's function order.
+    assert [(c["kind"], c["function"], c["target"], c["chunks"]) for c in checks] == [
+        ("fullcheck", fn, None, chunks)
+        for fn in ("sigmoid", "tanh", "exp")
+        for chunks in ([0, 2048], [2048, 4096])
+    ] + [("targetcheck", fn, "rv32im", [0, 4096]) for fn in ("sigmoid", "tanh", "exp")]
+    assert all(c["state"] == "completed" and c["compare"] is None for c in checks)
+    assert checks[0]["check"] == {
         "verdict": "passed",
         "stage": None,
         "reasons": [],
-        "words_checked": 512 << 20,
+        "words_checked": 2048 << 20,
         "mismatches": 0,
         "examples": [],
-        "seconds": 4378.0,
-        "budget_seconds": 30720.0,
+        "seconds": 2189.0,
+        "budget_seconds": 15360.0,
     }
-    assert target_shard["kind"] == "targetcheck" and target_shard["target"] == "rv32im"
-    assert target_shard["chunks"] == [512, 1024] and target_shard["check"]["verdict"] == "passed"
-    assert waiting["state"] == "queued" and waiting["check"] is None and waiting["compare"] is None
+    assert rv32im["jobs"]["completed"] == 10
+
+    # Above the bar on thumbv6m: decided from the compare alone, no checks.
+    assert thumbv6m["decision"]["outcome"] == "above-bar"
+    assert thumbv6m["decision"]["fullcheck"] is None
+    assert [j["kind"] for j in thumbv6m["job_results"]] == ["compare"]
 
 
-def test_report_of_a_failed_check_names_the_wrong_outputs(database):
-    configure(database)
-    sid, sha = submit(database, "wrong", content=ENTRY + b"/* wrong */\n")
-    failed = {
-        "outcome": "check-failed",
-        "score": None,
-        "reason": "1 wrong outputs of exp",
-        "stage": "fullcheck:outputs",
-        "reasons": ["1 wrong outputs of exp"],
-        "entry_S": 100.0,
-        "champion_S": 200.0,
-        "champion_sha256": ROOT,
-        "seed": 20261118,
-        "fullcheck": {
-            "verdict": "rejected",
-            "functions": {},
-            "targets": None,
-            "required_targets": None,
-        },
-    }
-    eid = evaluate(database, sid, "rv32im", decision=failed)
-    request = {
-        "kind": "fullcheck",
-        "function": "exp",
-        "chunks": [3059, 3060],
-        "reference_hash": sha,
-    }
-    job(
-        database,
-        [eid],
-        sha,
-        request,
-        seed=3059,
-        result=check_result(sha, "exp", 3059, 3060, rejected=True),
-    )
-    response = eik_get(database, f"/submissions/{sid}/report")
-    assert response.status_code == 200, response.text
-    (evaluation,) = response.json()["evaluations"]
-    assert evaluation["decision"]["outcome"] == "check-failed"
-    assert evaluation["decision"]["stage"] == "fullcheck:outputs"
-    assert evaluation["decision"]["fullcheck"]["verdict"] == "rejected"
-    (shard,) = evaluation["job_results"]
-    assert shard["check"]["verdict"] == "rejected" and shard["check"]["mismatches"] == 1
-    assert shard["check"]["examples"] == [
+def test_report_of_a_check_rejection(database):
+    load(database)
+    boards = report(database, CHECK_REJECTED)
+    decision = boards["rv32im"]["decision"]
+    assert decision["outcome"] == "check-failed" and decision["stage"] == "fullcheck:outputs"
+    assert decision["reasons"] == [decision["reason"]]
+    assert decision["fullcheck"]["verdict"] == "rejected"
+    jobs = boards["rv32im"]["job_results"]
+    (rejected,) = [j for j in jobs if j["check"] and j["check"]["verdict"] == "rejected"]
+    assert rejected["check"]["mismatches"] == 1
+    assert rejected["check"]["examples"] == [
         {"input": "bf317218", "got": "3f000001", "want": "3f000000"}
     ]
+    # The shards the rejection stopped carry no result.
+    cancelled = [j for j in jobs if j["state"] == "cancelled"]
+    assert cancelled and all(j["check"] is None for j in cancelled)
 
 
-def test_report_of_a_rejected_compare_has_no_board_calls(database):
-    configure(database)
-    sid, sha = submit(database, "slow", content=ENTRY + b"/* slow */\n")
-    failed = {
-        "outcome": "benchmark-failed",
-        "score": None,
-        "reason": "run:rv32im",
-        "stage": "run:rv32im",
-        "reasons": ["timeout"],
-        "fullcheck": None,
-    }
-    eid = evaluate(database, sid, "overall", decision=failed)
-    result = compare_result(sha)
-    del result["decision"]
-    result["measure"] |= {"verdict": "rejected", "stage": "run:rv32im", "reasons": ["timeout"]}
-    del result["measure"]["scores"]
-    request = {"kind": "compare", "seed": 7, "reference_hash": ROOT}
-    job(database, [eid], sha, request, seed=7, result=result)
-    response = eik_get(database, f"/submissions/{sid}/report")
-    assert response.status_code == 200, response.text
-    (evaluation,) = response.json()["evaluations"]
-    assert evaluation["decision"]["entry_S"] is None and evaluation["decision"]["fullcheck"] is None
-    (compare,) = evaluation["job_results"]
+def test_report_of_a_compare_rejection_and_of_work_in_progress(database):
+    load(database)
+    boards = report(database, COMPARE_REJECTED)
+    decision = boards["overall"]["decision"]
+    assert decision["outcome"] == "benchmark-failed" and decision["stage"] == "outputs:rv32im"
+    assert decision["entry_S"] is None and decision["fullcheck"] is None
+    (compare,) = boards["overall"]["job_results"]
     assert compare["compare"]["scores"] is None and compare["compare"]["boards"] is None
-    assert compare["compare"]["images"]["rv32im"] == "2" * 64
+    assert set(compare["compare"]["images"]) == {"rv32im", "thumbv6m", "thumbv7em"}
+
+    pending = report(database, IN_PROGRESS)
+    assert {e["state"] for e in pending.values()} == {"pending"}
+    (queued,) = pending["rv32im"]["job_results"]
+    assert queued == {
+        "kind": "compare",
+        "function": None,
+        "target": None,
+        "chunks": None,
+        "state": "queued",
+        "compare": None,
+        "check": None,
+    }
+    assert ok(database, f"/submissions/{GATE_REJECTED}/report")["evaluations"] == []
 
 
-def test_a_former_champion_source_is_served_as_entry_c(database):
-    configure(database)
-    a, ah = submit(database, "first", content=ENTRY)
-    pids = {board: promote(database, a, board) for board in BOARDS}
-    b, _ = submit(database, "second")
-    for board in BOARDS:
-        assert eik_get(database, f"/submissions/{a}/source").status_code == 403
-        promote(database, b, board, ref=pids[board], refhash=ah)
-    response = eik_get(database, f"/submissions/{a}/source")
+def test_source_of_a_former_champion_only(database):
+    load(database)
+    response = eik_get(database, f"/submissions/{FIRST}/source")
     assert response.status_code == 200, response.text
-    assert response.content == ENTRY
+    assert response.content == source_of(FIRST)
     assert response.headers["content-type"] == "text/x-c; charset=utf-8"
     assert response.headers["content-disposition"] == 'attachment; filename="entry.c"'
     assert response.headers["cache-control"] == "no-store"
-    # The current champion's is not.
-    assert eik_get(database, f"/submissions/{b}/source").status_code == 403
+    for sid in (SECOND, CHECK_REJECTED, IN_PROGRESS):
+        assert eik_get(database, f"/submissions/{sid}/source").status_code == 403, sid
