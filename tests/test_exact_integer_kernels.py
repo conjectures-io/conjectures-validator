@@ -14,6 +14,7 @@ import pytest
 import sqlalchemy as sa
 from httpx import ASGITransport, AsyncClient
 
+from database_guard import _migrate_competition
 from conftest import competition_dsn, postgres_dsn
 from conftest_api import build_settings
 from test_torchlean_intake import roles_lock as roles_lock
@@ -76,6 +77,10 @@ def engines(roles_lock):
         c.exec_driver_sql("DROP ROLE platform_api; DROP ROLE eik_worker_access")
     owner.dispose()
     api.dispose()
+    # This worker's competition database belongs to the other competition tests too (the
+    # registration watcher's, which sort after this module): give it back migrated to head, as
+    # `database_guard.isolate_worker` made it, not empty.
+    _migrate_competition(comp)
 
 
 @pytest.fixture
