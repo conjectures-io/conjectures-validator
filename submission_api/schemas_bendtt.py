@@ -273,6 +273,7 @@ class ChampionState(DTO):
 
 
 class SubmissionTiming(DTO):
+    benchmark_seconds: float | None = None
     queue_seconds: float | None
     admission_seconds: float | None
     evaluation_seconds: float | None
@@ -547,6 +548,7 @@ class Rewards(DTO):
 
 
 class TargetHealth(DTO):
+    last_benchmark_at: datetime | None = None
     id: str
     activity: Literal["busy", "recent", "stale", "unknown"]
     last_contact_at: datetime | None
@@ -561,3 +563,33 @@ class Health(DTO):
     active_evaluation_id: Decimal | None
     targets: list[TargetHealth]
     submissions_open: bool
+
+
+class ProgressPoint(DTO):
+    admission_speedup: Speedup | None = None
+    id: Decimal
+    submission_id: Decimal
+    evaluation_id: Decimal
+    target: str
+    evaluated_at: datetime
+    promoted: bool
+    profile_hash: Hash | None
+    baseline_source_sha256: Hash
+    baseline_speedup: Annotated[float, Field(gt=0)] | None
+    method: Literal["telemetry", "direct_baseline", "unavailable"]
+
+
+class Statistics(DTO):
+    submissions: Decimal
+    benchmarked: Decimal
+    proof_rejected: Decimal
+    benchmark_failed: Decimal
+    champions: Decimal
+    promotions: Decimal
+    as_of: datetime
+
+
+class HistoryEntry(DTO):
+    id: Decimal
+    combined: ProgressPoint
+    machines: list[ProgressPoint]

@@ -75,6 +75,26 @@ def failure(phase: str, kind: str, side: object = None) -> s.Failure:
     )
 
 
+PROGRESS_QUERY = (
+    "SELECT r.id,e.submission_id,e.id AS evaluation_id,r.target,"
+    "e.completed_at AS evaluated_at,e.outcome='promoted' AS promoted,"
+    "e.profile_hash,e.baseline_source_sha256,"
+    "CASE WHEN r.state='completed' THEN coalesce(t.challenger_baseline_speedup,"
+    "CASE WHEN EXISTS(SELECT 1 FROM api_builds b WHERE "
+    "b.attempt_id=r.completed_attempt_id AND b.role='incumbent' "
+    "AND b.status='completed' AND b.source_sha256=e.baseline_source_sha256) "
+    "THEN r.speedup_estimate END) END AS baseline_speedup,"
+    "CASE WHEN r.state<>'completed' THEN 'unavailable' "
+    "WHEN t.challenger_baseline_speedup IS NOT NULL THEN 'telemetry' "
+    "WHEN r.speedup_estimate IS NOT NULL AND EXISTS(SELECT 1 FROM api_builds b "
+    "WHERE b.attempt_id=r.completed_attempt_id AND b.role='incumbent' "
+    "AND b.status='completed' AND b.source_sha256=e.baseline_source_sha256) "
+    "THEN 'direct_baseline' ELSE 'unavailable' END AS method "
+    "FROM api_requests r JOIN api_evaluations e ON e.id=r.evaluation_id "
+    "LEFT JOIN api_target_summaries t ON t.request_id=r.id "
+    "WHERE e.competition_id=:c AND e.state='completed'"
+)
+
 @dataclass(frozen=True, slots=True)
 class Store:
     session: AsyncSession
@@ -89,7 +109,8 @@ class Store:
         await compatible(session)
         found = await rows(
             session,
-            "SELECT c.id,r.observed_at,p.policy FROM competitions c LEFT JOIN api_runtime r ON r.competition_id=c.id LEFT JOIN api_profiles p ON p.profile_hash=r.profile_hash WHERE c.slug='bendtt'",
+            "SELECT c.id,r.observed_at,p.policy FROM competitions c LEFT JOIN api_runtime r ON r.competition_id=c.id LEFT JOIN api_profiles p ON p.profile_hash=r.profile_hash WHERE c.slug=:slug",
+            dict(slug=settings.bendtt_competition),
         )
         if not found:
             raise ServiceUnavailable("BendTT is not initialized", reason_code="POLICY_NOT_READY")
@@ -174,7 +195,8 @@ class Store:
     async def eligibility(self, hotkey: str) -> s.Eligibility:
         cfg = await self.intake_config()
         result = await self.session.scalar(
-            text("SELECT api_eligibility('bendtt',:hotkey)"), dict(hotkey=hotkey)
+            text("SELECT api_eligibility(:slug,:hotkey)"),
+            dict(hotkey=hotkey, slug=self.settings.bendtt_competition),
         )
         if not isinstance(result, dict) or result.get("error"):
             raise ServiceUnavailable("Intake policy unavailable", reason_code="POLICY_NOT_READY")
@@ -198,8 +220,14 @@ class Store:
     async def enqueue(self, hotkey: str, content: str, request_id: str) -> tuple[int, bool]:
         await self.intake_config()
         result = await self.session.scalar(
-            text("SELECT api_enqueue('bendtt',:hotkey,:content,CAST(:request AS uuid),:dev)"),
-            dict(hotkey=hotkey, content=content, request=request_id, dev=self.dev),
+            text("SELECT api_enqueue(:slug,:hotkey,:content,CAST(:request AS uuid),:dev)"),
+            dict(
+                slug=self.settings.bendtt_competition,
+                hotkey=hotkey,
+                content=content,
+                request=request_id,
+                dev=self.dev,
+            ),
         )
         if not isinstance(result, dict):
             raise ServiceUnavailable("Intake returned invalid receipt")
@@ -315,6 +343,22 @@ class Store:
                 else max(0.0, (moment(b) - moment(a)).total_seconds())
             )
 
+        benchmark_seconds = None
+        if evaluation is not None:
+            measured = await rows(
+                self.session,
+                "SELECT max(greatest(0,extract(epoch FROM (a.finished_at-b.finished_at)))) "
+                "AS seconds FROM api_requests r JOIN LATERAL "
+                "(SELECT * FROM api_attempts WHERE request_id=r.id ORDER BY id DESC LIMIT 1) "
+                "a ON true JOIN LATERAL "
+                "(SELECT max(finished_at) AS finished_at,count(*) AS builds "
+                "FROM api_builds WHERE attempt_id=a.id AND status='completed') b ON true "
+                "WHERE r.evaluation_id=:id AND a.finished_at IS NOT NULL AND b.builds=3 "
+                "AND a.finished_at>=b.finished_at",
+                dict(id=evaluation["id"]),
+            )
+            if measured and measured[0]["seconds"] is not None:
+                benchmark_seconds = float(str(measured[0]["seconds"]))
         return s.Submission.model_validate(
             dict(
                 id=row["id"],
@@ -342,6 +386,7 @@ class Store:
                 source_visibility="public" if row["source_available"] else "withheld",
                 failure=failed,
                 timing=dict(
+                    benchmark_seconds=benchmark_seconds,
                     queue_seconds=duration(start, max(start, moment(first)))
                     if first is not None
                     else None,
@@ -713,6 +758,10 @@ class Store:
             "allocations": "SELECT wa.* FROM api_allocations wa JOIN api_weight_sets w ON w.id=wa.weight_set_id WHERE w.competition_id=:c AND wa.weight_set_id=:parent",
             "corpus": "SELECT ac.* FROM api_corpus ac JOIN api_profiles p ON p.profile_hash=ac.profile_hash WHERE p.competition_id=:c AND ac.profile_hash=:profile_hash",
         }
+        queries["progress"] = PROGRESS_QUERY
+        queries["history"] = (
+            "SELECT * FROM api_evaluations WHERE competition_id=:c AND state='completed'"
+        )
         query = queries[kind]
         params: dict[str, object] = dict(c=self.competition)
         if parent is not None:
@@ -865,7 +914,7 @@ class Store:
         for target in [] if self.policy is None else self.policy.targets:
             found = await rows(
                 self.session,
-                "SELECT state,lease_expires_at FROM api_attempts WHERE competition_id=:c AND target=:t ORDER BY id DESC LIMIT 1",
+                "SELECT state,lease_expires_at,started_at,finished_at FROM api_attempts WHERE competition_id=:c AND target=:t ORDER BY id DESC LIMIT 1",
                 dict(c=self.competition, t=target.id),
             )
             busy = bool(
@@ -875,7 +924,12 @@ class Store:
             )
             targets.append(
                 s.TargetHealth(
-                    id=target.id, activity="busy" if busy else "unknown", last_contact_at=None
+                    id=target.id,
+                    activity="busy" if busy else "unknown",
+                    last_contact_at=None,
+                    last_benchmark_at=None if not found else moment(
+                        found[0]["finished_at"] or found[0]["started_at"]
+                    ),
                 )
             )
         recent = (
@@ -906,3 +960,98 @@ class Store:
                 submissions_open=overview.submissions_open,
             )
         )
+
+
+    async def statistics(self) -> s.Statistics:
+        result = await rows(
+            self.session,
+            "SELECT count(*) AS submissions,"
+            "count(*) FILTER (WHERE e.state='completed' AND "
+            "e.outcome IN ('promoted','not_promoted')) AS benchmarked,"
+            "count(*) FILTER (WHERE a.state='rejected') AS proof_rejected,"
+            "count(*) FILTER (WHERE e.outcome='benchmark_failed') AS benchmark_failed "
+            "FROM api_submissions sub LEFT JOIN LATERAL "
+            "(SELECT * FROM api_evaluations WHERE submission_id=sub.id "
+            "ORDER BY id DESC LIMIT 1) e ON true LEFT JOIN api_admissions a "
+            "ON a.id=coalesce(e.admission_id,(SELECT id FROM api_admissions "
+            "WHERE source_sha256=sub.source_sha256 AND proof_identity=:proof)) "
+            "WHERE sub.competition_id=:c",
+            dict(c=self.competition, proof=None if self.policy is None else self.policy.proof_identity),
+        )
+        promoted = await rows(
+            self.session,
+            "SELECT count(*) AS promotions,count(DISTINCT submission_id) AS champions "
+            "FROM api_promotions WHERE competition_id=:c",
+            dict(c=self.competition),
+        )
+        return s.Statistics.model_validate({**result[0], **promoted[0], "as_of": self.now})
+
+
+    async def history(self, limit: int, cursor: str | None) -> s.Page[s.HistoryEntry]:
+        result = await self.collection("history", None, {}, limit, cursor)
+        if not result.rows:
+            return s.Page[s.HistoryEntry](items=[], next_cursor=result.next_cursor, as_of=self.now)
+        identifiers = [number(row["id"]) for row in result.rows]
+        measured = await rows(
+            self.session, PROGRESS_QUERY + " AND e.id=ANY(:ids)",
+            dict(c=self.competition, ids=identifiers),
+        )
+        profiles = await rows(
+            self.session,
+            "SELECT profile_hash,policy FROM api_profiles WHERE competition_id=:c "
+            "AND profile_hash=ANY(:profiles)",
+            dict(c=self.competition, profiles=list({string(row["profile_hash"]) for row in result.rows if row["profile_hash"] is not None})),
+        )
+        policies = {string(row["profile_hash"]): s.Policy.model_validate(row["policy"]) for row in profiles}
+        grouped: dict[int, list[s.ProgressPoint]] = {}
+        for raw in measured:
+            grouped.setdefault(number(raw["evaluation_id"]), []).append(s.ProgressPoint.model_validate(raw))
+        items = []
+        for row in result.rows:
+            ident = number(row["id"])
+            admission = speedup(row)
+            machines = [point.model_copy(update={"admission_speedup": admission}) for point in grouped.get(ident, [])]
+            policy = policies.get(string(row["profile_hash"])) if row["profile_hash"] is not None else None
+            expected_raw = row["expected_targets"]
+            if not isinstance(expected_raw, list):
+                raise ValueError("invalid expected targets")
+            expected = {string(target) for target in expected_raw}
+            complete = len(machines) == len(expected) and {p.target for p in machines} == expected
+            direct = complete and all(
+                point.method == "direct_baseline" and point.baseline_speedup is not None
+                for point in machines
+            )
+            value = None
+            method = "unavailable"
+            if direct and admission is not None:
+                value = admission.estimate
+                method = "direct_baseline"
+            elif policy is not None and complete:
+                weights = {target.id: target.weight for target in policy.targets}
+                if set(weights) == expected:
+                    value = combined_baseline(machines, weights)
+                if value is not None:
+                    method = "direct_baseline" if direct else "telemetry"
+            combined = s.ProgressPoint.model_validate(dict(
+                id=row["id"], submission_id=row["submission_id"], evaluation_id=row["id"],
+                target="combined", evaluated_at=row["completed_at"], promoted=row["outcome"] == "promoted",
+                profile_hash=row["profile_hash"], baseline_source_sha256=row["baseline_source_sha256"],
+                baseline_speedup=value, method=method, admission_speedup=admission,
+            ))
+            items.append(s.HistoryEntry(id=str(ident), combined=combined, machines=machines))
+        return s.Page[s.HistoryEntry](items=items, next_cursor=result.next_cursor, as_of=self.now)
+
+
+def combined_baseline(points: list[s.ProgressPoint], weights: dict[str, float]) -> float | None:
+    import math
+
+    if not weights or any(not math.isfinite(weight) or weight <= 0 for weight in weights.values()):
+        raise ValueError("machine weights must be finite and positive")
+    if len(points) != len(weights) or {point.target for point in points} != set(weights):
+        return None
+    if any(point.baseline_speedup is None for point in points):
+        return None
+    return math.exp(sum(
+        weights[point.target] * math.log(point.baseline_speedup)
+        for point in points if point.baseline_speedup is not None
+    ) / sum(weights.values()))

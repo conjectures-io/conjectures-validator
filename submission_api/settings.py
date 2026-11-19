@@ -986,6 +986,7 @@ class Settings:
     floatlib_submissions_enabled: bool = False
     floatlib_registration_cutoff: datetime | None = None
     floatlib_check_deflate_usage: bool = False
+    bendtt_competition: str = "bendtt"
     bendtt_submissions_enabled: bool = False
     bendtt_dev_skip_registration: bool = False
     bendtt_max_source_bytes: int = 4194304
@@ -1693,6 +1694,9 @@ class Settings:
             and not dict(competition_database_urls).get("bendtt")
         ):
             raise SettingsError("COMPETITION_BENDTT_DATABASE_URL is required for BendTT")
+        bendtt_competition = env.get("BENDTT_COMPETITION", "bendtt").strip()
+        if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", bendtt_competition):
+            raise SettingsError("BENDTT_COMPETITION must be a competition namespace")
         bendtt_network = env.get("BENDTT_CHAIN_NETWORK", "finney").strip()
         if (
             not bendtt_network
@@ -1713,6 +1717,7 @@ class Settings:
         ):
             raise SettingsError("BENDTT_MIN_REGISTERED_BLOCK is required for registered uploads")
         return cls(
+            bendtt_competition=bendtt_competition,
             bendtt_submissions_enabled=bendtt_uploads,
             bendtt_dev_skip_registration=bendtt_dev,
             bendtt_max_source_bytes=_bounded_int(

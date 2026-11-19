@@ -518,3 +518,23 @@ async def health(view: Read, response: Response):
     if result.status == "not_ready":
         response.status_code = 503
     return result
+
+
+@router.get("/progress", response_model=s.Page[s.ProgressPoint])
+async def progress(view: Read, limit: Limit = 100, cursor: Cursor = None):
+    result = await view.collection("progress", None, {}, limit, cursor)
+    return s.Page[s.ProgressPoint](
+        items=[s.ProgressPoint.model_validate(row) for row in result.rows],
+        next_cursor=result.next_cursor,
+        as_of=view.now,
+    )
+
+
+@router.get("/statistics", response_model=s.Statistics)
+async def statistics(view: Read):
+    return await view.statistics()
+
+
+@router.get("/history", response_model=s.Page[s.HistoryEntry])
+async def history(view: Read, limit: Limit = 50, cursor: Cursor = None):
+    return await view.history(limit, cursor)

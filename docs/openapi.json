@@ -5775,6 +5775,32 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HistoryEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "combined": {
+            "$ref": "#/components/schemas/ProgressPoint"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "machines": {
+            "items": {
+              "$ref": "#/components/schemas/ProgressPoint"
+            },
+            "title": "Machines",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "combined",
+          "machines"
+        ],
+        "title": "HistoryEntry",
+        "type": "object"
+      },
       "Identity": {
         "additionalProperties": false,
         "description": "One way in to this account, as a sign-in page lists them.\n\nA flattened view of what is already on `Account`: the verified email address, every external\nprovider in `identities`, and every linked coldkey. It exists because \"how can I get back\ninto this account\" is one question, and answering it from three differently-shaped arrays is\nwork every client would otherwise repeat.\n\n`label` is what to show: the address for `email` and `google`, the SS58 for `coldkey`. Full\nvalues, never truncated — where to elide is a layout decision, and a server that shortened\nthem would make \"is this the key I think it is\" unanswerable.\n\n**The Google subject is deliberately not here.** `LinkedIdentity` withholds it and so does\nthis; the label is the provider's email, which is what a person recognises. The subject is\nthe login key and belongs in the database, not in a body a browser extension can read.\n\n**`coldkey` does not say which wallet signed.** Talisman, the tao.com wallet and `btcli`\nproduce the same sr25519 signature over the same message, and nothing in the flow records\nwhich one produced it, so there is no honest field for it here.",
@@ -7324,6 +7350,40 @@
         "title": "Page[EvaluationSummary]",
         "type": "object"
       },
+      "Page_HistoryEntry_": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryEntry"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "as_of"
+        ],
+        "title": "Page[HistoryEntry]",
+        "type": "object"
+      },
       "Page_Measurement_": {
         "additionalProperties": false,
         "properties": {
@@ -7390,6 +7450,40 @@
           "as_of"
         ],
         "title": "Page[Member]",
+        "type": "object"
+      },
+      "Page_ProgressPoint_": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProgressPoint"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "as_of"
+        ],
+        "title": "Page[ProgressPoint]",
         "type": "object"
       },
       "Page_Submission_": {
@@ -8479,6 +8573,98 @@
           "measurements_planned"
         ],
         "title": "Progress",
+        "type": "object"
+      },
+      "ProgressPoint": {
+        "additionalProperties": false,
+        "properties": {
+          "admission_speedup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Speedup"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "baseline_source_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Baseline Source Sha256",
+            "type": "string"
+          },
+          "baseline_speedup": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Speedup"
+          },
+          "evaluated_at": {
+            "format": "date-time",
+            "title": "Evaluated At",
+            "type": "string"
+          },
+          "evaluation_id": {
+            "title": "Evaluation Id",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "telemetry",
+              "direct_baseline",
+              "unavailable"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "profile_hash": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Hash"
+          },
+          "promoted": {
+            "title": "Promoted",
+            "type": "boolean"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "submission_id",
+          "evaluation_id",
+          "target",
+          "evaluated_at",
+          "promoted",
+          "profile_hash",
+          "baseline_source_sha256",
+          "baseline_speedup",
+          "method"
+        ],
+        "title": "ProgressPoint",
         "type": "object"
       },
       "Proof": {
@@ -10903,6 +11089,51 @@
         "title": "Stage",
         "type": "object"
       },
+      "Statistics": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "benchmark_failed": {
+            "title": "Benchmark Failed",
+            "type": "string"
+          },
+          "benchmarked": {
+            "title": "Benchmarked",
+            "type": "string"
+          },
+          "champions": {
+            "title": "Champions",
+            "type": "string"
+          },
+          "promotions": {
+            "title": "Promotions",
+            "type": "string"
+          },
+          "proof_rejected": {
+            "title": "Proof Rejected",
+            "type": "string"
+          },
+          "submissions": {
+            "title": "Submissions",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submissions",
+          "benchmarked",
+          "proof_rejected",
+          "benchmark_failed",
+          "champions",
+          "promotions",
+          "as_of"
+        ],
+        "title": "Statistics",
+        "type": "object"
+      },
       "SubmissionColdkeyRequest": {
         "additionalProperties": false,
         "description": "Which already-linked coldkey submits. `null` clears the designation.\n\nProof lives at `POST /v1/me/wallets`; this only chooses among keys already proved.",
@@ -11569,6 +11800,17 @@
             ],
             "title": "Admission Seconds"
           },
+          "benchmark_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Benchmark Seconds"
+          },
           "elapsed_seconds": {
             "title": "Elapsed Seconds",
             "type": "number"
@@ -11835,6 +12077,18 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "last_benchmark_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Benchmark At"
           },
           "last_contact_at": {
             "anyOf": [
@@ -20163,6 +20417,68 @@
         ]
       }
     },
+    "/v1/competitions/bendtt/history": {
+      "get": {
+        "operationId": "history_v1_competitions_bendtt_history_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_HistoryEntry_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "History",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
     "/v1/competitions/bendtt/measurements/{measurement_id}/members": {
       "get": {
         "operationId": "members_v1_competitions_bendtt_measurements__measurement_id__members_get",
@@ -20257,6 +20573,68 @@
         ]
       }
     },
+    "/v1/competitions/bendtt/progress": {
+      "get": {
+        "operationId": "progress_v1_competitions_bendtt_progress_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_ProgressPoint_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Progress",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
     "/v1/competitions/bendtt/rewards": {
       "get": {
         "operationId": "rewards_v1_competitions_bendtt_rewards_get",
@@ -20273,6 +20651,27 @@
           }
         },
         "summary": "Rewards",
+        "tags": [
+          "bendtt"
+        ]
+      }
+    },
+    "/v1/competitions/bendtt/statistics": {
+      "get": {
+        "operationId": "statistics_v1_competitions_bendtt_statistics_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Statistics"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Statistics",
         "tags": [
           "bendtt"
         ]

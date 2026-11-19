@@ -74,6 +74,8 @@ dev experiment. The digest is checked from received bytes, never a caller-provid
 - `/evaluations/{id}`, `/evaluations/{id}/report`, `/evaluations/{id}/attempts`.
 - `/attempts/{id}`, `/attempts/{id}/measurements`.
 - `/measurements/{id}/members`, `/champions`, `/corpus`.
+- `/statistics` for competition-wide counts; `/progress` for per-machine baseline points.
+- `/history` for paginated evaluations with combined and per-machine baseline points and recorded admission intervals. Combined telemetry uses archived machine weights and requires every expected machine. Direct comparisons against the baseline retain the recorded admission estimate, including legacy profiles without a published weight snapshot.
 - `/rewards`, `/weight-sets`, `/weight-sets/{id}/allocations`.
 
 Growing collections have `{items,next_cursor,as_of}`, default 25/max 100 items. Cursors are

@@ -87,7 +87,7 @@ def test_all_planned_routes_have_response_schemas():
     app = FastAPI()
     app.include_router(bendtt.router)
     spec = app.openapi()
-    assert len(spec["paths"]) == 21
+    assert len(spec["paths"]) == 24
     assert (
         "Submission.lean"
         in spec["paths"][bendtt.BASE + "/submissions"]["post"]["requestBody"]["content"][
@@ -462,7 +462,7 @@ def test_api_database_role_cannot_mutate_competition(kit):
                 conn.execute(sql)
 
 
-def populated(kit, suffix="", previous=None):
+def populated(kit, suffix="", previous=None, incumbent=None, profile=H):
     """Relational protocol fixture only: inserts no claimed real proof/native evidence."""
     from psycopg.types.json import Jsonb
 
@@ -471,7 +471,7 @@ def populated(kit, suffix="", previous=None):
     kit.sql(
         "INSERT INTO sources(sha256,content) VALUES(%s,%s) ON CONFLICT DO NOTHING", (digest, source)
     )
-    snap = kit.sql("SELECT put_snapshot('test',1,%s) AS hash", (Jsonb(dict(profile=H)),))[0]["hash"]
+    snap = kit.sql("SELECT put_snapshot('test',1,%s) AS hash", (Jsonb(dict(profile=profile)),))[0]["hash"]
     sid = kit.sql(
         "INSERT INTO submissions(competition_id,source_sha256,submitter,hotkey) VALUES(%s,%s,'fixture',%s) RETURNING id",
         (kit.competition, digest, HOTKEY),
@@ -495,7 +495,7 @@ def populated(kit, suffix="", previous=None):
     for role in ("baseline", "incumbent", "challenger"):
         kit.sql(
             "INSERT INTO benchmark_builds(attempt_id,role,source_sha256,status,started_at,finished_at,elapsed_seconds,returncode,artifact_sha256,cache_hit) VALUES(%s,%s,%s,'completed',clock_timestamp(),clock_timestamp(),0.1,0,%s,true)",
-            (attempt, role, digest, digest),
+            (attempt, role, incumbent if role == "incumbent" and incumbent else digest, digest),
         )
     return sid, eid, rid, attempt, digest
 
@@ -848,3 +848,103 @@ def test_signed_upload_to_real_coordinator_and_two_native_workers(kit, tmp_path)
         for role in roles:
             kit.sql(SQL("DROP OWNED BY {}").format(Identifier(role)))
             kit.sql(SQL("DROP ROLE {}").format(Identifier(role)))
+
+
+def test_configurable_database_namespace_keeps_public_protocol(kit):
+    kit.sql("UPDATE competitions SET slug='bendtt-dev' WHERE id=%s", (kit.competition,))
+
+    async def scenario():
+        options = dict(settings=dict(bendtt_competition="bendtt-dev"))
+        overview = await request(kit, "GET", "", **options)
+        assert overview.status_code == 200, overview.text
+        assert overview.json()["slug"] == "bendtt"
+        upload = await request(kit, "POST", "/submissions", **options, **signed())
+        assert upload.status_code == 201, upload.text
+        assert upload.json()["competition"] == "bendtt"
+        assert (
+            kit.sql("SELECT competition_id FROM submissions")[0]["competition_id"]
+            == kit.competition
+        )
+
+    asyncio.run(scenario())
+
+
+def test_progress_uses_only_recorded_baseline_comparisons(kit):
+    ids = populated(kit)
+    finish_promotion(kit, ids)
+    _, _, rid, attempt, _ = ids
+
+    async def read():
+        response = await request(kit, "GET", "/progress")
+        assert response.status_code == 200, response.text
+        return response.json()["items"][0]
+
+    direct = asyncio.run(read())
+    assert direct["baseline_speedup"] == 1.06
+    assert direct["method"] == "direct_baseline"
+    assert direct["promoted"] is True
+    assert direct["submission_id"] == str(ids[0])
+    # A different incumbent must never be used to extrapolate a baseline score.
+    previous = kit.sql("SELECT id FROM promotions WHERE evaluation_id=%s", (ids[1],))[0]["id"]
+    second = populated(kit, "-- second", previous, incumbent=ids[4])
+    finish_promotion(kit, second)
+    rid = second[2]
+    missing = asyncio.run(read())
+    assert missing["baseline_speedup"] is None
+    assert missing["method"] == "unavailable"
+    kit.sql(
+        "INSERT INTO api_target_summaries(request_id,quality_status,good_probe_fraction,probes_recorded,probes_planned,challenger_baseline_speedup) VALUES(%s,'usable',1,2,2,1.2)",
+        (rid,),
+    )
+    measured = asyncio.run(read())
+    assert measured["baseline_speedup"] == 1.2
+    assert measured["method"] == "telemetry"
+
+
+def test_statistics_and_benchmark_phase_timing(kit):
+    ids = populated(kit)
+    finish_promotion(kit, ids)
+    _, _, _, attempt, _ = ids
+    async def scenario():
+        result = await request(kit, "GET", "/statistics")
+        assert result.status_code == 200, result.text
+        stats = result.json()
+        assert stats["submissions"] == "1"
+        assert stats["benchmarked"] == "1"
+        assert stats["champions"] == "1"
+        assert stats["promotions"] == "1"
+        assert stats["proof_rejected"] == "0"
+        assert stats["benchmark_failed"] == "0"
+        sub = await request(kit, "GET", f"/submissions/{ids[0]}")
+        report = await request(kit, "GET", f"/evaluations/{ids[1]}/report")
+        value = sub.json()["timing"]["benchmark_seconds"]
+        assert value is not None and value >= 0
+        assert value == pytest.approx(report.json()["targets"][0]["timing"]["benchmark_seconds"])
+    asyncio.run(scenario())
+
+
+def test_combined_baseline_requires_all_targets_and_uses_weights():
+    from submission_api.bendtt.store import combined_baseline
+    from datetime import datetime, timezone
+    def point(target, value):
+        return s.ProgressPoint(id="1",submission_id="1",evaluation_id="1",target=target,
+            evaluated_at=datetime.now(timezone.utc),promoted=True,profile_hash=H,
+            baseline_source_sha256=H,baseline_speedup=value,method="telemetry")
+    assert combined_baseline([point("amd",2),point("arm",8)],{"amd":1,"arm":3}) == pytest.approx(2**0.25*8**0.75)
+    assert combined_baseline([point("amd",2)],{"amd":1,"arm":3}) is None
+    assert combined_baseline([point("amd",2),point("arm",None)],{"amd":1,"arm":3}) is None
+
+
+@pytest.mark.parametrize("profile_hash", [H, "c" * 64])
+def test_combined_history_preserves_recorded_admission(kit, profile_hash):
+    ids = populated(kit, profile=profile_hash)
+    finish_promotion(kit, ids)
+    async def scenario():
+        response = await request(kit,"GET","/history?limit=1")
+        assert response.status_code == 200, response.text
+        item=response.json()["items"][0]
+        assert item["combined"]["target"] == "combined"
+        assert item["combined"]["baseline_speedup"] == 1.06
+        assert item["combined"]["admission_speedup"]["lower"] == 1.04
+        assert item["machines"][0]["admission_speedup"]["estimate"] == 1.06
+    asyncio.run(scenario())
