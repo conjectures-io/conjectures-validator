@@ -350,3 +350,122 @@ class TorchLeanEvaluationReport(TorchLeanEvaluation):
 class TorchLeanReport(BaseModel):
     submission: TorchLeanSubmission
     evaluations: list[TorchLeanEvaluationReport]
+
+
+# Exact integer kernels' report: instruction counts and exhaustive checks instead of timing rounds.
+# Every field is named here, so nothing else in a worker's report (champions' measurements, host
+# fingerprints, hard-input pools) is published.
+
+
+class EikCoverage(BaseModel):
+    chunks_covered: int | None = Field(None, description="Of the 4,096 chunks of 2^20 inputs")
+    words_checked: int | None = None
+
+
+class EikFullcheck(BaseModel):
+    """The merged exhaustive check, host shards and target shards together."""
+
+    verdict: str | None = Field(None, description="`passed`, `incomplete` or `rejected`")
+    functions: dict[str, EikCoverage] | None = Field(
+        None, description="Per function, what the host shards covered"
+    )
+    targets: dict[str, dict[str, EikCoverage]] | None = Field(
+        None, description="Per target, per function, what the target (QEMU) shards covered"
+    )
+    required_targets: list[str] | None = None
+
+
+class EikDecision(BaseModel):
+    outcome: str | None = Field(
+        None, description="`qualifies`, `above-bar`, `benchmark-failed` or `check-failed`"
+    )
+    score: float | None = Field(
+        None, description="`entry_S / champion_S` on this board; lower is better"
+    )
+    reason: str | None = None
+    stage: str | None = Field(None, description="The rejecting report's stage (failures only)")
+    reasons: list[str] | None = None
+    entry_S: float | None = None
+    champion_S: float | None = None
+    champion_sha256: str | None = None
+    seed: int | None = None
+    fullcheck: EikFullcheck | None = None
+
+
+class EikFunctionScore(BaseModel):
+    geo_mean_instr: float | None = Field(
+        None, description="Geometric mean of the instructions retired per call"
+    )
+    tail_factor: float | None = None
+
+
+class EikTargetScore(BaseModel):
+    S: float | None = Field(None, description="The score on this target or board; lower is better")
+    bytes: int | None = Field(None, description="Code and tables on this target")
+    size_factor: float | None = None
+    functions: dict[str, EikFunctionScore] | None = None
+    reported_only: bool = Field(False, description="Measured, but no board scores this target")
+
+
+class EikBoardComparison(BaseModel):
+    entry_S: float | None = None
+    champion_S: float | None = None
+    champion_sha256: str | None = Field(None, description="Null where the board had no champion")
+    ratio: float | None = None
+    beats: bool | None = Field(None, description="`ratio` is within the takeover bar")
+
+
+class EikCompare(BaseModel):
+    """The entry's measurement in a compare job, and how it compared with each board's champion."""
+
+    scores: dict[str, EikTargetScore] | None = Field(
+        None, description="Per target, and `overall`, the entry's score"
+    )
+    inputs_sha256: str | None = Field(None, description="The inputs drawn from the seed")
+    images: dict[str, str] | None = Field(
+        None, description="Per target, the sha256 of the entry's compiled image"
+    )
+    boards: dict[str, EikBoardComparison] | None = Field(
+        None, description="Per board; null when the entry's measurement was rejected"
+    )
+
+
+class EikMismatch(BaseModel):
+    input: str | None = None
+    got: str | None = None
+    want: str | None = None
+
+
+class EikCheck(BaseModel):
+    """One shard of the exhaustive check, on the host (`fullcheck`) or a target (`targetcheck`)."""
+
+    verdict: str | None = None
+    stage: str | None = None
+    reasons: list[str] | None = None
+    words_checked: int | None = None
+    mismatches: int | None = None
+    examples: list[EikMismatch] | None = Field(None, description="The first wrong outputs")
+    seconds: float | None = None
+    budget_seconds: float | None = None
+
+
+class EikJob(BaseModel):
+    kind: str | None = Field(None, description="`compare`, `fullcheck` or `targetcheck`")
+    function: str | None = Field(None, description="The function a check shard covers")
+    target: str | None = Field(None, description="The target a `targetcheck` runs on")
+    chunks: list[int] | None = Field(None, description="A check shard's `[lo, hi)` chunk range")
+    state: str
+    # Null until the job has a result; a rejection is a result, not a failed job.
+    compare: EikCompare | None = None
+    check: EikCheck | None = None
+
+
+class EikEvaluationReport(TorchLeanEvaluation):
+    decision: EikDecision | None
+    seed: int | None = Field(None, description="The seed the compare job drew its inputs from")
+    job_results: list[EikJob]
+
+
+class EikReport(BaseModel):
+    submission: TorchLeanSubmission
+    evaluations: list[EikEvaluationReport]
