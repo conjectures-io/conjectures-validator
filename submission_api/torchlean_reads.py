@@ -607,3 +607,132 @@ async def report(session, sid):
             )
         )
     return s.TorchLeanReport(submission=sub, evaluations=result)
+
+
+# Exact integer kernels: the same tables, but a compare job counts instructions on emulated
+# targets and check shards run every input, so its report is a projection of its own. Only named
+# fields leave a worker's report: never the champions' measurements beside the entry's, the
+# fingerprint or the hard-input pool.
+
+
+def mapping(model, value):
+    """`{key: model}` from a worker payload's mapping of rows; anything not a row is skipped."""
+    if not isinstance(value, dict):
+        return None
+    return {key: pick(model, row) for key, row in value.items() if isinstance(row, dict)}
+
+
+def eik_fullcheck(value):
+    if not isinstance(value, dict):
+        return None
+    targets = value.get("targets")
+    return s.EikFullcheck(
+        verdict=value.get("verdict"),
+        functions=mapping(s.EikCoverage, value.get("functions")),
+        targets={
+            target: mapping(s.EikCoverage, functions)
+            for target, functions in targets.items()
+            if isinstance(functions, dict)
+        }
+        if isinstance(targets, dict)
+        else None,
+        required_targets=value.get("required_targets"),
+    )
+
+
+def eik_decision(value):
+    if not isinstance(value, dict):
+        return None
+    return s.EikDecision(
+        **{k: value.get(k) for k in s.EikDecision.model_fields if k != "fullcheck"},
+        fullcheck=eik_fullcheck(value.get("fullcheck")),
+    )
+
+
+def eik_compare(result):
+    """The entry's side of a compare report: scores, inputs, images and each board's comparison."""
+    measure = result.get("measure") if isinstance(result.get("measure"), dict) else {}
+    decision = result.get("decision") if isinstance(result.get("decision"), dict) else {}
+    scores = measure.get("scores")
+    images = measure.get("images")
+    return s.EikCompare(
+        scores={
+            target: s.EikTargetScore(
+                **{k: row[k] for k in ("S", "bytes", "size_factor") if k in row},
+                functions=mapping(s.EikFunctionScore, row.get("functions")),
+                reported_only=row.get("reported_only") is True,
+            )
+            for target, row in scores.items()
+            if isinstance(row, dict)
+        }
+        if isinstance(scores, dict)
+        else None,
+        inputs_sha256=measure.get("inputs_sha256"),
+        images={t: h for t, h in images.items() if isinstance(h, str)}
+        if isinstance(images, dict)
+        else None,
+        boards=mapping(s.EikBoardComparison, decision.get("boards")),
+    )
+
+
+def eik_check(result):
+    examples = result.get("examples")
+    return s.EikCheck(
+        **{k: result.get(k) for k in s.EikCheck.model_fields if k != "examples"},
+        examples=[pick(s.EikMismatch, e) for e in examples if isinstance(e, dict)]
+        if isinstance(examples, list)
+        else None,
+    )
+
+
+def eik_job(row):
+    kind = row["kind"]
+    # Only a completed job's result is evidence: a job requeued after an infrastructure failure
+    # is measured again, and whatever it carried before is not this entry's result.
+    completed = row["state"] == "completed" and isinstance(row["result"], dict)
+    result = row["result"] if completed else None
+    chunks = row["chunks"]
+    return s.EikJob(
+        kind=kind,
+        function=row["function"],
+        target=row["target"],
+        chunks=chunks if isinstance(chunks, list) else None,
+        state=row["state"],
+        compare=eik_compare(result) if result is not None and kind == "compare" else None,
+        check=eik_check(result)
+        if result is not None and kind in ("fullcheck", "targetcheck")
+        else None,
+    )
+
+
+async def eik_report(session, sid):
+    sub = (await submissions(session, sid=sid))[0]
+    plans = await rows(
+        session, "SELECT id,plan,decision FROM evaluations WHERE submission_id=:sid", sid=sid
+    )
+    data = await rows(
+        session,
+        """
+       SELECT ej.evaluation_id,j.state,j.result,j.request->>'kind' AS kind,
+         j.request->>'function' AS function,j.request->>'target' AS target,
+         j.request->'chunks' AS chunks
+       FROM evaluation_jobs ej
+       JOIN benchmark_jobs j ON j.id=ej.job_id WHERE ej.evaluation_id IN
+         (SELECT id FROM evaluations WHERE submission_id=:sid)
+       ORDER BY ej.evaluation_id,j.id
+    """,
+        sid=sid,
+    )
+    result = []
+    for e in sub.evaluations:
+        saved = next(p for p in plans if p["id"] == e.id)
+        plan = saved["plan"] if isinstance(saved["plan"], dict) else {}
+        result.append(
+            s.EikEvaluationReport(
+                **e.model_dump(exclude={"decision"}),
+                decision=eik_decision(saved["decision"]),
+                seed=plan.get("seed"),
+                job_results=[eik_job(j) for j in data if j["evaluation_id"] == e.id],
+            )
+        )
+    return s.EikReport(submission=sub, evaluations=result)

@@ -18,9 +18,10 @@ records on one side, a king-of-the-hill board per slot on the other -- and the w
 each in its own shape. A slug of one kind is a 404 on the other kind's routes
 (`routers.competitions.resolve_competition`).
 
-TorchLean and Tensor kernels are one kind, `torchlean`, served under two slugs: they run the
-same competition code, so `routers/torchlean.py` builds the same routes for each, every one
-reading its own competition's database and intake settings (`kernel_settings_prefix`).
+TorchLean, Tensor kernels and Exact integer kernels are one kind, `torchlean`, served under three
+slugs: they share one database contract, so `routers/torchlean.py` builds the same routes for
+each, every one reading its own competition's database, intake settings
+(`kernel_settings_prefix`) and upload file (`kernel_upload`).
 
 FloatLib is one competition with eight boards: its own slug is the paid full entry, and each
 single-kernel practice board is `floatlib-<slot>`, all in the one FloatLib database. The registry
@@ -29,11 +30,12 @@ resolves every one of those slugs to the FloatLib entry, and `board` says which 
 Configuration (see `Settings.from_env`):
 
     COMPETITIONS_ENABLED=1
-    COMPETITIONS=deflate,floatlib,torchlean,tensor-kernels
+    COMPETITIONS=deflate,floatlib,torchlean,tensor-kernels,exact-integer-kernels
     COMPETITION_DEFLATE_DATABASE_URL=postgresql+psycopg://...
     COMPETITION_FLOATLIB_DATABASE_URL=postgresql+psycopg://...
     COMPETITION_TORCHLEAN_DATABASE_URL=postgresql+psycopg://...
     COMPETITION_TENSOR_KERNELS_DATABASE_URL=postgresql+psycopg://...
+    COMPETITION_EXACT_INTEGER_KERNELS_DATABASE_URL=postgresql+psycopg://...
 
 Without `COMPETITIONS`, the deployment serves `COMPETITION_SLUG` alone from
 `COMPETITION_DATABASE_URL`, exactly as it did when only one competition existed.
@@ -73,7 +75,51 @@ KINDS: Final = (DEFLATE, FLOATLIB, TORCHLEAN)
 # database. A miner signs the slug, so these are wire format.
 TENSOR_KERNELS: Final = "tensor-kernels"
 TENSOR_KERNELS_NAME: Final = "Tensor kernels"
-KERNEL_COMPETITIONS: Final = {TORCHLEAN: TORCHLEAN_NAME, TENSOR_KERNELS: TENSOR_KERNELS_NAME}
+# Exact integer kernels runs from its own coordinator (`exact-integer-kernels`) on Tensor kernels'
+# schema with the Lean parts removed, so it is the same kind under a third slug. A miner uploads
+# one C file, `entry.c`, and the evidence is instruction counts rather than timings
+# (`torchlean_reads.eik_report`).
+EXACT_INTEGER_KERNELS: Final = "exact-integer-kernels"
+EXACT_INTEGER_KERNELS_NAME: Final = "Exact integer kernels"
+KERNEL_COMPETITIONS: Final = {
+    TORCHLEAN: TORCHLEAN_NAME,
+    TENSOR_KERNELS: TENSOR_KERNELS_NAME,
+    EXACT_INTEGER_KERNELS: EXACT_INTEGER_KERNELS_NAME,
+}
+
+
+@dataclass(frozen=True, slots=True)
+class KernelUpload:
+    """The one file a kernel competition's miner uploads."""
+
+    # The multipart field and file name, and the name the source route serves it under.
+    name: str
+    # The source route's content type.
+    media_type: str
+    # `<PREFIX>_MAX_SOURCE_BYTES` when unset, and the most it may be set to: what the workers and
+    # the competition database's `ck_sources_size` accept.
+    default_bytes: int
+    max_bytes: int
+
+
+# Public admission policy can change without changing the workers' fixed 4 MiB ceiling.
+LEAN_UPLOAD: Final = KernelUpload(
+    "Kernel.lean", "text/plain; charset=utf-8", 1024 * 1024, 4 * 1024 * 1024
+)
+# The gate's `CAP_SOURCE_BYTES`, which the database's check constraint repeats.
+C_UPLOAD: Final = KernelUpload("entry.c", "text/x-c; charset=utf-8", 262_144, 262_144)
+KERNEL_UPLOADS: Final = {
+    TORCHLEAN: LEAN_UPLOAD,
+    TENSOR_KERNELS: LEAN_UPLOAD,
+    EXACT_INTEGER_KERNELS: C_UPLOAD,
+}
+
+
+def kernel_upload(slug: str) -> KernelUpload:
+    """The file a kernel competition accepts: `Kernel.lean`, or Exact integer kernels' `entry.c`."""
+    if slug not in KERNEL_COMPETITIONS:
+        raise ValueError(f"not a kernel competition: {slug!r}")
+    return KERNEL_UPLOADS[slug]
 
 
 def kernel_settings_prefix(slug: str) -> str:
@@ -84,6 +130,7 @@ def kernel_settings_prefix(slug: str) -> str:
     if slug not in KERNEL_COMPETITIONS:
         raise ValueError(f"not a kernel competition: {slug!r}")
     return slug.replace("-", "_")
+
 
 # FloatLib's slug and boards, as `conjectures-optimisation-float-kernels` names them
 # (`validator/service/sig.py`): the competition's own slug is the paid full entry, each

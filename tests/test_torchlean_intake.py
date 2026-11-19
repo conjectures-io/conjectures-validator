@@ -19,10 +19,12 @@ from conftest_api import build_settings
 from submission_api import competition_sig
 from submission_api.app import build_competitions
 from submission_api.competitions import (
+    KERNEL_COMPETITIONS,
     TENSOR_KERNELS,
     TORCHLEAN,
     Competition,
     CompetitionRegistry,
+    kernel_upload,
 )
 from submission_api.dependencies import get_services
 from submission_api.errors import ApiError, api_error_handler
@@ -150,6 +152,10 @@ def service(database, slug=TORCHLEAN, **settings):
         tensor_kernels_submissions_enabled=True,
         tensor_kernels_dev_skip_registration=False,
         tensor_kernels_registration_cutoff=T0 - timedelta(seconds=1),
+        exact_integer_kernels_max_source_bytes=262_144,
+        exact_integer_kernels_submissions_enabled=True,
+        exact_integer_kernels_dev_skip_registration=False,
+        exact_integer_kernels_registration_cutoff=T0 - timedelta(seconds=1),
         submissions_paused=False,
         production=False,
         competition_signature_window_seconds=300,
@@ -167,7 +173,7 @@ def service(database, slug=TORCHLEAN, **settings):
         competitions=CompetitionRegistry.of(
             Competition(
                 slug,
-                "TorchLean" if slug == TORCHLEAN else "Tensor kernels",
+                "TorchLean" if slug == TORCHLEAN else KERNEL_COMPETITIONS[slug],
                 8,
                 kind=TORCHLEAN,
                 engine=c,
@@ -194,6 +200,7 @@ async def request(
     **settings,
 ):
     app, engines = service(database, slug, **settings)
+    name = kernel_upload(slug).name
     try:
         async with AsyncClient(transport=ASGITransport(app), base_url="http://test") as client:
             if method == "get":
@@ -201,7 +208,7 @@ async def request(
             return await client.post(
                 f"/v1/competitions/{slug}" + path,
                 headers=headers(kernel, slug=slug) if provided is None else provided,
-                files=files if files is not None else {"Kernel.lean": ("Kernel.lean", kernel)},
+                files=files if files is not None else {name: (name, kernel)},
             )
     finally:
         for engine in engines:

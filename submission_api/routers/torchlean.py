@@ -1,9 +1,10 @@
 """Signed kernel-competition intake and the minimal polling surface returned by intake.
 
-TorchLean and Tensor kernels run the same competition code against their own databases, so one
-set of routes serves both: `build_router(slug)` mounts it under `/v1/competitions/<slug>`, with
-that slug's database, intake settings (`<prefix>_submissions_enabled` and friends, see
-`competitions.kernel_settings_prefix`) and signed-message competition.
+TorchLean, Tensor kernels and Exact integer kernels share one database contract, each in its own
+database, so one set of routes serves all three: `build_router(slug)` mounts it under
+`/v1/competitions/<slug>`, with that slug's database, intake settings
+(`<prefix>_submissions_enabled` and friends, see `competitions.kernel_settings_prefix`), upload
+file (`competitions.kernel_upload`) and signed-message competition.
 """
 
 import hashlib
@@ -23,6 +24,7 @@ from submission_api.competitions import (
     TORCHLEAN,
     Competition,
     kernel_settings_prefix,
+    kernel_upload,
 )
 from submission_api.dependencies import ServicesDep
 from submission_api.errors import (
@@ -123,21 +125,24 @@ async def spend(services, subject, limit, slug=TORCHLEAN):
         )
 
 
-UPLOAD_BODY = {
-    "requestBody": {
-        "required": True,
-        "content": {
-            "multipart/form-data": {
-                "schema": {
-                    "type": "object",
-                    "required": ["Kernel.lean"],
-                    "additionalProperties": False,
-                    "properties": {"Kernel.lean": {"type": "string", "format": "binary"}},
+def upload_body(slug: str) -> dict:
+    """The OpenAPI request body of `slug`'s upload: one file, under its own name."""
+    name = kernel_upload(slug).name
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "required": [name],
+                        "additionalProperties": False,
+                        "properties": {name: {"type": "string", "format": "binary"}},
+                    }
                 }
-            }
-        },
+            },
+        }
     }
-}
 
 
 def build_router(slug: str) -> APIRouter:
@@ -153,7 +158,7 @@ def build_router(slug: str) -> APIRouter:
         status_code=201,
         response_model=TorchLeanAccepted,
         dependencies=[Depends(open_check(slug))],
-        openapi_extra=UPLOAD_BODY,
+        openapi_extra=upload_body(slug),
     )
     async def submit(
         request: Request,
@@ -183,7 +188,9 @@ def build_router(slug: str) -> APIRouter:
             except ValueError as exc:
                 raise Unauthorized("Malformed hotkey signature.") from exc
             kernel = await read_kernel(
-                request, max_file_bytes=intake_setting(settings, slug, "max_source_bytes")
+                request,
+                max_file_bytes=intake_setting(settings, slug, "max_source_bytes"),
+                name=kernel_upload(slug).name,
             )
             digest = hashlib.sha256(kernel).hexdigest()
             attempt.update(source_sha256=digest, kernel_bytes=len(kernel))
