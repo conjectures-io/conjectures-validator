@@ -28,7 +28,7 @@ is refused by the others, because the slug is part of the signed message.
 | `GET /submissions` | Paged submissions, optionally by `state` |
 | `GET /submissions/{id}` | Gate status and per-board decisions |
 | `GET /submissions/{id}/report` | Instruction counts, checks and recorded decisions |
-| `GET /submissions/{id}/source` | `entry.c` (`text/x-c`), once it is a former champion on every board |
+| `GET /submissions/{id}/source` | `entry.c` (`text/x-c`), once it is a former champion on every board and not embargoed (below) |
 
 ## Intake
 
@@ -128,7 +128,11 @@ and `execution_limits` and `environment_limits` are empty, because nothing is ti
 Never published: the champions' own measurements in a compare report, harness fingerprints,
 the hard-input pool, compiled image digests of check shards, job errors and lease fields. The
 source route publishes a former champion's `entry.c` on the same terms as Tensor kernels: never
-while it holds any board.
+while it holds any board. It also withholds a source listed in the competition database's
+`source_embargoes`: the coordinator lists a dethroned source there while it contains most of a
+current champion's code (a sibling build of the same file, say), in the same transaction as the
+promotion that dethroned it. The API reads only `source_hash`, and only where the table exists;
+the other kernel competitions have none and are unchanged.
 
 ## Configuration
 

@@ -1,4 +1,5 @@
 {
   "0001_schema.sql": "8ac59d490680d11786e6a94b8b5f3f2128237d7fc14f01392938caf280276323",
-  "platform_api.sql": "fc301a5b20aa9a02f4677237a1431fb7d0fc84cfa60a034defe547df96557533"
+  "0002_source_embargoes.sql": "8147e836d1fcc44c8654e5fcb6f751be0ab8ed13b06e817bf145d0fc1da474bf",
+  "platform_api.sql": "da2dd3a9b3624f9ca59562a0499a40382731eaef75430e4bb739c28c7ebb04d8"
 }

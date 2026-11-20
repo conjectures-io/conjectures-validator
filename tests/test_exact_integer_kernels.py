@@ -50,9 +50,10 @@ def engines(roles_lock):
     with owner.begin() as c:
         c.exec_driver_sql("DROP SCHEMA public CASCADE; CREATE SCHEMA public")
         # As `coordinator.migrate` runs it: one transaction, no parameters.
-        c.exec_driver_sql(
-            (SCHEMA / "0001_schema.sql").read_text(), execution_options={"no_parameters": True}
-        )
+        for migration in ("0001_schema.sql", "0002_source_embargoes.sql"):
+            c.exec_driver_sql(
+                (SCHEMA / migration).read_text(), execution_options={"no_parameters": True}
+            )
         c.exec_driver_sql(
             "DO $$ BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='platform_api') "
             "THEN CREATE ROLE platform_api; END IF; END $$"
@@ -609,6 +610,28 @@ def test_report_of_a_compare_rejection_and_of_work_in_progress(database):
         "check": None,
     }
     assert ok(database, f"/submissions/{GATE_REJECTED}/report")["evaluations"] == []
+
+
+def test_a_source_that_discloses_a_current_champion_is_withheld(database):
+    # The coordinator embargoes a dethroned source that contains a current champion's code.
+    load(database)
+    first = next(s["source_sha256"] for s in ROWS["submissions"] if s["id"] == FIRST)
+    with database.owner.begin() as c:
+        c.execute(
+            sa.text(
+                "INSERT INTO source_embargoes(source_hash,protects,containment) VALUES (:h,:h,1)"
+            ),
+            {"h": first},
+        )
+    response = eik_get(database, f"/submissions/{FIRST}/source")
+    assert response.status_code == 403, response.text
+    assert response.json()["reason_code"] == "SOURCE_WITHHELD"
+    champions = ok(database, "/champions?board=overall")["champions"]
+    assert not next(c for c in champions if c["submission"] == FIRST)["source_available"]
+    assert not ok(database, f"/submissions/{FIRST}")["source_available"]
+    with database.owner.begin() as c:
+        c.exec_driver_sql("DELETE FROM source_embargoes")
+    assert eik_get(database, f"/submissions/{FIRST}/source").status_code == 200
 
 
 def test_source_of_a_former_champion_only(database):
