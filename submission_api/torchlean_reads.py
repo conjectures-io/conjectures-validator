@@ -62,9 +62,25 @@ async def counts(session):
     return {r["processing_state"]: r["n"] for r in result}
 
 
+async def embargoes(session):
+    """Whether this competition withholds dethroned sources that disclose a current champion.
+
+    Exact integer kernels' coordinator lists them in `source_embargoes` (its migration 0002); the
+    other competitions' databases have no such table. Where it exists the API must read it, so a
+    missing grant is an error, never a published source."""
+    return bool(
+        await session.scalar(text("SELECT to_regclass('public.source_embargoes') IS NOT NULL"))
+    )
+
+
 async def visible_sources(session, hashes):
     if not hashes:
         return set()
+    embargoed = (
+        "AND NOT EXISTS (SELECT 1 FROM source_embargoes x WHERE x.source_hash=s.source_sha256)"
+        if await embargoes(session)
+        else ""
+    )
     # Compare source hashes, not submission IDs; another hotkey cannot disclose a current king.
     result = await rows(
         session,
@@ -79,6 +95,7 @@ async def visible_sources(session, hashes):
         JOIN evaluations e ON e.id=p.evaluation_id JOIN submissions s ON s.id=e.submission_id
         WHERE s.source_sha256=ANY(:hashes)
         AND NOT EXISTS (SELECT 1 FROM current c WHERE c.source_sha256=s.source_sha256)
+        {embargoed}
     """,
         hashes=list(hashes),
     )
