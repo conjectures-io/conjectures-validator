@@ -47,7 +47,7 @@ SOURCES = {
 }
 
 
-# The tier-1 policy of the pinned 16-problem historical release, so these
+# The tier-1 policy of the pinned release, so these
 # tests need no tasks checkout and run in CI. Only `pool_size`, the counts and
 # `minimum_erdos_tasks` are rewritten per publication; every other field is the release's own.
 # `test_the_policy_fixture_is_the_pinned_tasks_policy` checks it against a real checkout.
@@ -56,8 +56,8 @@ TIER_1_POLICY = {
     "compiled_target_validation": True,
     "excluded_source_prefixes": [],
     "grouping": "none-single-target-v1",
-    "held_source_theorems_sha256": "sha256:2202c930f001a692ef6dc05b1fe9a94b553870c418252cc0335b82ef3e423a94",
-    "minimum_erdos_tasks": 219,
+    "held_source_theorems_sha256": "sha256:610841114d4a54e13929be3cc2fff896b3163337520feb53e5c42b6a3e607ef4",
+    "minimum_erdos_tasks": 218,
     "modes": [
         "formalized",
         "counterexample"
@@ -66,13 +66,13 @@ TIER_1_POLICY = {
     "one_reward_per_problem": True,
     "one_reward_per_reward_target": True,
     "outcomes_per_problem": 2,
-    "pool_size": 580,
-    "retired_conjectures_sha256": "sha256:0aa556dc0cce810f5a548dd6745d44416cc68e39f3106989c36bf5f530ec7981",
-    "retired_source_theorems_sha256": "sha256:f1c54c19ac2dc66253c77e8146b2c5599463f6436aa65426d6db4d86cd78a837",
-    "reward_target_count": 290,
+    "pool_size": 658,
+    "retired_conjectures_sha256": "sha256:d7af660013f564b4eaa6e381c58707f3749adb24a7d8ea9289e300dbc16d709b",
+    "retired_source_theorems_sha256": "sha256:ba6e2cf69c9581153aaaf73dcb261bcd2fdae7d163635da92d1e1caf7953a2e8",
+    "reward_target_count": 329,
     "reward_target_policy": "stable-theorem-target-v1",
     "selection": "audited-direct-propositions-v2",
-    "selection_audit_sha256": "sha256:aeac6782710258b7f2e4686f35e5b954fd229d4f46455fcff0762988e1ac3e11",
+    "selection_audit_sha256": "sha256:265cf995db710986c63f8026573290e173be90a4d47cecd63ceb648a66071ac2",
     "source_category": "research open",
     "source_families": [
         "erdos",
@@ -82,14 +82,14 @@ TIER_1_POLICY = {
         "research-targets",
         "wikipedia"
     ],
-    "source_theorem_count": 290,
+    "source_theorem_count": 329,
     "target_relations": {
         "counterexample": "logical-negation",
         "formalized": "definitionally-equal"
     },
     "task_groups_sha256": "sha256:9dc69f266ef1d3628dd08d6071763650941570be48c4f504e53794ddb8c584b6",
     "task_scope": "direct_proposition",
-    "task_targets_sha256": "sha256:b6f91565a174cc134f1d23892a53d250ff16e71849bf051eabf38b33d9c47176"
+    "task_targets_sha256": "sha256:d4ab7b7735fcade0f6e9ede858da6ae684b3dc77ae62efa021477f5f689789ec"
 }
 
 

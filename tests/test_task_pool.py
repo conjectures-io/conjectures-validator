@@ -101,6 +101,7 @@ def test_classical_admissions_match_review_and_exclude_held_or_resolved_targets(
         assert len(paired) == 2
         assert {row["mode"] for row in paired} == set(PRODUCTION_TASK_MODES)
     excluded = {
+        "Idoneal.idoneal_numbers_completeness",
         "Koethe.KotheConjecture",
         "EulerBrick.perfect_euler_brick_existence",
         "Irrational.irrational_catalanConstant",
@@ -173,7 +174,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
     assert targets.task_scope == TASK_POOL_TASK_SCOPE
-    assert len({item.source_path for item in selected}) == 283
+    assert len({item.source_path for item in selected}) == 282
     assert all(
         entry.source_status in SOURCE_FAMILY_STATUSES[entry.source_family]
         for entry in audit.entries
@@ -509,6 +510,7 @@ def test_retired_conjectures_are_readable_but_never_admissible():
         # Historical statements retain their actual source pin across later repins.
         if "repository_commit" not in entry["source"]:
             expected_state = {
+                "Idoneal.idoneal_numbers_completeness": "retired",
                 "Math30Catalog.source22": "held",
                 "Math30Catalog.source27": "retired",
                 "Erdos111.erdos_111": "retired",
