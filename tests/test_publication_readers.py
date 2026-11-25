@@ -56,7 +56,7 @@ TIER_1_POLICY = {
     "compiled_target_validation": True,
     "excluded_source_prefixes": [],
     "grouping": "none-single-target-v1",
-    "held_source_theorems_sha256": "sha256:58798f0dd494f0020a5f7e427093fe4214e669a9410139e1ccb3cc3a0656b92b",
+    "held_source_theorems_sha256": "sha256:610841114d4a54e13929be3cc2fff896b3163337520feb53e5c42b6a3e607ef4",
     "minimum_erdos_tasks": 218,
     "modes": [
         "formalized",
@@ -66,13 +66,13 @@ TIER_1_POLICY = {
     "one_reward_per_problem": True,
     "one_reward_per_reward_target": True,
     "outcomes_per_problem": 2,
-    "pool_size": 652,
-    "retired_conjectures_sha256": "sha256:5c7e3e219117fc0bcf2c9016e5a57dc25e95bf604776debecd2407a81e529336",
-    "retired_source_theorems_sha256": "sha256:ba6e2cf69c9581153aaaf73dcb261bcd2fdae7d163635da92d1e1caf7953a2e8",
-    "reward_target_count": 326,
+    "pool_size": 642,
+    "retired_conjectures_sha256": "sha256:7dbe7e57b0097c0cf5093cbc50c4260b7d8e5944d0549fe4c8add8d95785f98b",
+    "retired_source_theorems_sha256": "sha256:42665ebbe8569d4b8c135b1c563fd6f5ad81011d5bf343911c847101a1152425",
+    "reward_target_count": 321,
     "reward_target_policy": "stable-theorem-target-v1",
     "selection": "audited-direct-propositions-v2",
-    "selection_audit_sha256": "sha256:85a6dba98ed91188f61a6d09c80a608b7237f72b7121937cfc15b73894e8e918",
+    "selection_audit_sha256": "sha256:dbec6c14adc41e861ad9d5a4a3bd2974a14bd90bd4febd383b11f507e8052cc7",
     "source_category": "research open",
     "source_families": [
         "erdos",
@@ -81,14 +81,14 @@ TIER_1_POLICY = {
         "research-targets",
         "wikipedia"
     ],
-    "source_theorem_count": 326,
+    "source_theorem_count": 321,
     "target_relations": {
         "counterexample": "logical-negation",
         "formalized": "definitionally-equal"
     },
     "task_groups_sha256": "sha256:9dc69f266ef1d3628dd08d6071763650941570be48c4f504e53794ddb8c584b6",
     "task_scope": "direct_proposition",
-    "task_targets_sha256": "sha256:612164b54c5f2d90fb7710ce581f3df491d8c9024b48ea21104623965ab9552e"
+    "task_targets_sha256": "sha256:9fccd13dda27222e082e1bba4c7281e51b54b587a18cb093b4399d6683e49762"
 }
 
 
