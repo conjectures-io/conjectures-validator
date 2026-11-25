@@ -66,30 +66,29 @@ TIER_1_POLICY = {
     "one_reward_per_problem": True,
     "one_reward_per_reward_target": True,
     "outcomes_per_problem": 2,
-    "pool_size": 658,
-    "retired_conjectures_sha256": "sha256:d7af660013f564b4eaa6e381c58707f3749adb24a7d8ea9289e300dbc16d709b",
-    "retired_source_theorems_sha256": "sha256:ba6e2cf69c9581153aaaf73dcb261bcd2fdae7d163635da92d1e1caf7953a2e8",
-    "reward_target_count": 329,
+    "pool_size": 642,
+    "retired_conjectures_sha256": "sha256:7dbe7e57b0097c0cf5093cbc50c4260b7d8e5944d0549fe4c8add8d95785f98b",
+    "retired_source_theorems_sha256": "sha256:42665ebbe8569d4b8c135b1c563fd6f5ad81011d5bf343911c847101a1152425",
+    "reward_target_count": 321,
     "reward_target_policy": "stable-theorem-target-v1",
     "selection": "audited-direct-propositions-v2",
-    "selection_audit_sha256": "sha256:265cf995db710986c63f8026573290e173be90a4d47cecd63ceb648a66071ac2",
+    "selection_audit_sha256": "sha256:dbec6c14adc41e861ad9d5a4a3bd2974a14bd90bd4febd383b11f507e8052cc7",
     "source_category": "research open",
     "source_families": [
         "erdos",
         "greens-open-problems",
         "historical-open",
-        "millennium",
         "research-targets",
         "wikipedia"
     ],
-    "source_theorem_count": 329,
+    "source_theorem_count": 321,
     "target_relations": {
         "counterexample": "logical-negation",
         "formalized": "definitionally-equal"
     },
     "task_groups_sha256": "sha256:9dc69f266ef1d3628dd08d6071763650941570be48c4f504e53794ddb8c584b6",
     "task_scope": "direct_proposition",
-    "task_targets_sha256": "sha256:d4ab7b7735fcade0f6e9ede858da6ae684b3dc77ae62efa021477f5f689789ec"
+    "task_targets_sha256": "sha256:9fccd13dda27222e082e1bba4c7281e51b54b587a18cb093b4399d6683e49762"
 }
 
 

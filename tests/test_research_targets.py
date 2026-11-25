@@ -89,7 +89,10 @@ def test_this_candidate_activates_only_the_reviewed_ready_subset():
     # November 4 added twenty Erdős targets; the owner subsequently withdrew 21 and 111.
     # The November 13 release adds nineteen further Erdős targets; the owner withdrew 345 on November 16.
     # The November 20 external idoneal result retires one more target from the original base.
-    assert DEFAULT_TIER_SIZE == (257 - 1) + len(activated) - 2 + len(HISTORICAL_OPEN_TARGETS) + 18 + 19 - 1
+    # RH, Erdős 462 and Erdős 985 left on November 20; their holds became retirements on November 25.
+    # The November 25 review retires Erdős 143(ii), both Erdős 535 statements and Erdős 373 from the
+    # original base, and Erdős 393 from the November 13 batch.
+    assert DEFAULT_TIER_SIZE == (257 - 7) + len(activated) - 2 + len(HISTORICAL_OPEN_TARGETS) + 18 + (19 - 3)
     assert task_pool.staged_research_target(THEOREM, MATH30)
     assert not task_pool.staged_research_target(ACTIVE, MATH30)
     # The gate concerns this family only; an Erdős source is unaffected by it.
