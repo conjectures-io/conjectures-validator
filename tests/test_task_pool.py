@@ -60,15 +60,21 @@ def test_nineteen_problem_batch_excludes_solved_erdos173():
     additions = [row for row in review["targets"]
                  if row.get("source_family", "erdos") == "erdos"]
     # The owner withdrew 345 from the nineteen on November 16; it is now an excluded candidate.
-    assert len(additions) == 17
+    # 393 followed on November 25 (it would follow from an unverified weak abc preprint).
+    assert len(additions) == 16
     assert {row["number"] for row in additions} == {
-        151, 159, 295, 311, 322, 388, 389, 393, 422, 423, 430,
+        151, 159, 295, 311, 322, 388, 389, 422, 423, 430,
         461, 467, 472, 478, 483, 545,
     }
     excluded = {row["number"]: row["decision"] for row in review["excluded_candidates"]}
     assert excluded[345] == "exclude_owner_withdrawn"
-    assert excluded[462] == "hold_unverified_resolution_claim"
-    assert excluded[985] == "hold_unverified_resolution_claim"
+    # The November 20 holds on 462 and 985 became retirements once the RH and GRH proofs were verified.
+    assert excluded[462] == "exclude_external_solution"
+    assert excluded[985] == "exclude_external_solution"
+    assert excluded[143] == "exclude_external_solution"
+    assert excluded[535] == "exclude_external_solution"
+    assert excluded[373] == "exclude_owner_withdrawn"
+    assert excluded[393] == "exclude_owner_withdrawn"
     targets = load_task_targets(TIER_METADATA / "task-targets.json").theorems
     assert {name for name in targets if name.startswith("Erdos12.")} == {
         "Erdos12.erdos_12.parts.iii"
@@ -80,7 +86,7 @@ def test_nineteen_problem_batch_excludes_solved_erdos173():
     assert "Erdos345.erdos_345" not in targets
     assert "Erdos326.erdos_326" not in targets
     assert "Erdos509.erdos_509" not in targets
-    assert sum(row["decision"] == "eligible" for row in additions) == 17
+    assert sum(row["decision"] == "eligible" for row in additions) == 16
     retired = load_retired_sources(TIER_METADATA / "retired-source-theorems.json")
     assert "Erdos173.erdos_173" in retired.theorems
     assert "Erdos345.erdos_345" in retired.theorems
@@ -167,7 +173,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert sum(
         item.source_path.startswith(ERDOS_SOURCE_PREFIX)
         for item in selected
-    ) == 252
+    ) == 247
     assert sum(
         item.source_path.startswith(GREENS_OPEN_PROBLEMS_SOURCE_PREFIX)
         for item in selected
@@ -179,7 +185,7 @@ def test_task_selection_is_new_and_audited_across_source_families():
     assert tuple(item.theorem for item in selected) == targets.theorems
     assert set(targets.theorems) <= set(audit.theorems)
     assert targets.task_scope == TASK_POOL_TASK_SCOPE
-    assert len({item.source_path for item in selected}) == 279
+    assert len({item.source_path for item in selected}) == 276
     assert all(
         entry.source_status in SOURCE_FAMILY_STATUSES[entry.source_family]
         for entry in audit.entries
@@ -397,10 +403,7 @@ def test_october_exits_leave_admission_and_their_old_tasks_stay_readable():
     assert len(exits) == 19
     assert retired_now <= retired.theorems
     # A hold is not a retirement: the held names are refused through their own list only.
-    assert held.theorems == OCTOBER_HOLDS | {
-        "Math30Catalog.source22", "RiemannHypothesis.riemannHypothesis",
-        "Erdos462.erdos_462", "Erdos985.erdos_985",
-    }
+    assert held.theorems == OCTOBER_HOLDS | {"Math30Catalog.source22"}
     assert held.theorems.isdisjoint(retired.theorems)
     assert all(hold.reason_code in HOLD_REASON_CODES for hold in held.holds)
     assert all(hold.held_on == "2026-10-06" for hold in held.holds if hold.theorem in OCTOBER_HOLDS)
@@ -519,9 +522,14 @@ def test_retired_conjectures_are_readable_but_never_admissible():
         if "repository_commit" not in entry["source"]:
             expected_state = {
                 "Idoneal.idoneal_numbers_completeness": "retired",
-                "RiemannHypothesis.riemannHypothesis": "held",
-                "Erdos462.erdos_462": "held",
-                "Erdos985.erdos_985": "held",
+                "RiemannHypothesis.riemannHypothesis": "retired",
+                "Erdos462.erdos_462": "retired",
+                "Erdos985.erdos_985": "retired",
+                "Erdos143.erdos_143.parts.ii": "retired",
+                "Erdos373.erdos_373": "retired",
+                "Erdos393.erdos_393": "retired",
+                "Erdos535.erdos_535": "retired",
+                "Erdos535.erdos_535.variants.first_open_case": "retired",
                 "Math30Catalog.source22": "held",
                 "Math30Catalog.source27": "retired",
                 "Erdos111.erdos_111": "retired",
